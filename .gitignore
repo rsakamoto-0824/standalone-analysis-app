@@ -1,0 +1,13 @@
+build/
+logs/
+verification-output/
+*.asv
+*.autosave
+*.mlappinstall
+*.exe
+*.ctf
+output/
+.playwright-cli/
+.DS_Store
+*.mat
+!tests/fixtures/.gitkeep

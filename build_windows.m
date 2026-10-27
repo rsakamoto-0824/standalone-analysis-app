@@ -1,0 +1,20 @@
+function result = build_windows()
+project_root = setup_paths();
+require_r2025b();
+if ~ispc || ~strcmp(computer('arch'), 'win64')
+    error('build_windows:wrongPlatform', 'Windows 64bit の MATLAB R2025b で実行してください。');
+end
+if ~license('test', 'Compiler') || ~license('test', 'Statistics_Toolbox')
+    error('build_windows:missingToolbox', 'MATLAB Compiler と Statistics and Machine Learning Toolbox が必要です。');
+end
+entry = fullfile(project_root, 'app', 'AnalysisApp.mlapp');
+if ~isfile(entry)
+    error('build_windows:missingMlapp', '先に docs/windows-build.md の手順で AnalysisApp.mlapp を作成してください。');
+end
+run_tests();
+output = fullfile(project_root, 'build', 'windows');
+result = compiler.build.standaloneWindowsApplication(entry, ...
+    'ExecutableName', 'StandaloneAnalysisApp', 'OutputDir', output, ...
+    'AdditionalFiles', {fullfile(project_root, 'core'), fullfile(project_root, 'app', 'AnalysisController.m'), ...
+        fullfile(project_root, 'app', 'plot_shap_figures.m')}, 'Verbose', 'on');
+end
