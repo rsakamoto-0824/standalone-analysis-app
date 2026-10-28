@@ -13,6 +13,10 @@ for index = 1:numel(objects)
         item.Title.Color = text; item.XLabel.Color = text; item.YLabel.Color = text;
     elseif isa(item, 'matlab.graphics.illustration.ColorBar')
         item.Color = text;
+    elseif isa(item, 'matlab.graphics.illustration.Legend')
+        item.Color = surface; item.TextColor = text; item.EdgeColor = text;
+    elseif isa(item, 'matlab.graphics.primitive.Text')
+        item.Color = text;
     elseif isa(item, 'matlab.ui.control.Table')
         item.BackgroundColor = [surface; background]; item.ForegroundColor = text;
     else

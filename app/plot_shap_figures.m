@@ -17,9 +17,16 @@ ax.TickLabelInterpreter = 'none'; ax.XTickLabelRotation = 25;
 ylabel(ax, 'SHAP value'); title(ax, '平均 |SHAP| の大きい順');
 for position = 1:numel(order)
     column = order(position); names{position + 1} = ['SHAP 依存: ' predictor_names{column}];
-    tab = uitab(parent, 'Title', names{position + 1}); layout = uigridlayout(tab, [1, 1]);
-    ax = uiaxes(layout); charts{position + 1} = ax;
+    tab = uitab(parent, 'Title', names{position + 1});
     others = order(order ~= column);
+    if strcmp(predictor_names{column}, 'RESIST_TH')
+        color_values = []; color_name = '';
+        if ~isempty(others), color_values = inputs(:, others(1)); color_name = predictor_names{others(1)}; end
+        view = SwingCurveView(tab, inputs(:, column), shap_all(:, column), color_values, color_name);
+        charts{position + 1} = view.Axes;
+        continue;
+    end
+    layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout); charts{position + 1} = ax;
     if isempty(others)
         scatter(ax, inputs(:, column), shap_all(:, column), 18, 'filled');
     else
