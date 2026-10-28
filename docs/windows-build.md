@@ -21,7 +21,7 @@ setup_paths;
 controller = launch_analysis_app;
 ```
 
-10個の機能タブ、Excel / CSV 読込、列の割当・確認、結果書出しを確認します。SHAP は処理中表示を確認し、別ウィンドウのグラフを PNG に保存します。
+9個の機能タブ、Excel / CSV 読込、列の割当・確認、結果書出しを確認します。各学習画面で RMSE・R²・評価表・列要約を確認します。SHAP はアプリ内のグラフと PNG 保存を確認します。設定・Help・画面リサイズも確認します。
 
 ## 3. App Designer の入口を作成する
 
@@ -45,7 +45,7 @@ R2025b の `.mlapp` は App Designer で作成します。バイナリ形式を�
    app.Controller = AnalysisController(app.UIFigure);
    ```
 
-4. `app/AnalysisApp.mlapp` として保存し、Run で10個のタブが開くことを確認します。
+4. `app/AnalysisApp.mlapp` として保存し、Run で9個のタブが開くことを確認します。
 5. App Designer の Design View には空の UIFigure が表示されます。タブや表の配置は `AnalysisController.m` で変更します。R2025b で開き直せることを確認してください。
 
 入口を含む全ソースを同じフォルダ構成で保管します。MATLAB R2022b では学習・保存しません。
@@ -72,7 +72,7 @@ comparison = compare_models('old.mat', 'new.mat', Xcheck);
 result = build_windows;
 ```
 
-実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/` へ生成します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
+実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/` へ生成します。`core/`、`app/` とHTML手順書のフォルダを同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
 
 配布用の Runtime は [MathWorks の MATLAB Runtime 配布ページ](https://www.mathworks.com/products/compiler/matlab-runtime.html)から R2025b / Windows 64bit を取得します。会社の許可済み手順で、ビルド環境と対応する更新版をオフライン配布してください。アプリ自身がネットから Runtime を取得する処理はありません。
 
@@ -82,15 +82,18 @@ result = build_windows;
 
 MATLAB Runtime R2025b だけを入れた Windows 64bit 端末で、以下を実施します。
 
-- [ ] 起動して10タブが表示される。
+- [ ] 起動して9タブが表示される。
 - [ ] Excel / CSV のシート・ヘッダー指定と列割当が動く。
 - [ ] 列対応の確認前は学習できず、変更後は再確認が必要。
 - [ ] APC の24行で停止、25〜149行で警告、150行以上で警告なし。
-- [ ] 4種類の学習で `Train_Model` だけが保存され、画面の全検証が成功する。
-- [ ] 保存キャンセル後に SHAP / 面内推定が実行されない。
+- [ ] 3種類の学習で `Train_Model` だけが保存され、画面の全検証が成功する。
+- [ ] 保存キャンセル後も評価結果が残り、後続 SHAP が実行されない。
 - [ ] SHAP とノイズ除去用 SHAP が Runtime でも動き、グラフを PNG に保存できる。
 - [ ] 推定対象の外挿行が表で分かり、警告が画面にも残る。
-- [ ] 統計・D 最適計画・ワードクラウドと CSV / Excel 出力が動く。
+- [ ] D/I最適、2/3水準の直交表、固定点を保つ拡張計画、交絡図と係数表、ワードクラウドが動く。
+- [ ] 設定の保存・再起動後の反映、ライト/ダーク、Helpの用語・公式リンク・同梱HTMLが使える。
+- [ ] 幅900/1320/1600pxで入力・結果を操作でき、図が外部ウィンドウへ出ない。
+- [ ] 8指標の一括評価、未定義指標の理由、入力・実測・予測・残差の要約と CSV / Excel 出力を確認する。
 - [ ] ログを追記でき、測定値そのものを含まない。
 - [ ] 保存先やログ先が書込み不可の場合、エラーを画面で確認できる。
 - [ ] 旧・新モデルの `compare_models` を開発用 R2025b 上で実行し、結果を確認済み。
