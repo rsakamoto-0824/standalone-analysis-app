@@ -1,11 +1,15 @@
 classdef AnalysisController < handle
     properties (SetAccess = private)
         Window
-        Panels = cell(1, 10)
+        Panels = cell(1, 7)
         LogFolder
     end
     properties (Access = private)
         Constants
+        Settings
+        SettingsPath
+        SettingsUI
+        MainTabs
     end
     methods
         function app = AnalysisController(window)
@@ -13,529 +17,526 @@ classdef AnalysisController < handle
             addpath(fullfile(project_root, 'core'));
             require_r2025b();
             app.Constants = model_constants();
+            app.SettingsPath = fullfile(prefdir, 'StandaloneAnalysisApp', 'settings.json');
+            settings_warning = '';
+            try
+                app.Settings = app_settings('load', app.SettingsPath);
+            catch err
+                app.Settings = app_settings('defaults'); settings_warning = err.message;
+            end
             app.Window = window;
-            app.Window.Name = 'スタンドアローン解析アプリ — R2025b';
-            app.Window.Position(3:4) = [1320, 860];
+            window.Name = 'スタンドアローン解析アプリ — R2025b';
+            window.Position(3:4) = [1320, 860]; window.Resize = 'on'; window.AutoResizeChildren = 'off';
             app.LogFolder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
-            root = uigridlayout(window, [1, 1]);
-            tabs = uitabgroup(root, 'TabLocation', 'left');
-            titles = {'1 APC 学習', '2 スイングカーブ学習', '3 面内学習・推定', ...
-                '4 汎用 GPR 学習', '5 保存モデルで推定', '6 SHAP 解析', ...
-                '7 評価指標', '8 列の要約統計量', '9 D 最適計画', '10 ワードクラウド'};
-            kinds = {'apc', 'swing', 'in_plane', 'generic', 'predict', ...
-                'shap', 'metrics', 'summary', 'doe', 'words'};
+            tabs = uitabgroup(window, 'TabLocation', 'left'); app.MainTabs = tabs;
+            titles = {'APC 学習', 'スイングカーブ学習', '汎用 GPR 学習', '保存モデルで推定', 'SHAP 解析', '実験計画作成', 'ワードクラウド'};
+            kinds = {'apc', 'swing', 'generic', 'predict', 'shap', 'doe', 'words'};
             for index = 1:numel(titles)
-                tab = uitab(tabs, 'Title', titles{index});
+                tab = uitab(tabs, 'Title', sprintf('%d %s', index, titles{index}));
                 app.createPanel(index, tab, kinds{index});
             end
+            app.createSettings(uitab(tabs, 'Title', '8 設定'));
+            create_app_help(uitab(tabs, 'Title', '9 Help'), project_root);
+            window.SizeChangedFcn = @(~, ~) app.resizePanels();
+            app.resizePanels(); app.applyTheme();
+            if ~isempty(settings_warning), app.message(1, ['設定を読めないため初期値を使用: ' settings_warning]); end
         end
     end
     methods (Access = private)
         function createPanel(app, index, tab, kind)
-            layout = uigridlayout(tab, [1, 2]);
-            layout.ColumnWidth = {390, '1x'};
-            control_panel = uipanel(layout, 'Scrollable', 'on');
-            controls = uigridlayout(control_panel, [14, 1]);
-            controls.RowHeight = {36, 30, 48, 30, 60, 30, 35, 180, 30, 90, 30, 25, 34, 80};
-            state = struct('Kind', kind, 'Data', [], 'TestData', [], 'Model', [], ...
-                'Confirmed', false, 'Result', table(), 'Figures', {{}}, 'ModelPath', '');
-            state.Description = uilabel(controls, 'Text', '列の順序と割当を確認してから実行してください。', 'WordWrap', 'on');
-            state.Load = uibutton(controls, 'Text', 'Excel / CSV を開く', 'ButtonPushedFcn', @(~, ~) app.loadData(index, false));
+            state = struct('Kind', kind, 'Data', [], 'Model', [], 'Confirmed', false, ...
+                'Result', table(), 'Figures', {{}}, 'FigureNames', {{}}, 'ModelPath', '');
+            state.Layout = uigridlayout(tab, [1, 2]); state.Layout.ColumnWidth = {380, '1x'};
+            controls = uigridlayout(state.Layout, [14, 1], 'Scrollable', 'on');
+            controls.Layout.Row = 1; controls.Layout.Column = 1;
+            controls.RowHeight = {42, 30, 50, 30, 76, 30, 32, 180, 32, 32, 32, 24, 34, 120}; state.Controls = controls;
+            uilabel(controls, 'Text', '列の順序・割当を確認して実行してください。', 'WordWrap', 'on');
+            state.Load = uibutton(controls, 'Text', 'Excel / CSV を開く', 'ButtonPushedFcn', @(~, ~) app.loadData(index));
             state.Source = uilabel(controls, 'Text', '入力ファイル未選択', 'WordWrap', 'on');
             state.LoadModel = uibutton(controls, 'Text', '学習済み MAT を開く', 'ButtonPushedFcn', @(~, ~) app.loadModel(index));
             state.ModelInfo = uitextarea(controls, 'Editable', 'off', 'Value', {'BasisFunction: constant（固定）'});
             state.Mode = uidropdown(controls, 'Items', {'通常'}, 'ValueChangedFcn', @(~, ~) app.updateMapping(index));
-            options = uigridlayout(controls, [1, 2]);
-            options.Padding = [0, 0, 0, 0];
-            options.ColumnWidth = {'1x', '1x'};
-            state.Kernel = uidropdown(options, 'Items', app.Constants.KERNELS, 'Tooltip', 'kernel');
-            state.FitMethod = uidropdown(options, 'Items', app.Constants.FIT_METHODS, 'Tooltip', 'fit_method');
-            state.Mapping = uitable(controls, 'Data', cell(0, 3), ...
-                'ColumnName', {'順序', '変数', '入力列'}, 'ColumnEditable', [false, false, true], ...
-                'ColumnWidth', {42, 125, 'auto'}, 'CellEditCallback', @(~, ~) app.invalidate(index));
-            state.TestLoad = uibutton(controls, 'Text', '推定用 Excel / CSV を開く（省略可）', ...
-                'ButtonPushedFcn', @(~, ~) app.loadData(index, true));
-            state.TestMapping = uitable(controls, 'Data', cell(0, 3), ...
-                'ColumnName', {'順序', '変数', '推定用入力列'}, 'ColumnEditable', [false, false, true], ...
-                'CellEditCallback', @(~, ~) app.invalidate(index));
-            state.Confirm = uibutton(controls, 'Text', '上表の列対応・順序を確認', ...
-                'ButtonPushedFcn', @(~, ~) app.confirmMapping(index));
-            state.IsPlot = uicheckbox(controls, 'Text', 'グラフを表示（IsPlot = 1）', 'Value', false);
-            state.Run = uibutton(controls, 'Text', '実行', 'FontWeight', 'bold', ...
-                'ButtonPushedFcn', @(~, ~) app.run(index));
+            options = uigridlayout(controls, [1, 2]); options.Padding = [0, 0, 0, 0];
+            state.Kernel = uidropdown(options, 'Items', app.Constants.KERNELS, 'Value', app.Settings.Kernel, 'Tooltip', 'kernel');
+            state.FitMethod = uidropdown(options, 'Items', app.Constants.FIT_METHODS, 'Value', app.Settings.FitMethod, 'Tooltip', 'fit_method');
+            state.Mapping = uitable(controls, 'Data', cell(0, 3), 'ColumnName', {'順序', '変数', '入力列'}, ...
+                'ColumnEditable', [false, false, true], 'ColumnWidth', {42, 110, 'auto'}, 'CellEditCallback', @(~, ~) app.invalidate(index));
+            state.Actual = app.choiceRow(controls, '評価用の実測列（任意）', {'(実測値なし)'});
+            state.Actual.ValueChangedFcn = @(~, ~) app.invalidate(index);
+            state.Bins = app.numberRow(controls, 'KL / MI ビン数（0=自動）', app.Settings.Bins, [0, 1000]);
+            state.Bins.ValueChangedFcn = @(~, ~) app.invalidate(index);
+            state.Confirm = uibutton(controls, 'Text', '上表の列対応・順序を確認', 'ButtonPushedFcn', @(~, ~) app.confirmMapping(index));
+            state.IsPlot = uicheckbox(controls, 'Text', 'SHAP グラフをアプリ内に表示', 'Value', app.Settings.ShowPlots);
+            state.Run = uibutton(controls, 'Text', '実行', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) app.run(index));
             state.Messages = uitextarea(controls, 'Editable', 'off', 'Value', {'実行待ち'});
-            right = uigridlayout(layout, [5, 1]);
-            right.RowHeight = {'1x', 34, 24, 180, 24};
-            view_tabs = uitabgroup(right);
-            result_tab = uitab(view_tabs, 'Title', '結果');
-            result_grid = uigridlayout(result_tab, [1, 1]);
-            state.Results = uitable(result_grid, 'Data', table());
-            preview_tab = uitab(view_tabs, 'Title', '入力プレビュー');
-            preview_grid = uigridlayout(preview_tab, [1, 1]);
-            state.Preview = uitable(preview_grid, 'Data', cell(0, 0));
-            export_bar = uigridlayout(right, [1, 2]);
-            export_bar.Padding = [0, 0, 0, 0];
-            uibutton(export_bar, 'Text', '結果を CSV / Excel に保存', 'ButtonPushedFcn', @(~, ~) app.exportResult(index));
+            state.Right = uigridlayout(state.Layout, [3, 1]); state.Right.Layout.Row = 1; state.Right.Layout.Column = 2;
+            state.Right.RowHeight = {62, '1x', 34};
+            state.Headline = uilabel(state.Right, 'Text', 'RMSE: —    R²: —', 'WordWrap', 'on', 'FontWeight', 'bold');
+            state.Views = uitabgroup(state.Right);
+            state.Results = app.tableTab(state.Views, '結果'); state.Preview = app.tableTab(state.Views, '入力プレビュー');
+            state.Metrics = app.tableTab(state.Views, 'モデル評価'); state.Summary = app.tableTab(state.Views, '列の要約');
+            chart_tab = uitab(state.Views, 'Title', 'グラフ'); chart_grid = uigridlayout(chart_tab, [1, 1]);
+            state.ChartTabs = uitabgroup(chart_grid); state.Verification = app.tableTab(state.Views, '保存後検証');
+            state.BaseTabs = state.Views.Children;
+            export_bar = uigridlayout(state.Right, [1, 2]); export_bar.Padding = [0, 0, 0, 0];
+            uibutton(export_bar, 'Text', '表示中の表を保存', 'ButtonPushedFcn', @(~, ~) app.exportResult(index));
             uibutton(export_bar, 'Text', 'グラフを PNG に保存', 'ButtonPushedFcn', @(~, ~) app.exportFigure(index));
-            uilabel(right, 'Text', '保存後の自動検証');
-            state.Verification = uitable(right, 'Data', table());
-            uilabel(right, 'Text', '警告・検証結果はこの画面に残ります。', 'FontColor', [0.35, 0.35, 0.35]);
             if ~any(strcmp(kind, {'predict', 'shap'}))
-                state.LoadModel.Visible = 'off';
-                controls.RowHeight{4} = 0;
+                state.LoadModel.Visible = 'off'; controls.RowHeight{4} = 0;
+                state.Actual.Parent.Visible = 'off'; controls.RowHeight{9} = 0;
             end
-            if ~strcmp(kind, 'in_plane')
-                state.TestLoad.Visible = 'off'; state.TestMapping.Visible = 'off';
-                controls.RowHeight{9} = 0; controls.RowHeight{10} = 0;
-            end
-            if ~any(strcmp(kind, {'apc', 'shap'}))
-                state.IsPlot.Visible = 'off'; controls.RowHeight{12} = 0;
-            end
+            state.Mode.Visible = 'off'; controls.RowHeight{6} = 0;
+            if ~any(strcmp(kind, {'apc', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{12} = 0; end
             if strcmp(kind, 'generic')
-                delete(state.Mode);
-                state.InputCount = uieditfield(controls, 'numeric', 'Value', 4, ...
-                    'Limits', [1, Inf], 'RoundFractionalValues', 'on', ...
-                    'Tooltip', '説明変数の数（順序は対応表で変更）', ...
-                    'ValueChangedFcn', @(~, ~) app.updateMapping(index));
-                state.InputCount.Layout.Row = 6;
+                delete(state.Mode); controls.RowHeight{6} = 32;
+                state.InputCount = app.numberRow(controls, '説明変数の数', app.Settings.InputCount, [1, 100]);
+                state.InputCount.Parent.Layout.Row = 6;
+                state.InputCount.ValueChangedFcn = @(~, ~) app.updateMapping(index);
             elseif strcmp(kind, 'predict')
-                state.Mode.Items = {'汎用推定', '面内推定'};
+                state.Mode.Visible = 'on'; controls.RowHeight{6} = 30; state.Mode.Items = {'汎用推定', '面内推定（既存モデル）'};
             elseif strcmp(kind, 'shap')
-                state.Mode.Items = {'SHAP依存確認', 'ノイズ除去用SHAP'};
-            elseif strcmp(kind, 'metrics')
-                state.Mode.Items = {'一括（rmse / mae / r / r_squared）', 'RMSE', 'RMSPE (%)', ...
-                    'MAE', 'Pearson r', 'r²（相関係数の2乗）', 'KL (nats)', '相互情報量 (bits)'};
-                state.Mode.ValueChangedFcn = @(~, ~) app.invalidate(index);
-                delete(options.Children);
-                uilabel(options, 'Text', 'ビン数（0 = 自動）');
-                state.Bins = uieditfield(options, 'numeric', 'Value', 0, 'Limits', [0, Inf], 'RoundFractionalValues', 'on');
-            elseif strcmp(kind, 'summary')
-                state.Mapping.Visible = 'off';
-                state.Columns = uilistbox(controls, 'Items', {}, 'Multiselect', 'on', ...
-                    'ValueChangedFcn', @(~, ~) app.invalidate(index));
-                state.Columns.Layout.Row = 8;
-                state.Description.Text = '対象列を複数選択できます。要約統計量だけは NaN を除外します。';
+                state.Mode.Visible = 'on'; controls.RowHeight{6} = 30; state.Mode.Items = {'SHAP依存確認', 'ノイズ除去用SHAP'};
             end
-            if ~any(strcmp(kind, app.Constants.MODEL_TYPES)) && ~strcmp(kind, 'metrics')
+            if ~any(strcmp(kind, {'apc', 'swing', 'generic'}))
                 options.Visible = 'off'; controls.RowHeight{7} = 0;
+            else
+                state.Kernel.ValueChangedFcn = @(~, ~) app.invalidate(index);
+                state.FitMethod.ValueChangedFcn = @(~, ~) app.invalidate(index);
             end
             if any(strcmp(kind, {'doe', 'words'}))
                 delete(controls.Children);
-                controls.RowHeight = {48, 32, 32, 32, 32, 220, 36, 90};
-                uilabel(controls, 'Text', '結果は右の表に表示します。', 'WordWrap', 'on');
                 if strcmp(kind, 'doe')
-                    state.Factors = app.numberRow(controls, '因子数', 3, [1, Inf]);
-                    state.Runs = app.numberRow(controls, '実験数', 20, [1, Inf]);
-                    seed_row = uigridlayout(controls, [1, 2]);
-                    uilabel(seed_row, 'Text', 'seed（空欄 = shuffle）');
-                    state.Seed = uieditfield(seed_row, 'text', 'Value', '42');
-                    uilabel(controls, 'Text', '二次モデルの D 最適計画を作成します。');
-                    uilabel(controls, 'Text', '因子は符号化された計画値です。');
+                    controls.RowHeight = {56, 32, 32, 32, 32, 32, 32, 32, 44, 140, 30, 34, 110};
+                    uilabel(controls, 'Text', '符号化範囲 −1〜1。拡張では既存点を固定します。直交表の実験数は自動です。', 'WordWrap', 'on');
+                    state.Method = app.choiceRow(controls, '方式', {'D最適', 'I最適', '直交表', '拡張 D最適', '拡張 I最適'});
+                    state.DesignModel = app.choiceRow(controls, '評価モデル', {'quadratic', 'interaction', 'linear'});
+                    state.Factors = app.numberRow(controls, '因子数', app.Settings.Factors, [1, 8]);
+                    state.Factors.ValueChangedFcn = @(~, ~) app.updateMapping(index);
+                    state.Runs = app.numberRow(controls, '実験数（拡張時は追加数）', app.Settings.Runs, [1, 300]);
+                    state.Levels = app.choiceRow(controls, '直交表の水準数', {'2', '3'});
+                    state.Seed = app.numberRow(controls, '乱数 seed', app.Settings.Seed, [0, 2^32 - 1]);
+                    parameters = {state.Method, state.DesignModel, state.Runs, state.Levels, state.Seed};
+                    for parameter = 1:numel(parameters)
+                        parameters{parameter}.ValueChangedFcn = @(~, ~) app.invalidate(index);
+                    end
+                    state.Load = uibutton(controls, 'Text', '既存計画 Excel / CSV を開く', 'ButtonPushedFcn', @(~, ~) app.loadData(index));
+                    state.Source = uilabel(controls, 'Text', '既存計画未選択', 'WordWrap', 'on');
+                    state.Mapping = uitable(controls, 'Data', cell(0, 3), 'ColumnName', {'順序', '因子', '入力列'}, ...
+                        'ColumnEditable', [false, false, true], 'CellEditCallback', @(~, ~) app.invalidate(index));
+                    uibutton(controls, 'Text', '既存計画を解除', 'ButtonPushedFcn', @(~, ~) app.clearDesign(index));
                 else
+                    controls.RowHeight = {56, 32, 260, 34, 110};
+                    uilabel(controls, 'Text', '日本語は空白で区切ります。1文字以下の単語は除外します。', 'WordWrap', 'on');
                     uibutton(controls, 'Text', 'テキストファイルを開く', 'ButtonPushedFcn', @(~, ~) app.loadText(index));
-                    uilabel(controls, 'Text', '日本語は空白で区切って入力してください。');
-                    uilabel(controls, 'Text', '日本語の自動分かち書きは行いません。');
-                    uilabel(controls, 'Text', '1文字以下の単語は除外します。');
                     state.Text = uitextarea(controls, 'Value', {'MATLAB analysis MATLAB model'});
                 end
                 state.Run = uibutton(controls, 'Text', '実行', 'ButtonPushedFcn', @(~, ~) app.run(index));
                 state.Messages = uitextarea(controls, 'Editable', 'off', 'Value', {'実行待ち'});
+                state.Headline.Text = '結果とグラフをこの画面内に表示します。';
             end
             app.Panels{index} = state;
         end
 
-        function field = numberRow(~, parent, label, value, limits)
-            row = uigridlayout(parent, [1, 2]); row.Padding = [0, 0, 0, 0];
-            uilabel(row, 'Text', label);
-            field = uieditfield(row, 'numeric', 'Value', value, 'Limits', limits, 'RoundFractionalValues', 'on');
+        function view = tableTab(~, parent, title_text)
+            tab = uitab(parent, 'Title', title_text); layout = uigridlayout(tab, [1, 1]); view = uitable(layout, 'Data', table());
         end
-
-        function loadData(app, index, is_test)
+        function field = numberRow(~, parent, label, value, limits)
+            row = uigridlayout(parent, [1, 2]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {'1.4x', '1x'};
+            uilabel(row, 'Text', label); field = uieditfield(row, 'numeric', 'Value', value, 'Limits', limits, 'RoundFractionalValues', 'on');
+        end
+        function field = choiceRow(~, parent, label, items)
+            row = uigridlayout(parent, [1, 2]); row.Padding = [0, 0, 0, 0];
+            uilabel(row, 'Text', label); field = uidropdown(row, 'Items', items);
+        end
+        function resizePanels(app)
+            % 最上位のコンテナーは明示して伸縮し、各タブ内はグリッドに任せる。
+            app.MainTabs.Position = [10, 10, max(1, app.Window.Position(3) - 20), max(1, app.Window.Position(4) - 20)];
+            for index = 1:numel(app.Panels)
+                state = app.Panels{index}; if isempty(state), continue; end
+                if app.Window.Position(3) < 1100
+                    state.Controls.Layout.Row = 1; state.Controls.Layout.Column = 1;
+                    state.Right.Layout.Row = 2; state.Right.Layout.Column = 1;
+                    state.Layout.ColumnWidth = {'1x'}; state.Layout.RowHeight = {280, '1x'};
+                else
+                    state.Layout.ColumnWidth = {380, '1x'};
+                    state.Controls.Layout.Row = 1; state.Controls.Layout.Column = 1;
+                    state.Right.Layout.Row = 1; state.Right.Layout.Column = 2;
+                    state.Layout.RowHeight = {'1x'};
+                end
+            end
+        end
+        function loadData(app, index)
             try
-                [name, folder] = uigetfile({'*.xlsx;*.csv', 'Excel / CSV'});
+                [name, folder] = uigetfile({'*.xlsx;*.csv', 'Excel / CSV'}, '入力ファイル', app.Settings.SaveFolder);
                 if isequal(name, 0), return; end
-                fullName = fullfile(folder, name);
-                [~, ~, extension] = fileparts(name);
-                sheet = 1;
+                path = fullfile(folder, name); [~, ~, extension] = fileparts(name); sheet = 1;
                 if strcmpi(extension, '.xlsx')
-                    sheets = sheetnames(fullName);
-                    [choice, accepted] = listdlg('ListString', cellstr(sheets), ...
-                        'SelectionMode', 'single', 'PromptString', 'シートを選択してください');
+                    sheets = sheetnames(path);
+                    [choice, accepted] = listdlg('ListString', cellstr(sheets), 'SelectionMode', 'single', 'PromptString', 'シートを選択');
                     if ~accepted, return; end
                     sheet = char(sheets(choice));
                 end
-                answer = inputdlg('ヘッダーの行番号', '入力設定', 1, {'1'});
-                if isempty(answer), return; end
-                data = read_input_data(fullName, sheet, str2double(answer{1}));
-                state = app.Panels{index};
-                if is_test
-                    state.TestData = data;
-                    state.TestLoad.Text = ['推定用: ' name];
-                else
-                    state.Data = data;
-                    state.Source.Text = sprintf('%s / ヘッダー %d 行目 / %d 件', name, data.HeaderRow, size(data.Cells, 1));
-                    preview = data.Cells(1:min(100, size(data.Cells, 1)), :);
-                    for cell_index = 1:numel(preview)
-                        value = preview{cell_index};
-                        if isempty(value) || (isscalar(value) && ismissing(value))
-                            preview{cell_index} = '';
-                        elseif ~(ischar(value) || (isnumeric(value) && isscalar(value)) || (islogical(value) && isscalar(value)))
-                            preview{cell_index} = char(string(value));
-                        end
-                    end
-                    state.Preview.Data = preview;
-                    state.Preview.ColumnName = data.Headers;
-                    if strcmp(state.Kind, 'summary')
-                        state.Columns.Items = data.Headers;
-                        state.Columns.Value = data.Headers(1);
-                    end
+                answer = inputdlg('ヘッダーの行番号', '入力設定', 1, {'1'}); if isempty(answer), return; end
+                data = read_input_data(path, sheet, str2double(answer{1})); state = app.Panels{index}; state.Data = data;
+                state.Source.Text = sprintf('%s / %d 件', name, size(data.Cells, 1));
+                preview = data.Cells(1:min(100, size(data.Cells, 1)), :);
+                for item = 1:numel(preview)
+                    value = preview{item};
+                    if isempty(value) || (isscalar(value) && ismissing(value)), preview{item} = '';
+                    elseif ~(ischar(value) || (isnumeric(value) && isscalar(value))), preview{item} = char(string(value)); end
                 end
-                app.Panels{index} = state;
-                app.updateMapping(index);
+                state.Preview.Data = preview; state.Preview.ColumnName = data.Headers;
+                if any(strcmp(state.Kind, {'predict', 'shap'}))
+                    state.Actual.Items = [{'(実測値なし)'}, data.Headers]; state.Actual.Value = '(実測値なし)';
+                end
+                app.Panels{index} = state; app.updateMapping(index);
             catch err
                 app.showError(index, err);
             end
         end
-
         function loadModel(app, index)
             try
-                [name, folder] = uigetfile({'*.mat', '学習済みモデル'});
-                if isequal(name, 0)
-                    app.message(index, '学習済モデルの選択がキャンセルされました'); return;
-                end
-                state = app.Panels{index};
-                state.Model = load_train_model(fullfile(folder, name));
-                state.ModelPath = fullfile(folder, name);
+                [name, folder] = uigetfile({'*.mat', '学習済みモデル'}, 'モデルを選択', app.Settings.SaveFolder);
+                if isequal(name, 0), return; end
+                state = app.Panels{index}; state.Model = load_train_model(fullfile(folder, name)); state.ModelPath = fullfile(folder, name);
                 state.ModelInfo.Value = {['PredictorNames: ' strjoin(state.Model.PredictorNames, ', ')]; ...
                     ['ResponseName: ' state.Model.ResponseName]; ['MAT: ' name]};
-                app.Panels{index} = state;
-                app.updateMapping(index);
+                app.Panels{index} = state; app.updateMapping(index);
             catch err
                 app.showError(index, err);
             end
         end
-
         function updateMapping(app, index)
-            state = app.Panels{index};
-            roles = {};
+            state = app.Panels{index}; roles = {}; positional = false;
             switch state.Kind
-                case {'apc', 'swing'}
-                    roles = [app.Constants.PREDICTOR_NAMES, {'y'}];
-                case 'in_plane'
-                    roles = {'X', 'Y', 'y'};
-                case 'generic'
-                    count = state.InputCount.Value;
-                    roles = [cellstr("入力" + string(1:count)), {'y'}];
+                case {'apc', 'swing'}, roles = [app.Constants.PREDICTOR_NAMES, {'y'}];
+                case 'generic', roles = [cellstr("入力" + string(1:state.InputCount.Value)), {'y'}]; positional = true;
+                case 'doe', roles = cellstr("F" + string(1:state.Factors.Value)); positional = true;
                 case {'predict', 'shap'}
                     if ~isempty(state.Model)
                         roles = state.Model.PredictorNames;
-                        if strcmp(state.Mode.Value, '面内推定'), roles = {'X', 'Y'}; end
+                        if startsWith(state.Mode.Value, '面内推定'), roles = {'X', 'Y'}; end
                         if strcmp(state.Mode.Value, 'ノイズ除去用SHAP'), roles = app.Constants.PREDICTOR_NAMES; end
                     end
-                case 'metrics'
-                    roles = {'col1', 'col2'};
             end
             if ~isempty(state.Data)
-                state.Mapping.Data = app.makeMapping(roles, state.Data.Headers, strcmp(state.Kind, 'generic'));
-                state.Mapping.ColumnFormat = {'numeric', 'char', [{'(未選択)'}, state.Data.Headers]};
-            end
-            if ~isempty(state.TestData)
-                state.TestMapping.Data = app.makeMapping({'X', 'Y'}, state.TestData.Headers, false);
-                state.TestMapping.ColumnFormat = {'numeric', 'char', [{'(未選択)'}, state.TestData.Headers]};
-            end
-            app.Panels{index} = state;
-            app.invalidate(index);
-        end
-
-        function mapping = makeMapping(~, roles, headers, positional)
-            mapping = cell(numel(roles), 3);
-            for row = 1:numel(roles)
-                selected = '(未選択)';
-                if any(strcmp(headers, roles{row}))
-                    selected = roles{row};
-                elseif positional && row <= numel(headers)
-                    selected = headers{row};
+                mapping = cell(numel(roles), 3);
+                for row = 1:numel(roles)
+                    selected = '(未選択)';
+                    if any(strcmp(state.Data.Headers, roles{row})), selected = roles{row};
+                    elseif positional && row <= numel(state.Data.Headers), selected = state.Data.Headers{row}; end
+                    mapping(row, :) = {row, roles{row}, selected};
                 end
-                mapping(row, :) = {row, roles{row}, selected};
+                state.Mapping.Data = mapping; state.Mapping.ColumnFormat = {'numeric', 'char', [{'(未選択)'}, state.Data.Headers]};
             end
+            app.Panels{index} = state; app.invalidate(index);
         end
-
         function invalidate(app, index)
-            state = app.Panels{index};
-            state.Confirmed = false; state.Result = table();
-            state.Figures = {};
-            state.Results.Data = table(); state.Verification.Data = table();
-            app.Panels{index} = state;
-            app.message(index, '列対応が未確認です。対応表を確認してください。');
-        end
-
-        function matrix = mappedInput(~, state, is_test)
-            if is_test
-                data = state.TestData; mapping = state.TestMapping.Data;
+            state = app.Panels{index}; state.Confirmed = false; app.Panels{index} = state; app.clearOutput(index);
+            if strcmp(state.Kind, 'doe')
+                app.message(index, '設定・列対応を変更しました。内容を確認して再実行してください。');
             else
-                data = state.Data; mapping = state.Mapping.Data;
-            end
-            if isempty(data), error('AnalysisApp:noInput', '入力ファイルを選択してください。'); end
-            if strcmp(state.Kind, 'summary') && ~is_test
-                names = cellstr(string(state.Columns.Value));
-                matrix = extract_numeric_columns(data, names, true);
-            else
-                if isempty(mapping), error('AnalysisApp:noMapping', 'モデルを読み込み、列を割り当ててください。'); end
-                matrix = assign_required_columns(data, mapping(:, 2), mapping(:, 3));
+                app.message(index, '列対応が未確認です。対応表を確認してください。');
             end
         end
-
+        function clearOutput(app, index)
+            state = app.Panels{index}; state.Result = table(); state.Figures = {}; state.FigureNames = {};
+            state.Results.Data = table(); state.Metrics.Data = table(); state.Summary.Data = table(); state.Verification.Data = table();
+            delete(state.ChartTabs.Children);
+            extra = state.Views.Children(~ismember(state.Views.Children, state.BaseTabs)); delete(extra);
+            state.Headline.Text = 'RMSE: —    R²: —'; app.Panels{index} = state;
+        end
+        function matrix = mappedInput(~, state)
+            if isempty(state.Data), error('AnalysisApp:noInput', '入力ファイルを選択してください。'); end
+            mapping = state.Mapping.Data;
+            if isempty(mapping), error('AnalysisApp:noMapping', 'モデルを読み込み、列を割り当ててください。'); end
+            matrix = assign_required_columns(state.Data, mapping(:, 2), mapping(:, 3));
+            if any(strcmp(state.Kind, {'predict', 'shap'})) && ~strcmp(state.Actual.Value, '(実測値なし)')
+                if any(strcmp(mapping(:, 3), state.Actual.Value)), error('AnalysisApp:responseLeak', '実測値に説明変数と同じ列は指定できません。'); end
+                extract_numeric_columns(state.Data, {state.Actual.Value});
+            end
+        end
         function confirmMapping(app, index)
             try
-                state = app.Panels{index};
-                app.mappedInput(state, false);
-                if ~isempty(state.TestData), app.mappedInput(state, true); end
-                if any(strcmp(state.Kind, {'predict', 'shap'})) && isempty(state.Model)
-                    error('AnalysisApp:noModel', '学習済みモデルを選択してください。');
-                end
-                state.Confirmed = true;
-                app.Panels{index} = state;
-                app.message(index, '列対応・順序を確認済みです。実行できます。');
+                state = app.Panels{index}; app.mappedInput(state);
+                if any(strcmp(state.Kind, {'predict', 'shap'})) && isempty(state.Model), error('AnalysisApp:noModel', 'モデルを選択してください。'); end
+                state.Confirmed = true; app.Panels{index} = state; app.message(index, '列対応・順序を確認済みです。実行できます。');
             catch err
                 app.showError(index, err);
             end
         end
-
         function run(app, index)
-            state = app.Panels{index};
-            state.Run.Enable = 'off';
-            cleanup = onCleanup(@() set(state.Run, 'Enable', 'on'));
+            state = app.Panels{index}; state.Run.Enable = 'off'; cleanup = onCleanup(@() set(state.Run, 'Enable', 'on'));
             try
-                if ~any(strcmp(state.Kind, {'doe', 'words'})) && ~state.Confirmed
-                    error('AnalysisApp:mappingNotConfirmed', '列対応・順序の確認ボタンを押してください。');
+                if ~any(strcmp(state.Kind, {'doe', 'words'})) && ~state.Confirmed, error('AnalysisApp:unconfirmed', '列対応・順序の確認ボタンを押してください。'); end
+                if ~any(strcmp(state.Kind, {'doe', 'words'})) && state.Bins.Value > 0
+                    validate_bin_count(state.Bins.Value, 'AnalysisApp');
                 end
-                state.Result = table(); state.Results.Data = table();
-                state.Verification.Data = table(); state.Figures = {};
-                app.Panels{index} = state;
-                state.Messages.Value = {'処理中'};
-                if any(strcmp(state.Kind, app.Constants.MODEL_TYPES))
-                    app.trainAndSave(index);
-                elseif strcmp(state.Kind, 'doe')
-                    seed_text = strtrim(state.Seed.Value);
-                    if isempty(seed_text), seed = []; else, seed = str2double(seed_text); end
-                    design = create_D_DOE(state.Factors.Value, state.Runs.Value, seed);
-                    app.result(index, array2table(design));
+                app.clearOutput(index); state.Messages.Value = {'処理中'}; drawnow;
+                if any(strcmp(state.Kind, {'apc', 'swing', 'generic'})), app.trainAndSave(index);
+                elseif strcmp(state.Kind, 'doe'), app.runDesign(index);
                 elseif strcmp(state.Kind, 'words')
                     [words, counts] = create_wordCloud(strjoin(string(state.Text.Value), newline));
                     app.result(index, table(words, counts, 'VariableNames', {'Word', 'Count'}));
-                    chart = figure('Name', 'Word Cloud', 'Color', 'white');
-                    wordcloud(words, counts); title('Word Cloud', 'FontSize', 14, 'FontWeight', 'bold');
-                    state = app.Panels{index}; state.Figures = {chart}; app.Panels{index} = state;
+                    tab = uitab(state.ChartTabs, 'Title', 'Word Cloud'); layout = uigridlayout(tab, [1, 1]);
+                    chart = wordcloud(layout, words, counts); chart.Title = 'Word Cloud'; app.registerCharts(index, {chart}, {'Word Cloud'});
+                    state.Headline.Text = sprintf('%d種類の単語を集計しました。グラフは「グラフ」内で表示します。', numel(words));
                 else
-                    matrix = app.mappedInput(state, false);
-                    switch state.Kind
-                        case 'predict'
-                            if strcmp(state.Mode.Value, '面内推定')
-                                [prediction, outside_rows, warnings] = predict_in_plane(state.Model, matrix);
-                                app.result(index, table(state.Data.RowNumbers, prediction, outside_rows, ...
-                                    'VariableNames', {'SourceRow', 'y_pred', 'OutsideTrainingRange'}));
-                                app.showWarnings(index, warnings);
-                            else
-                                prediction = predict(state.Model, format_model_input(state.Model, matrix));
-                                app.result(index, table(state.Data.RowNumbers, prediction, 'VariableNames', {'SourceRow', 'y_pred'}));
-                            end
-                        case 'shap'
-                            app.runShap(index, state.Model, matrix, false);
-                        case 'metrics'
-                            app.calculateMetrics(index, matrix);
-                        case 'summary'
-                            names = cellstr(string(state.Columns.Value));
-                            summary = calc_column_summary(matrix(:, 1));
-                            output = table(string(summary(:, 1)), cell2mat(summary(:, 2)), ...
-                                'VariableNames', {'Statistic', matlab.lang.makeValidName(names{1})});
-                            for column = 2:size(matrix, 2)
-                                summary = calc_column_summary(matrix(:, column));
-                                name = matlab.lang.makeUniqueStrings(matlab.lang.makeValidName(names{column}), output.Properties.VariableNames);
-                                output.(name) = cell2mat(summary(:, 2));
-                            end
-                            app.result(index, output);
+                    matrix = app.mappedInput(state);
+                    if strcmp(state.Kind, 'predict')
+                        if startsWith(state.Mode.Value, '面内推定')
+                            [prediction, outside, warnings] = predict_in_plane(state.Model, matrix); app.showWarnings(index, warnings);
+                            output = table(state.Data.RowNumbers, prediction, outside, 'VariableNames', {'SourceRow', 'y_pred', 'OutsideTrainingRange'});
+                        else
+                            prediction = predict(state.Model, format_model_input(state.Model, matrix));
+                            output = table(state.Data.RowNumbers, prediction, 'VariableNames', {'SourceRow', 'y_pred'});
+                        end
+                        app.result(index, output);
+                    else
+                        prediction = predict(state.Model, format_model_input(state.Model, matrix)); app.runShap(index, state.Model, matrix, false);
                     end
+                    app.evaluateImported(index, matrix, prediction);
                 end
-                app.message(index, '処理を終了しました。');
+                app.applyTheme(); app.message(index, '処理を終了しました。');
             catch err
                 app.showError(index, err);
             end
         end
-
         function trainAndSave(app, index)
-            state = app.Panels{index};
-            started = tic;
-            [~, input_name, extension] = fileparts(state.Data.FileName);
-            entry = struct('Function', state.Kind, 'InputFile', [input_name extension], ...
-                'Rows', size(state.Data.Cells, 1), 'Kernel', state.Kernel.Value, ...
-                'FitMethod', state.FitMethod.Value, 'SavePath', '', 'Verification', [], ...
-                'PredictorNames', {{}}, 'ResponseName', '', 'Status', 'started');
+            state = app.Panels{index}; started = tic; [~, name, extension] = fileparts(state.Data.FileName);
+            entry = struct('Function', state.Kind, 'InputFile', [name extension], 'Rows', size(state.Data.Cells, 1), ...
+                'Kernel', state.Kernel.Value, 'FitMethod', state.FitMethod.Value, 'SavePath', '', ...
+                'Verification', [], 'PredictorNames', {{}}, 'ResponseName', '', 'Status', 'started');
             try
-                matrix = app.mappedInput(state, false);
-                X = matrix(:, 1:end - 1); y = matrix(:, end);
+                matrix = app.mappedInput(state); X = matrix(:, 1:end - 1); y = matrix(:, end);
                 kernel = state.Kernel.Value; fit_method = state.FitMethod.Value;
                 switch state.Kind
-                    case 'apc'
-                        [Train_Model, warnings] = train_apc_model(X, y, state.IsPlot.Value, kernel, fit_method);
-                    case 'swing'
-                        [Train_Model, warnings] = train_swing_curve_model(X(:, 1:3), X(:, 4), y, kernel, fit_method);
-                    case 'in_plane'
-                        [Train_Model, warnings] = train_in_plane_model(X, y, kernel, fit_method);
-                    case 'generic'
-                        [Train_Model, warnings] = train_generic_gpr_model(X, y, kernel, fit_method);
+                    case 'apc', [model, warnings] = train_apc_model(X, y, state.IsPlot.Value, kernel, fit_method);
+                    case 'swing', [model, warnings] = train_swing_curve_model(X(:, 1:3), X(:, 4), y, kernel, fit_method);
+                    case 'generic', [model, warnings] = train_generic_gpr_model(X, y, kernel, fit_method);
                 end
-                entry.PredictorNames = Train_Model.PredictorNames;
-                entry.ResponseName = Train_Model.ResponseName;
-                app.showWarnings(index, warnings);
-                [name, folder] = uiputfile('*.mat', '学習済みモデルを保存');
+                entry.PredictorNames = model.PredictorNames; entry.ResponseName = model.ResponseName; app.showWarnings(index, warnings);
+                prediction = predict(model, format_model_input(model, X));
+                app.displayEvaluation(index, X, y, prediction, '学習データへの当てはまり（汎化性能ではありません）');
+                app.result(index, table(state.Data.RowNumbers, y, prediction, y - prediction, 'VariableNames', {'SourceRow', 'Actual', 'Predicted', 'Residual'}));
+                [name, folder] = uiputfile('*.mat', '学習済みモデルを保存', fullfile(app.Settings.SaveFolder, 'Train_Model.mat'));
                 if isequal(name, 0)
-                    % TODO(要確認 Q-06) 保存キャンセル後は面内推定も SHAP も行わない。
-                    entry.Status = 'save_cancelled';
-                    entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
-                    app.message(index, '保存がキャンセルされました。後続の推定・SHAP は行いません。');
-                    return;
+                    entry.Status = 'save_cancelled'; entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
+                    app.message(index, '保存をキャンセルしました。評価結果は表示します。後続 SHAP は行いません。'); return;
                 end
-                entry.SavePath = fullfile(folder, name);
-                save_train_model(Train_Model, entry.SavePath);
-                expected = struct('KernelFunction', kernel, 'FitMethod', fit_method, ...
-                    'BasisFunction', 'constant', 'NumObservations', size(X, 1));
-                report = verify_saved_model(entry.SavePath, Train_Model, state.Kind, expected);
-                state.Verification.Data = report.Checks;
-                entry.Verification = table2struct(report.Checks);
-                app.message(index, report.Message);
-                if ~report.Success
-                    error('AnalysisApp:verificationFailed', '%s', app.Constants.INVALID_MODEL_MESSAGE);
-                end
-                app.result(index, report.Checks);
-                if strcmp(state.Kind, 'apc')
-                    app.runShap(index, Train_Model, X, true);
-                elseif strcmp(state.Kind, 'in_plane') && ~isempty(state.TestData)
-                    test_matrix = app.mappedInput(state, true);
-                    [prediction, outside_rows, warnings] = predict_in_plane(Train_Model, test_matrix);
-                    app.result(index, table(state.TestData.RowNumbers, prediction, outside_rows, ...
-                        'VariableNames', {'SourceRow', 'y_pred', 'OutsideTrainingRange'}));
-                    app.showWarnings(index, warnings);
-                end
+                entry.SavePath = fullfile(folder, name); save_train_model(model, entry.SavePath);
+                expected = struct('KernelFunction', kernel, 'FitMethod', fit_method, 'BasisFunction', 'constant', 'NumObservations', size(X, 1));
+                report = verify_saved_model(entry.SavePath, model, state.Kind, expected);
+                state.Verification.Data = report.Checks; entry.Verification = table2struct(report.Checks); app.message(index, report.Message);
+                if ~report.Success, error('AnalysisApp:verificationFailed', '%s', app.Constants.INVALID_MODEL_MESSAGE); end
+                if strcmp(state.Kind, 'apc'), app.runShap(index, model, X, true); end
                 entry.Status = 'completed';
             catch err
-                entry.Status = ['failed:' err.identifier];
-                entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
-                rethrow(err);
+                entry.Status = ['failed:' err.identifier]; entry.ElapsedSeconds = toc(started); app.logTraining(index, entry); rethrow(err);
             end
             entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
         end
-
-        function runShap(app, index, Train_Model, matrix, is_apc)
+        function evaluateImported(app, index, matrix, prediction)
+            state = app.Panels{index};
+            if ~strcmp(state.Actual.Value, '(実測値なし)')
+                actual = extract_numeric_columns(state.Data, {state.Actual.Value});
+                app.displayEvaluation(index, matrix, actual, prediction, '読込データで評価（学習に未使用かは利用者が確認）');
+            elseif size(matrix, 1) >= 2
+                names = [string(state.Mapping.Data(:, 2))', "Predicted"];
+                state.Summary.Data = summarize_model_columns([matrix, prediction], names);
+                state.Headline.Text = '実測値列なし：RMSE・R² は未計算。入力と予測値の要約を表示します。';
+            else
+                state.Headline.Text = '1件の推定結果です。評価・要約には2件以上が必要です。';
+            end
+        end
+        function displayEvaluation(app, index, inputs, actual, predicted, scope)
+            state = app.Panels{index};
+            if numel(actual) < 2, state.Headline.Text = '評価には実測値が2件以上必要です。'; return; end
+            metrics = evaluate_predictions(actual, predicted, state.Bins.Value); state.Metrics.Data = metrics;
+            state.Headline.Text = sprintf('RMSE: %.6g    R²: %.6g    n = %d\n%s', metrics.Value(2), metrics.Value(1), numel(actual), scope);
+            names = [string(state.Mapping.Data(1:size(inputs, 2), 2))', "Actual", "Predicted", "Residual"];
+            state.Summary.Data = summarize_model_columns([inputs, actual, predicted, actual - predicted], names);
+            tab = uitab(state.ChartTabs, 'Title', '実測値と予測値'); layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout);
+            scatter(ax, actual, predicted, 20, 'filled'); hold(ax, 'on'); limits = [min([actual; predicted]), max([actual; predicted])];
+            plot(ax, limits, limits, '--'); xlabel(ax, 'Actual'); ylabel(ax, 'Predicted'); title(ax, '実測値と予測値');
+            tab = uitab(state.ChartTabs, 'Title', '残差'); layout = uigridlayout(tab, [1, 1]); residual_ax = uiaxes(layout);
+            scatter(residual_ax, predicted, actual - predicted, 20, 'filled'); yline(residual_ax, 0, '--');
+            xlabel(residual_ax, 'Predicted'); ylabel(residual_ax, 'Actual - Predicted'); title(residual_ax, '残差');
+            app.registerCharts(index, {ax, residual_ax}, {'実測値と予測値', '残差'});
+        end
+        function runShap(app, index, model, matrix, is_apc)
             state = app.Panels{index};
             if is_apc && size(matrix, 1) > app.Constants.MAX_SHAP_POINTS
-                app.showWarnings(index, string(sprintf('SHAP 計算データを先頭 1000 件に制限します（全 %d 件）。', size(matrix, 1))));
-                matrix = matrix(1:app.Constants.MAX_SHAP_POINTS, :);
+                app.message(index, 'SHAP は先頭1000件まで計算します。評価指標は全件で計算しています。'); matrix = matrix(1:app.Constants.MAX_SHAP_POINTS, :);
             end
-            progress = uiprogressdlg(app.Window, 'Title', 'SHAP 解析', 'Message', 'SHAP 値を算出しています。', 'Indeterminate', 'on');
-            cleanup = onCleanup(@() close(progress));
-            drawnow;
+            progress = uiprogressdlg(app.Window, 'Title', 'SHAP 解析', 'Message', 'SHAP 値を計算中', 'Indeterminate', 'on');
+            cleanup = onCleanup(@() close(progress)); drawnow;
             if ~is_apc && strcmp(state.Mode.Value, 'ノイズ除去用SHAP')
-                [resist, shap_obj, shap_all] = denoise_for_swing_curve(Train_Model, matrix(:, 1:3), matrix(:, 4));
+                [resist, ~, shap_all] = denoise_for_swing_curve(model, matrix(:, 1:3), matrix(:, 4));
                 output = table(state.Data.RowNumbers, resist, 'VariableNames', {'SourceRow', 'shap_resist'});
             else
-                [shap_obj, shap_all] = calc_shap_dependence(Train_Model, matrix);
-                output = array2table(shap_all, 'VariableNames', Train_Model.PredictorNames);
-                output = addvars(output, state.Data.RowNumbers(1:size(shap_all, 1)), ...
-                    'Before', 1, 'NewVariableNames', 'SourceRow');
+                [~, shap_all] = calc_shap_dependence(model, matrix);
+                output = array2table(shap_all, 'VariableNames', model.PredictorNames);
+                output = addvars(output, state.Data.RowNumbers(1:size(shap_all, 1)), 'Before', 1, 'NewVariableNames', 'SourceRow');
             end
-            app.result(index, output);
+            if is_apc
+                view = app.tableTab(state.Views, 'SHAP 値'); view.Data = output;
+            else
+                app.result(index, output);
+            end
             clear cleanup;
             if state.IsPlot.Value
-                figures = plot_shap_figures(shap_obj, shap_all, Train_Model.PredictorNames);
-                state = app.Panels{index}; state.Figures = figures; app.Panels{index} = state;
+                [charts, names] = plot_shap_figures(state.ChartTabs, shap_all, matrix, model.PredictorNames); app.registerCharts(index, charts, names);
             end
         end
-
-        function calculateMetrics(app, index, matrix)
-            state = app.Panels{index};
-            col1 = matrix(:, 1); col2 = matrix(:, 2);
-            bins = state.Bins.Value; if bins == 0, bins = []; end
-            switch state.Mode.Value
-                case '一括（rmse / mae / r / r_squared）', values = calc_all_metrics(col1, col2);
-                case 'RMSE', values = {'rmse', calc_rmse(col1, col2)};
-                case 'RMSPE (%)', values = {'rmspe_percent', calc_rmspe(col1, col2)};
-                case 'MAE', values = {'mae', calc_mae(col1, col2)};
-                case 'Pearson r', values = {'r', calc_pearson(col1, col2)};
-                case 'r²（相関係数の2乗）', values = {'r_squared', calc_r_squared(col1, col2)};
-                case 'KL (nats)', values = {'kl_nats', calc_kl_divergence(col1, col2, bins)};
-                case '相互情報量 (bits)', values = {'mutual_information_bits', calc_mutual_information(col1, col2, bins)};
+        function runDesign(app, index)
+            state = app.Panels{index}; existing = zeros(0, state.Factors.Value);
+            if startsWith(state.Method.Value, '拡張')
+                existing = app.mappedInput(state);
+            elseif ~isempty(state.Data)
+                app.message(index, '通常の作成では既存点を使いません。固定する場合は拡張を選択してください。');
             end
-            app.result(index, cell2table(values, 'VariableNames', {'Metric', 'Value'}));
+            if contains(state.Method.Value, 'D最適')
+                method = 'D';
+            elseif contains(state.Method.Value, 'I最適')
+                method = 'I';
+            else
+                method = 'orthogonal';
+            end
+            progress = uiprogressdlg(app.Window, 'Title', '実験計画作成', 'Message', '計画を探索中', 'Indeterminate', 'on');
+            cleanup = onCleanup(@() close(progress)); drawnow;
+            [design, details] = create_experiment_design(method, state.Factors.Value, state.Runs.Value, state.Seed.Value, ...
+                state.DesignModel.Value, str2double(state.Levels.Value), existing);
+            output = array2table(design, 'VariableNames', cellstr("F" + string(1:size(design, 2))));
+            kind = repmat("追加", size(design, 1), 1); kind(1:details.FixedRows) = "既存";
+            output = addvars(output, (1:size(design, 1))', kind, 'Before', 1, 'NewVariableNames', {'Run', 'Type'}); app.result(index, output);
+            report = design_diagnostics(design, state.DesignModel.Value);
+            state.Headline.Text = sprintf('実験数 %d（既存 %d＋追加 %d）/ 選択モデルのランク %d / %d 項', ...
+                size(design, 1), details.FixedRows, details.AddedRows, report.Rank, report.Terms);
+            if report.Rank < report.Terms, app.message(index, 'ランク不足です。すべての係数を独立に推定できません。'); end
+            view = app.tableTab(state.Views, '交絡の線形関係');
+            view.Data = array2table(report.Dependencies, 'RowNames', cellstr(report.Names)); view.RowName = cellstr(report.Names);
+            tab = uitab(state.ChartTabs, 'Title', '交絡の可視化'); layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout);
+            image = imagesc(ax, report.Similarity, [0, 1]); image.AlphaData = isfinite(report.Similarity);
+            colorbar(ax); ax.XTick = 1:numel(report.Names); ax.YTick = ax.XTick;
+            ax.XTickLabel = report.Names; ax.YTickLabel = report.Names; ax.XTickLabelRotation = 60; ax.TickLabelInterpreter = 'none';
+            title(ax, sprintf('二次モデル項の |cosθ| / ランク %d / %d', report.FullRank, report.FullTerms));
+            app.registerCharts(index, {ax}, {'交絡の可視化'});
+            app.message(index, sprintf('seed=%d、基準値=%g。D/I は局所探索で、最適性の保証はありません。', details.Seed, details.Criterion));
+            app.message(index, '対角線以外の1は2項の完全交絡。0列は空白。複数項の依存は「交絡の線形関係」の各列で確認（係数の加重和=0）。');
         end
-
+        function clearDesign(app, index)
+            state = app.Panels{index}; state.Data = []; state.Mapping.Data = cell(0, 3); state.Preview.Data = table();
+            state.Source.Text = '既存計画未選択'; app.Panels{index} = state; app.clearOutput(index);
+        end
+        function registerCharts(app, index, charts, names)
+            state = app.Panels{index}; state.Figures = [state.Figures, charts(:)']; state.FigureNames = [state.FigureNames, names(:)']; app.Panels{index} = state;
+        end
         function result(app, index, output)
-            state = app.Panels{index}; state.Result = output; state.Results.Data = output;
-            app.Panels{index} = state;
+            state = app.Panels{index}; state.Result = output; state.Results.Data = output; app.Panels{index} = state;
         end
-
         function message(app, index, text)
-            state = app.Panels{index};
-            state.Messages.Value = [cellstr(string(state.Messages.Value)); cellstr(string(text(:)))];
+            state = app.Panels{index}; state.Messages.Value = [status_lines(state.Messages.Value); status_lines(text)];
         end
-
         function showWarnings(app, index, warnings)
             if isempty(warnings), return; end
-            app.message(index, warnings);
-            uialert(app.Window, strjoin(warnings, newline), '警告', 'Icon', 'warning');
+            app.message(index, warnings); uialert(app.Window, strjoin(warnings, newline), '警告', 'Icon', 'warning');
         end
-
         function showError(app, index, err)
-            app.message(index, string(err.message));
-            uialert(app.Window, err.message, '処理を中止しました', 'Icon', 'error');
+            app.message(index, err.message); uialert(app.Window, err.message, '処理を中止しました', 'Icon', 'error');
         end
-
         function logTraining(app, index, entry)
             try
                 write_training_log(app.LogFolder, entry);
             catch err
-                app.message(index, '学習ログの保存に失敗しました。');
-                uialert(app.Window, err.message, 'ログ保存エラー', 'Icon', 'warning');
+                app.message(index, ['ログ保存失敗: ' err.message]);
             end
         end
-
         function exportResult(app, index)
             try
-                state = app.Panels{index};
-                if isempty(state.Result), error('AnalysisApp:noResult', '保存する結果がありません。'); end
-                [name, folder] = uiputfile({'*.csv', 'CSV'; '*.xlsx', 'Excel'}, '結果を保存');
+                state = app.Panels{index}; view = findobj(state.Views.SelectedTab, 'Type', 'uitable');
+                if isempty(view) || isempty(view(1).Data), error('AnalysisApp:noResult', '結果・評価・要約などの表のあるタブを選択してください。'); end
+                if strcmp(state.Views.SelectedTab.Title, '入力プレビュー'), error('AnalysisApp:preview', 'プレビューは先頭100行のみです。計算結果のタブを選択してください。'); end
+                data = view(1).Data;
+                if ~istable(data), data = cell2table(data, 'VariableNames', matlab.lang.makeValidName(view(1).ColumnName)); end
+                [name, folder] = uiputfile({'*.csv', 'CSV'; '*.xlsx', 'Excel'}, '表示中の表を保存', fullfile(app.Settings.SaveFolder, 'result.csv'));
                 if isequal(name, 0), return; end
-                writetable(state.Result, fullfile(folder, name));
-                app.message(index, ['結果を保存しました: ' name]);
+                writetable(data, fullfile(folder, name), 'WriteRowNames', ~isempty(data.Properties.RowNames)); app.message(index, ['保存しました: ' name]);
             catch err
                 app.showError(index, err);
             end
         end
-
         function exportFigure(app, index)
             try
-                state = app.Panels{index};
-                figures = state.Figures(cellfun(@isgraphics, state.Figures));
-                if isempty(figures), error('AnalysisApp:noChart', '保存するグラフがありません。'); end
-                names = cellfun(@(chart) chart.Name, figures, 'UniformOutput', false);
-                [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', '保存するグラフ');
-                if ~accepted, return; end
-                [name, folder] = uiputfile('*.png', 'グラフを保存');
-                if isequal(name, 0), return; end
-                exportgraphics(figures{choice}, fullfile(folder, name), 'Resolution', 150);
+                state = app.Panels{index}; valid = cellfun(@isgraphics, state.Figures); charts = state.Figures(valid); names = state.FigureNames(valid);
+                if isempty(charts), error('AnalysisApp:noChart', '保存するグラフがありません。'); end
+                [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', '保存するグラフ'); if ~accepted, return; end
+                [name, folder] = uiputfile('*.png', 'グラフを保存', fullfile(app.Settings.SaveFolder, 'chart.png')); if isequal(name, 0), return; end
+                state.Views.SelectedTab = state.ChartTabs.Parent.Parent;
+                state.ChartTabs.SelectedTab = ancestor(charts{choice}, 'uitab');
+                drawnow;
+                exportgraphics(charts{choice}, fullfile(folder, name), 'Resolution', 150);
             catch err
                 app.showError(index, err);
             end
         end
-
         function loadText(app, index)
             try
-                [name, folder] = uigetfile({'*.txt', 'テキスト'});
-                if isequal(name, 0), return; end
-                state = app.Panels{index};
-                state.Text.Value = splitlines(string(fileread(fullfile(folder, name))));
+                [name, folder] = uigetfile({'*.txt', 'テキスト'}, 'テキスト', app.Settings.SaveFolder); if isequal(name, 0), return; end
+                state = app.Panels{index}; state.Text.Value = splitlines(string(fileread(fullfile(folder, name))));
             catch err
                 app.showError(index, err);
             end
+        end
+        function createSettings(app, tab)
+            layout = uigridlayout(tab, [13, 1], 'Scrollable', 'on'); layout.RowHeight = {48, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 36, 70};
+            uilabel(layout, 'Text', '保存した設定は次回起動にも反映します。適用時は現在の評価結果と列対応の確認を解除します。', 'WordWrap', 'on');
+            row = uigridlayout(layout, [1, 3]); row.ColumnWidth = {150, '1x', 100}; row.Padding = [0, 0, 0, 0];
+            uilabel(row, 'Text', 'デフォルト保存先'); app.SettingsUI.SaveFolder = uieditfield(row, 'Value', app.Settings.SaveFolder);
+            uibutton(row, 'Text', 'フォルダ選択', 'ButtonPushedFcn', @(~, ~) app.chooseFolder());
+            app.SettingsUI.Theme = app.choiceRow(layout, 'カラーテーマ', {'ライト', 'ダーク'});
+            app.SettingsUI.Kernel = app.choiceRow(layout, '既定 kernel', app.Constants.KERNELS);
+            app.SettingsUI.FitMethod = app.choiceRow(layout, '既定 fit_method', app.Constants.FIT_METHODS);
+            app.SettingsUI.InputCount = app.numberRow(layout, '汎用 GPR の説明変数数', app.Settings.InputCount, [1, 100]);
+            app.SettingsUI.Bins = app.numberRow(layout, 'KL / MI ビン数（0=自動）', app.Settings.Bins, [0, 1000]);
+            app.SettingsUI.Factors = app.numberRow(layout, '実験計画の因子数', app.Settings.Factors, [1, 8]);
+            app.SettingsUI.Runs = app.numberRow(layout, '実験数 / 追加数', app.Settings.Runs, [1, 300]);
+            app.SettingsUI.Seed = app.numberRow(layout, '実験計画の seed', app.Settings.Seed, [0, 2^32 - 1]);
+            app.SettingsUI.ShowPlots = uicheckbox(layout, 'Text', '既定で SHAP グラフを表示', 'Value', app.Settings.ShowPlots);
+            row = uigridlayout(layout, [1, 2]); row.Padding = [0, 0, 0, 0];
+            uibutton(row, 'Text', '設定を保存・適用', 'ButtonPushedFcn', @(~, ~) app.saveSettings());
+            uibutton(row, 'Text', '初期値を画面に戻す（保存前）', 'ButtonPushedFcn', @(~, ~) app.fillSettings(app_settings('defaults')));
+            app.SettingsUI.Message = uilabel(layout, 'Text', ['設定保存先: ' app.SettingsPath], 'WordWrap', 'on'); app.fillSettings(app.Settings);
+        end
+        function fillSettings(app, values)
+            fields = fieldnames(values);
+            for index = 1:numel(fields), app.SettingsUI.(fields{index}).Value = values.(fields{index}); end
+        end
+        function chooseFolder(app)
+            folder = uigetdir(app.SettingsUI.SaveFolder.Value, 'デフォルト保存先');
+            if ~isequal(folder, 0), app.SettingsUI.SaveFolder.Value = folder; end
+        end
+        function saveSettings(app)
+            try
+                proposed = app.Settings; fields = fieldnames(proposed);
+                for index = 1:numel(fields), proposed.(fields{index}) = app.SettingsUI.(fields{index}).Value; end
+                app.Settings = app_settings('save', app.SettingsPath, proposed);
+                for index = 1:numel(app.Panels)
+                    state = app.Panels{index};
+                    if any(strcmp(state.Kind, {'apc', 'swing', 'generic'})), state.Kernel.Value = app.Settings.Kernel; state.FitMethod.Value = app.Settings.FitMethod; end
+                    if any(strcmp(state.Kind, {'apc', 'swing', 'generic', 'predict', 'shap'})), state.Bins.Value = app.Settings.Bins; end
+                    if any(strcmp(state.Kind, {'apc', 'shap'})), state.IsPlot.Value = app.Settings.ShowPlots; end
+                    if strcmp(state.Kind, 'generic'), state.InputCount.Value = app.Settings.InputCount; end
+                    if strcmp(state.Kind, 'doe'), state.Factors.Value = app.Settings.Factors; state.Runs.Value = app.Settings.Runs; state.Seed.Value = app.Settings.Seed; end
+                    if ~strcmp(state.Kind, 'words'), app.updateMapping(index); end
+                end
+                app.applyTheme(); app.SettingsUI.Message.Text = ['保存・適用しました: ' app.SettingsPath];
+            catch err
+                uialert(app.Window, err.message, '設定を保存できませんでした');
+            end
+        end
+        function applyTheme(app)
+            apply_app_theme(app.Window, app.Settings.Theme);
         end
     end
 end
