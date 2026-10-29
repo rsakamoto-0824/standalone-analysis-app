@@ -86,7 +86,11 @@ classdef AnalysisController < handle
                 state.Actual.Parent.Visible = 'off'; controls.RowHeight{9} = 0;
             end
             state.Mode.Visible = 'off'; controls.RowHeight{6} = 0;
-            if ~any(strcmp(kind, {'apc', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{12} = 0; end
+            if ~any(strcmp(kind, {'apc', 'swing', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{12} = 0; end
+            if strcmp(kind, 'swing')
+                state.IsPlot.Text = '学習後にSHAP・スイング近似を計算'; state.IsPlot.Value = false;
+                state.IsPlot.Tooltip = '保存・検証後に先頭最大1000行でSHAPを計算します。処理時間が増えます。';
+            end
             if strcmp(kind, 'generic')
                 delete(state.Mode); controls.RowHeight{6} = 32;
                 state.InputCount = app.numberRow(controls, '説明変数の数', app.Settings.InputCount, [1, 100]);
@@ -329,7 +333,9 @@ classdef AnalysisController < handle
                 report = verify_saved_model(entry.SavePath, model, state.Kind, expected);
                 state.Verification.Data = report.Checks; entry.Verification = table2struct(report.Checks); app.message(index, report.Message);
                 if ~report.Success, error('AnalysisApp:verificationFailed', '%s', app.Constants.INVALID_MODEL_MESSAGE); end
-                if strcmp(state.Kind, 'apc'), app.runShap(index, model, X, true); end
+                if strcmp(state.Kind, 'apc') || (strcmp(state.Kind, 'swing') && state.IsPlot.Value)
+                    app.runShap(index, model, X, true);
+                end
                 entry.Status = 'completed';
             catch err
                 entry.Status = ['failed:' err.identifier]; entry.ElapsedSeconds = toc(started); app.logTraining(index, entry); rethrow(err);
@@ -364,14 +370,14 @@ classdef AnalysisController < handle
             xlabel(residual_ax, 'Predicted'); ylabel(residual_ax, 'Actual - Predicted'); title(residual_ax, '残差');
             app.registerCharts(index, {ax, residual_ax}, {'実測値と予測値', '残差'});
         end
-        function runShap(app, index, model, matrix, is_apc)
+        function runShap(app, index, model, matrix, is_training)
             state = app.Panels{index};
-            if is_apc && size(matrix, 1) > app.Constants.MAX_SHAP_POINTS
+            if is_training && size(matrix, 1) > app.Constants.MAX_SHAP_POINTS
                 app.message(index, 'SHAP は先頭1000件まで計算します。評価指標は全件で計算しています。'); matrix = matrix(1:app.Constants.MAX_SHAP_POINTS, :);
             end
             progress = uiprogressdlg(app.Window, 'Title', 'SHAP 解析', 'Message', 'SHAP 値を計算中', 'Indeterminate', 'on');
             cleanup = onCleanup(@() close(progress)); drawnow;
-            if ~is_apc && strcmp(state.Mode.Value, 'ノイズ除去用SHAP')
+            if ~is_training && strcmp(state.Mode.Value, 'ノイズ除去用SHAP')
                 [resist, ~, shap_all] = denoise_for_swing_curve(model, matrix(:, 1:3), matrix(:, 4));
                 output = table(state.Data.RowNumbers, resist, 'VariableNames', {'SourceRow', 'shap_resist'});
             else
@@ -379,7 +385,7 @@ classdef AnalysisController < handle
                 output = array2table(shap_all, 'VariableNames', model.PredictorNames);
                 output = addvars(output, state.Data.RowNumbers(1:size(shap_all, 1)), 'Before', 1, 'NewVariableNames', 'SourceRow');
             end
-            if is_apc
+            if is_training
                 view = app.tableTab(state.Views, 'SHAP 値'); view.Data = output;
             else
                 app.result(index, output);
@@ -454,10 +460,16 @@ classdef AnalysisController < handle
         end
         function exportResult(app, index)
             try
-                state = app.Panels{index}; view = findobj(state.Views.SelectedTab, 'Type', 'uitable');
-                if isempty(view) || isempty(view(1).Data), error('AnalysisApp:noResult', '結果・評価・要約などの表のあるタブを選択してください。'); end
+                state = app.Panels{index}; data = table();
+                if strcmp(state.Views.SelectedTab.Title, 'グラフ')
+                    chart_tab = state.ChartTabs.SelectedTab;
+                    if ~isempty(chart_tab) && isa(chart_tab.UserData, 'SwingCurveView'), data = chart_tab.UserData.currentTable(); end
+                else
+                    view = findobj(state.Views.SelectedTab, 'Type', 'uitable');
+                    if ~isempty(view), data = view(1).Data; end
+                end
+                if isempty(data), error('AnalysisApp:noResult', '結果・評価・要約・スイング近似などの表を選択してください。'); end
                 if strcmp(state.Views.SelectedTab.Title, '入力プレビュー'), error('AnalysisApp:preview', 'プレビューは先頭100行のみです。計算結果のタブを選択してください。'); end
-                data = view(1).Data;
                 if ~istable(data), data = cell2table(data, 'VariableNames', matlab.lang.makeValidName(view(1).ColumnName)); end
                 [name, folder] = uiputfile({'*.csv', 'CSV'; '*.xlsx', 'Excel'}, '表示中の表を保存', fullfile(app.Settings.SaveFolder, 'result.csv'));
                 if isequal(name, 0), return; end
