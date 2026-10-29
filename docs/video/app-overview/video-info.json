@@ -1,0 +1,132 @@
+{
+  "title": "MATLAB解析アプリ｜機能と基本操作",
+  "date": "2026-10-29",
+  "language": "ja",
+  "durationSeconds": 206.79999999999998,
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "voice": "Kyoko",
+  "voiceRate": 195,
+  "sourceCommit": "258f8025e3aa68f2b83a8901b55e51d949cd50c8",
+  "sourceImages": [
+    "01-apc.png",
+    "17-input-preview.png",
+    "29-kernel-comparison.png",
+    "10-model-evaluation.png",
+    "04-predict.png",
+    "21-shap-chart.png",
+    "22-swing-fit.png",
+    "25-swing-residual-qq.png",
+    "27-periodic-kernel.png",
+    "31-furnace-comparison.png",
+    "32-furnace-profiles.png",
+    "06-doe.png",
+    "19-confounding.png",
+    "20-wordcloud.png",
+    "08-settings.png"
+  ],
+  "chapters": [
+    {
+      "start": 0,
+      "duration": 10.333333333333334,
+      "title": "データから、判断へ。"
+    },
+    {
+      "start": 10.333333333333334,
+      "duration": 6.633333333333334,
+      "title": "操作は、4つの手順"
+    },
+    {
+      "start": 16.96666666666667,
+      "duration": 12.1,
+      "title": "入力の列を確認する"
+    },
+    {
+      "start": 29.06666666666667,
+      "duration": 11.166666666666666,
+      "title": "カーネルを同じ条件で比較"
+    },
+    {
+      "start": 40.233333333333334,
+      "duration": 11.433333333333334,
+      "title": "RMSEとR²で確かめる"
+    },
+    {
+      "start": 51.66666666666667,
+      "duration": 10.166666666666666,
+      "title": "保存モデルで新しい入力を予測"
+    },
+    {
+      "start": 61.833333333333336,
+      "duration": 10.4,
+      "title": "予測への寄与をSHAPで見る"
+    },
+    {
+      "start": 72.23333333333333,
+      "duration": 12.8,
+      "title": "Swing Curveの山と谷を読む"
+    },
+    {
+      "start": 85.03333333333333,
+      "duration": 11.5,
+      "title": "残差から近似を確認する"
+    },
+    {
+      "start": 96.53333333333333,
+      "duration": 11.233333333333333,
+      "title": "周期は内部で探索"
+    },
+    {
+      "start": 107.76666666666667,
+      "duration": 12.066666666666666,
+      "title": "WaferとSlotから炉内を補間"
+    },
+    {
+      "start": 119.83333333333333,
+      "duration": 11.3,
+      "title": "Runごとに6方式を比較"
+    },
+    {
+      "start": 131.13333333333333,
+      "duration": 12.933333333333334,
+      "title": "未計測Slotの曲線を確認"
+    },
+    {
+      "start": 144.06666666666666,
+      "duration": 12.2,
+      "title": "次の実験を計画する"
+    },
+    {
+      "start": 156.26666666666665,
+      "duration": 5.066666666666666,
+      "title": "交絡を図で確かめる"
+    },
+    {
+      "start": 161.33333333333331,
+      "duration": 6.633333333333334,
+      "title": "単語の件数も可視化"
+    },
+    {
+      "start": 167.96666666666664,
+      "duration": 12.066666666666666,
+      "title": "結果を表と図で保存"
+    },
+    {
+      "start": 180.0333333333333,
+      "duration": 11.833333333333334,
+      "title": "設定とHelpで使いやすく"
+    },
+    {
+      "start": 191.86666666666665,
+      "duration": 14.933333333333334,
+      "title": "利用前に対象環境で確認"
+    }
+  ],
+  "limitations": [
+    "R2022bの表示専用コピーと合成データの参考画面を使用",
+    "実操作を録画した動画ではない",
+    "参考画像では実GPRの学習・モデル保存・実SHAPは未実施",
+    "R2025b / Windows exe / Runtimeでの最終確認は未実施"
+  ]
+}
