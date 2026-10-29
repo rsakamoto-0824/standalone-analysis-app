@@ -3,7 +3,7 @@ function run_ui_smoke(image_folder)
 if nargin < 1, image_folder = ''; end
 [app, cleanup] = create_display_preview(); %#ok<ASGLU>
 window = app.Window; main = findobj(window, 'Type', 'uitabgroup', 'TabLocation', 'left');
-assert(numel(main.Children) == 9);
+assert(numel(main.Children) == 10);
 assert(~any(contains(string({main.Children.Title}), {'面内学習', '評価指標', '列の要約統計量'})));
 app.message(1, '日本語のステータスが1行で表示されます。');
 assert(strcmp(app.Panels{1}.Messages.Value{end}, '日本語のステータスが1行で表示されます。'));
@@ -41,5 +41,5 @@ app.SettingsUI.Theme.Value = 'ダーク'; app.saveSettings();
 assert(strcmp(app.Settings.Theme, 'ダーク')); assert(isfile(app.SettingsPath));
 assert(isempty(app.Panels{1}.Metrics.Data));
 assert(~app.Panels{1}.Confirmed);
-fprintf('UI smoke: 9 tabs, status, evaluation, embedded SHAP/DOE/wordcloud, resize, theme/settings: PASS\n');
+fprintf('UI smoke: 10 tabs, status, evaluation, embedded SHAP/DOE/wordcloud, resize, theme/settings: PASS\n');
 end

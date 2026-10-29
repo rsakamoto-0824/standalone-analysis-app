@@ -26,7 +26,7 @@ for position = 1:numel(order)
         view = SwingCurveView(tab, inputs(:, column), shap_all(:, column), color_values, color_name);
         charts{position + 1} = view.Axes;
         diagnostic_charts = {view.DiagnosticAxes.Histogram, view.DiagnosticAxes.QQ, view.DiagnosticAxes.Residual};
-        diagnostic_names = {'SHAPスイング近似: 残差分布', 'SHAPスイング近似: 正規Q–Q', 'SHAPスイング近似: 残差対膜厚'};
+        diagnostic_names = {'SHAP Swing Curve近似: 残差分布', 'SHAP Swing Curve近似: 正規Q–Q', 'SHAP Swing Curve近似: 残差対膜厚'};
         continue;
     end
     layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout); charts{position + 1} = ax;

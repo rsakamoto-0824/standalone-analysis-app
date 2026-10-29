@@ -3,6 +3,7 @@ classdef AnalysisController < handle
         Window
         Panels = cell(1, 7)
         LogFolder
+        Furnace = []
     end
     properties (Access = private)
         Constants
@@ -10,6 +11,7 @@ classdef AnalysisController < handle
         SettingsPath
         SettingsUI
         MainTabs
+        FurnaceTab
     end
     methods
         function app = AnalysisController(window)
@@ -29,14 +31,16 @@ classdef AnalysisController < handle
             window.Position(3:4) = [1320, 860]; window.Resize = 'on'; window.AutoResizeChildren = 'off';
             app.LogFolder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
             tabs = uitabgroup(window, 'TabLocation', 'left'); app.MainTabs = tabs;
-            titles = {'APC 学習', 'スイングカーブ学習', '汎用 GPR 学習', '保存モデルで推定', 'SHAP 解析', '実験計画作成', 'ワードクラウド'};
+            titles = {'APC 学習', 'Swing Curve学習', '汎用 GPR 学習', '保存モデルで推定', 'SHAP 解析', '実験計画作成', 'ワードクラウド'};
             kinds = {'apc', 'swing', 'generic', 'predict', 'shap', 'doe', 'words'};
             for index = 1:numel(titles)
                 tab = uitab(tabs, 'Title', sprintf('%d %s', index, titles{index}));
                 app.createPanel(index, tab, kinds{index});
             end
-            app.createSettings(uitab(tabs, 'Title', '8 設定'));
-            create_app_help(uitab(tabs, 'Title', '9 Help'), project_root);
+            app.FurnaceTab = uitab(tabs, 'Title', '8 炉内補間');
+            tabs.SelectionChangedFcn = @(~, event) app.openFurnace(event.NewValue);
+            app.createSettings(uitab(tabs, 'Title', '9 設定'));
+            create_app_help(uitab(tabs, 'Title', '10 Help'), project_root);
             window.SizeChangedFcn = @(~, ~) app.resizePanels();
             app.resizePanels(); app.applyTheme();
             if ~isempty(settings_warning), app.message(1, ['設定を読めないため初期値を使用: ' settings_warning]); end
@@ -96,7 +100,7 @@ classdef AnalysisController < handle
             if ~any(strcmp(kind, {'apc', 'swing', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{12} = 0; end
             if strcmp(kind, 'swing')
                 controls.RowHeight{5} = 100;
-                state.IsPlot.Text = '学習後にSHAP・スイング近似を計算'; state.IsPlot.Value = false;
+                state.IsPlot.Text = '学習後にSHAP・Swing Curve近似を計算'; state.IsPlot.Value = false;
                 state.IsPlot.Tooltip = '保存・検証後に先頭最大1000行でSHAPを計算します。処理時間が増えます。';
             end
             if strcmp(kind, 'generic')
@@ -177,6 +181,15 @@ classdef AnalysisController < handle
                     state.Layout.RowHeight = {'1x'};
                 end
             end
+            if ~isempty(app.Furnace), app.Furnace.resize(app.Window.Position(3)); end
+        end
+        function openFurnace(app, selected_tab)
+            if nargin > 1 && ~isequal(selected_tab, app.FurnaceTab), return; end
+            if isempty(app.Furnace)
+                app.Furnace = FurnaceInterpolationView(app.FurnaceTab, app.Window, app.Settings, @() app.lockControls(app.Furnace), app.LogFolder);
+                apply_app_theme(app.Furnace.Layout, app.Settings.Theme);
+            end
+            app.MainTabs.SelectedTab = app.FurnaceTab;
         end
         function loadData(app, index)
             try
@@ -643,7 +656,7 @@ classdef AnalysisController < handle
                     view = findobj(state.Views.SelectedTab, 'Type', 'uitable');
                     if ~isempty(view), data = view(1).Data; end
                 end
-                if isempty(data), error('AnalysisApp:noResult', '結果・評価・要約・スイング近似などの表を選択してください。'); end
+                if isempty(data), error('AnalysisApp:noResult', '結果・評価・要約・Swing Curve近似などの表を選択してください。'); end
                 if strcmp(state.Views.SelectedTab.Title, '入力プレビュー'), error('AnalysisApp:preview', 'プレビューは先頭100行のみです。計算結果のタブを選択してください。'); end
                 if ~istable(data), data = cell2table(data, 'VariableNames', matlab.lang.makeValidName(view(1).ColumnName)); end
                 [name, folder] = uiputfile({'*.csv', 'CSV'; '*.xlsx', 'Excel'}, '表示中の表を保存', fullfile(app.Settings.SaveFolder, 'result.csv'));
@@ -689,7 +702,7 @@ classdef AnalysisController < handle
             uibutton(row, 'Text', 'フォルダ選択', 'ButtonPushedFcn', @(~, ~) app.chooseFolder());
             app.SettingsUI.Theme = app.choiceRow(layout, 'カラーテーマ', {'ライト', 'ダーク'});
             app.SettingsUI.Kernel = app.choiceRow(layout, '既定 kernel', app.Constants.KERNELS);
-            app.SettingsUI.SwingKernel = app.choiceRow(layout, 'スイング専用 kernel', app.Constants.SWING_KERNELS);
+            app.SettingsUI.SwingKernel = app.choiceRow(layout, 'Swing Curve専用 kernel', app.Constants.SWING_KERNELS);
             app.SettingsUI.FitMethod = app.choiceRow(layout, '既定 fit_method', app.Constants.FIT_METHODS);
             app.SettingsUI.InputCount = app.numberRow(layout, '汎用 GPR の説明変数数', app.Settings.InputCount, [1, 100]);
             app.SettingsUI.Bins = app.numberRow(layout, 'KL / MI ビン数（0=自動）', app.Settings.Bins, [0, 1000]);
@@ -727,6 +740,7 @@ classdef AnalysisController < handle
                     if strcmp(state.Kind, 'doe'), state.Factors.Value = app.Settings.Factors; state.Runs.Value = app.Settings.Runs; state.Seed.Value = app.Settings.Seed; end
                     if ~strcmp(state.Kind, 'words'), app.updateMapping(index); end
                 end
+                if ~isempty(app.Furnace), app.Furnace.applySettings(app.Settings); end
                 app.applyTheme(); app.SettingsUI.Message.Text = ['保存・適用しました: ' app.SettingsPath];
             catch err
                 uialert(app.Window, err.message, '設定を保存できませんでした');

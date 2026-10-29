@@ -8,7 +8,7 @@ if size(X_for_shap, 2) ~= 3 || size(RESIST_for_shap, 2) ~= 1 || ...
 end
 constants = model_constants();
 if ~istable(Train_Model.X) || ~isequal(Train_Model.PredictorNames, constants.PREDICTOR_NAMES)
-    error('denoise_for_swing_curve:predictorNames', 'モデルの説明変数名・列順がスイングカーブ仕様と一致しません。');
+    error('denoise_for_swing_curve:predictorNames', 'モデルの説明変数名・列順がSwing Curve仕様と一致しません。');
 end
 all_X_for_shap = array2table([X_for_shap, RESIST_for_shap], ...
     'VariableNames', constants.PREDICTOR_NAMES);

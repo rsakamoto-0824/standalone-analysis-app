@@ -1,7 +1,8 @@
-function capture_app_screens(extra_only)
+function capture_app_screens(extra_only, dark_only)
 % 補助確認と手順書用の撮影。GP学習・モデル保存・実SHAP計算は行わない。
 root = fileparts(fileparts(fileparts(fileparts(mfilename('fullpath')))));
 if nargin < 1, extra_only = false; end
+if nargin < 2, dark_only = false; end
 folder = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'images');
 addpath(fullfile(root, 'tests'));
 [app, cleanup] = create_display_preview(); window = app.Window; %#ok<ASGLU>
@@ -27,15 +28,21 @@ end
 state = app.Panels{5};
 [charts, names] = plot_shap_figures(state.ChartTabs, 0.1 * inputs, inputs, headers(1:4));
 app.registerCharts(5, charts, names);
-state = app.Panels{6}; state.Factors.Value = 3; state.Runs.Value = 16; state.Method.Value = 'I最適'; app.run(6);
-app.run(7); app.applyTheme();
+if ~dark_only
+    state = app.Panels{6}; state.Factors.Value = 3; state.Runs.Value = 16; state.Method.Value = 'I最適'; app.run(6);
+    app.run(7);
+end
+app.applyTheme();
 image_names = {'01-apc', '02-swing', '03-generic', '04-predict', '05-shap', '06-doe', '07-words', '08-settings', '09-help'};
 app.SettingsUI.Message.Text = '設定保存先: prefdir / StandaloneAnalysisApp / settings.json（撮影用・未保存）';
 app.SettingsUI.SaveFolder.Value = 'C:\Analysis\Results（保存先の入力例）';
+if dark_only
+    apply_app_theme(window, 'ダーク'); capture(window, folder, '14-dark-theme'); return;
+end
 if ~extra_only
-for index = 1:9
+for index = [1:7, 9:10]
     main.SelectedTab = main.Children(startsWith(string({main.Children.Title}), sprintf('%d ', index)));
-    capture(window, folder, image_names{index});
+    capture(window, folder, image_names{index - double(index >= 9)});
 end
 end
 main.SelectedTab = main.Children(startsWith(string({main.Children.Title}), '1 ')); state = app.Panels{1};
@@ -44,8 +51,8 @@ state.Views.SelectedTab = state.Metrics.Parent.Parent; capture(window, folder, '
 state.Views.SelectedTab = state.Summary.Parent.Parent; capture(window, folder, '11-column-summary');
 state.Views.SelectedTab = state.ChartTabs.Parent.Parent; capture(window, folder, '12-model-chart');
 end
-window.Position(3:4) = [900, 780]; drawnow; capture(window, folder, '13-resize');
-window.Position(3:4) = [1320, 860]; drawnow; apply_app_theme(window, 'ダーク'); capture(window, folder, '14-dark-theme');
+window.Position(3:4) = [900, 780]; window.SizeChangedFcn(window, []); drawnow; capture(window, folder, '13-resize');
+window.Position(3:4) = [1320, 860]; window.SizeChangedFcn(window, []); drawnow; apply_app_theme(window, 'ダーク'); capture(window, folder, '14-dark-theme');
 app.applyTheme(); state.Views.SelectedTab = state.Preview.Parent.Parent; capture(window, folder, '17-input-preview');
 main.SelectedTab = main.Children(startsWith(string({main.Children.Title}), '5 ')); state = app.Panels{5};
 state.Mode.Value = 'ノイズ除去用SHAP'; capture(window, folder, '18-denoise');

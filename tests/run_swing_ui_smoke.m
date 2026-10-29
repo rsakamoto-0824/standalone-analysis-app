@@ -33,7 +33,7 @@ main.SelectedTab = state.Layout.Parent; state.Views.SelectedTab = state.ChartTab
 state.Source.Text = '合成データ（GP学習・実SHAP未実行）';
 state.ModelInfo.Value = {'表示試験：正弦波＋直線で作成した合成SHAP値'; '周期80 / 振幅2.5 / 傾き0.01'};
 state.Messages.Value = {'表示専用 R2022b / 合成データ'; '近似曲線、極値膜厚、山・谷を結ぶ傾きを確認'};
-state.Headline.Text = 'スイング近似の表示見本（GP学習・実SHAP計算は未実行）';
+state.Headline.Text = 'Swing Curve近似の表示見本（GP学習・実SHAP計算は未実行）';
 drawnow;
 chart_file = [tempname, '.png']; file_cleanup = onCleanup(@() delete(chart_file));
 exportgraphics(view.Axes, chart_file, 'Resolution', 100); assert(isfile(chart_file));
@@ -83,7 +83,7 @@ if ~isempty(image_folder)
     view.PlotTabs.SelectedTab = ancestor(view.DiagnosticAxes.Residual, 'uitab');
     view.TableTabs.SelectedTab = view.Tables.Residuals.Parent.Parent;
     drawnow; exportapp(app.Window, fullfile(image_folder, '26-swing-residual-thickness.png'));
-    help_tab = main.Children(strcmp({main.Children.Title}, '9 Help')); main.SelectedTab = help_tab;
+    help_tab = main.Children(strcmp({main.Children.Title}, '10 Help')); main.SelectedTab = help_tab;
     scroll(help_tab.Children(1), 'bottom');
     drawnow; pause(0.5); exportapp(app.Window, fullfile(image_folder, '09-help.png'));
 end

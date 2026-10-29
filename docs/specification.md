@@ -150,7 +150,7 @@ StandaloneAnalysisApp/
 
 | 露光APCウェーハモデル | table | 1: `SIN_TH` / 2: `SIN_RN` / 3: `NSG_TH` / 4: `RESIST_TH` | なし |
 
-| スイングカーブモデル | table | 1: `SIN_TH` / 2: `SIN_RN` / 3: `NSG_TH` / 4: `RESIST_TH` | なし |
+| Swing Curveモデル | table | 1: `SIN_TH` / 2: `SIN_RN` / 3: `NSG_TH` / 4: `RESIST_TH` | なし |
 
 | 面内推定モデル | 数値行列（列名なし） | 1: X座標 / 2: Y座標 / 3: 半径 | 半径列を追加 |
 
@@ -202,7 +202,7 @@ Train_Model = fitrgp(X_table,y_col,"FitMethod",fit_method, ...
 
  
 
-#### スイングカーブモデル
+#### Swing Curveモデル
 
  
 
@@ -442,7 +442,7 @@ end
 
  
 
-### 5.2 スイングカーブモデル学習
+### 5.2 Swing Curveモデル学習
 
  
 
@@ -564,7 +564,7 @@ end
 
  
 
-#### 汎用推定（APC・スイングカーブ・汎用GPRモデル用）
+#### 汎用推定（APC・Swing Curve・汎用GPRモデル用）
 
  
 
@@ -676,7 +676,7 @@ end
 
  
 
-#### スイングカーブのノイズ除去用 SHAP（現行 `denoise_for_swing_curve`）
+#### Swing Curveのノイズ除去用 SHAP（現行 `denoise_for_swing_curve`）
 
  
 
@@ -1014,7 +1014,7 @@ design = cordexch(nfactors, nruns, "quadratic");
 
 | T-01 | 各モデル種別で保存したMATファイルの変数が `Train_Model` の1件だけである |
 
-| T-02 | APC・スイングカーブモデルの `PredictorNames` が `{'SIN_TH','SIN_RN','NSG_TH','RESIST_TH'}` と完全一致する |
+| T-02 | APC・Swing Curveモデルの `PredictorNames` が `{'SIN_TH','SIN_RN','NSG_TH','RESIST_TH'}` と完全一致する |
 
 | T-03 | 入力ファイルの列順を入れ替えても、列名割当後のモデルの `PredictorNames` と予測値が変わらない |
 
@@ -1064,7 +1064,7 @@ design = cordexch(nfactors, nruns, "quadratic");
 
 | 別データでのSHAP依存確認 | `load` の戻り値（構造体）をモデルとして使っていた。変数 `FEATURE_NAMES` が未定義 | 5.6 の仕様で実装する |
 
-| スイングカーブ学習 | X の列数チェックがない。エラー識別子が別関数名 | 列数チェックを追加し、識別子を関数名に合わせる |
+| Swing Curve学習 | X の列数チェックがない。エラー識別子が別関数名 | 列数チェックを追加し、識別子を関数名に合わせる |
 
 | APC学習 | kernel・fit_method の有効値チェックがない | 4.3 の有効値でチェックする |
 

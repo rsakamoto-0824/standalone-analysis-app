@@ -37,7 +37,7 @@ if ~isempty(image_folder)
     app.SettingsUI.Message.Text = '設定保存先: prefdir / StandaloneAnalysisApp / settings.json（表示例）';
     main.SelectedTab = app.SettingsUI.Kernel.Parent.Parent.Parent;
     drawnow; pause(0.5); exportapp(app.Window, fullfile(image_folder, '08-settings.png'));
-    main.SelectedTab = main.Children(strcmp({main.Children.Title}, '9 Help'));
+    main.SelectedTab = main.Children(strcmp({main.Children.Title}, '10 Help'));
     scroll(main.SelectedTab.Children(1), 'bottom'); drawnow; pause(0.5);
     exportapp(app.Window, fullfile(image_folder, '09-help.png'));
 end
