@@ -7,6 +7,10 @@ classdef SwingCurveView < handle
         TableTabs
         Layout
         Fit = []
+        PlotTabs
+        DiagnosticAxes
+        DiagnosticLabels
+        Diagnostics = []
     end
     properties (Access = private)
         Thickness
@@ -19,7 +23,7 @@ classdef SwingCurveView < handle
             view.Thickness = thickness(:); view.Contribution = contribution(:);
             view.Colors = colors; view.ColorName = color_name;
             layout = uigridlayout(parent, [4, 1], 'Scrollable', 'on');
-            layout.RowHeight = {64, 66, 330, 155}; view.Layout = layout;
+            layout.RowHeight = {64, 66, 380, 175}; view.Layout = layout;
             controls = uigridlayout(layout, [2, 6]); controls.Padding = [0, 0, 0, 0];
             controls.Layout.Row = 1; controls.Layout.Column = 1;
             controls.RowHeight = {30, 30}; controls.RowSpacing = 4; controls.ColumnSpacing = 6;
@@ -37,14 +41,20 @@ classdef SwingCurveView < handle
             hint = uilabel(controls, 'Text', '周期0/0＝自動。単位は入力のまま。', 'WordWrap', 'on'); hint.Layout.Column = [5, 6];
             view.Summary = uilabel(layout, 'Text', '近似前', 'WordWrap', 'on');
             view.Summary.Layout.Row = 2; view.Summary.Layout.Column = 1;
-            plot_panel = uipanel(layout, 'BorderType', 'none'); plot_panel.Layout.Row = 3; plot_panel.Layout.Column = 1;
-            plot_layout = uigridlayout(plot_panel, [1, 1]); plot_layout.Padding = [0, 0, 0, 0];
+            view.PlotTabs = uitabgroup(layout); view.PlotTabs.Layout.Row = 3; view.PlotTabs.Layout.Column = 1;
+            curve_tab = uitab(view.PlotTabs, 'Title', '近似カーブ');
+            plot_layout = uigridlayout(curve_tab, [1, 1]); plot_layout.Padding = [0, 0, 0, 0];
             view.Axes = uiaxes(plot_layout);
+            view.diagnosticTab('Histogram', '残差分布');
+            view.diagnosticTab('QQ', '正規Q–Q');
+            view.diagnosticTab('Residual', '残差対膜厚');
             view.TableTabs = uitabgroup(layout);
             view.TableTabs.Layout.Row = 4; view.TableTabs.Layout.Column = 1;
             view.Tables.Metrics = view.tableTab('近似指標');
             view.Tables.Extrema = view.tableTab('極値の膜厚');
             view.Tables.Slopes = view.tableTab('隣接する山・谷の傾き');
+            view.Tables.Normality = view.tableTab('残差の正規性');
+            view.Tables.Residuals = view.tableTab('残差データ');
             fields = {'RangeMin', 'RangeMax', 'PeriodMin', 'PeriodMax', 'Trend'};
             for index = 1:numel(fields)
                 view.Controls.(fields{index}).ValueChangedFcn = @(~, ~) view.clearFit();
@@ -74,7 +84,13 @@ classdef SwingCurveView < handle
                     [fit.Period; fit.Amplitude; fit.RSquared; fit.RMSE; fit.Slope; fit.Offset; fit.Center; fit.PhaseRadians; double(fit.IncludeTrend); ...
                     fit.Count; range'; fit.SearchBounds'], 'VariableNames', {'Metric', 'Value'});
                 view.Tables.Extrema.Data = extrema; view.Tables.Slopes.Data = segments;
+                view.Diagnostics = swing_residual_diagnostics(view.Contribution(selected), fit.Prediction);
+                view.Tables.Normality.Data = view.Diagnostics.Table;
+                view.Tables.Residuals.Data = table(find(selected), view.Thickness(selected), view.Contribution(selected), fit.Prediction, ...
+                    view.Diagnostics.Residual, view.Diagnostics.Standardized, 'VariableNames', ...
+                    {'InputRow', 'Thickness', 'SHAP', 'FittedSHAP', 'Residual', 'StandardizedResidual'});
                 view.drawFit(fit, range, extrema, segments);
+                view.drawDiagnostics(view.Thickness(selected));
                 messages = fit.Warnings;
                 if isempty(extrema), messages(end + 1) = "この範囲に極大・極小はありません。";
                 elseif isempty(segments), messages(end + 1) = "同種の極値が2個ないため隣接傾きは算出しません。"; end
@@ -91,9 +107,18 @@ classdef SwingCurveView < handle
         end
 
         function clearFit(view)
-            view.Fit = []; view.Summary.Text = '設定を変更したら「近似を更新」を押してください。';
+            view.Fit = []; view.Diagnostics = []; view.Summary.Text = '設定を変更したら「近似を更新」を押してください。';
+            view.Summary.Tooltip = view.Summary.Text;
             fields = fieldnames(view.Tables);
             for index = 1:numel(fields), view.Tables.(fields{index}).Data = table(); end
+            fields = fieldnames(view.DiagnosticAxes);
+            for index = 1:numel(fields)
+                ax = view.DiagnosticAxes.(fields{index}); cla(ax); legend(ax, 'off');
+                title(ax, '近似を更新すると表示します'); xlabel(ax, ''); ylabel(ax, '');
+                ax.XLimMode = 'auto'; ax.YLimMode = 'auto';
+                view.DiagnosticLabels.(fields{index}).Text = '残差診断は未計算です。';
+                view.DiagnosticLabels.(fields{index}).Tooltip = '残差診断は未計算です。';
+            end
             ax = view.Axes; cla(ax); hold(ax, 'on');
             if isempty(view.Colors)
                 scatter(ax, view.Thickness, view.Contribution, 18, 'filled', 'DisplayName', 'SHAP値');
@@ -114,6 +139,49 @@ classdef SwingCurveView < handle
         function result = tableTab(view, label)
             tab = uitab(view.TableTabs, 'Title', label); layout = uigridlayout(tab, [1, 1]);
             result = uitable(layout, 'Data', table());
+        end
+
+        function diagnosticTab(view, field, label)
+            tab = uitab(view.PlotTabs, 'Title', label);
+            layout = uigridlayout(tab, [2, 1]); layout.RowHeight = {90, '1x'}; layout.Padding = [4, 4, 4, 4];
+            view.DiagnosticLabels.(field) = uilabel(layout, 'Text', '残差診断は未計算です。', 'WordWrap', 'on', 'FontSize', 11);
+            panel = uipanel(layout, 'BorderType', 'none'); panel.Layout.Row = 2;
+            plot_layout = uigridlayout(panel, [1, 1]); plot_layout.Padding = [0, 0, 0, 0];
+            view.DiagnosticAxes.(field) = uiaxes(plot_layout);
+        end
+
+        function drawDiagnostics(view, thickness)
+            report = view.Diagnostics; fields = fieldnames(view.DiagnosticLabels);
+            for index = 1:numel(fields)
+                label = view.DiagnosticLabels.(fields{index}); label.Text = report.Summary; label.Tooltip = report.Summary;
+            end
+            ax = view.DiagnosticAxes.Histogram; hold(ax, 'on');
+            histogram(ax, report.Residual, 'Normalization', 'pdf', 'FaceColor', [0.2, 0.55, 0.8], 'DisplayName', '残差（密度）');
+            if report.Tested
+                limits = [min(report.Residual), max(report.Residual), report.Mean - 4*report.Std, report.Mean + 4*report.Std];
+                grid = linspace(min(limits), max(limits), 301);
+                plot(ax, grid, normpdf(grid, report.Mean, report.Std), 'Color', [0.9, 0.35, 0.1], ...
+                    'LineWidth', 1.8, 'DisplayName', '標本平均・標準偏差の正規密度');
+            end
+            xlabel(ax, '残差 = SHAP値 − 近似値'); ylabel(ax, '確率密度'); title(ax, '残差分布と正規分布'); legend(ax, 'Location', 'best');
+            ax = view.DiagnosticAxes.QQ; hold(ax, 'on');
+            if report.Tested
+                scatter(ax, report.TheoreticalQuantiles, report.ObservedQuantiles, 14, 'filled');
+                limits = [min(report.TheoreticalQuantiles), max(report.TheoreticalQuantiles)];
+                plot(ax, limits, limits, '--', 'Color', [0.9, 0.35, 0.1], 'LineWidth', 1.5);
+                title(ax, '正規Q–Q：直線からのずれを確認');
+            else
+                title(ax, 'Q–Q対象外：残差のばらつきがしきい値以下');
+            end
+            xlabel(ax, '標準正規分布の理論分位点'); ylabel(ax, '標準化残差の標本分位点');
+            ax = view.DiagnosticAxes.Residual; scatter(ax, thickness, report.Residual, 14, 'filled'); hold(ax, 'on');
+            yline(ax, 0, '--', 'Color', [0.9, 0.35, 0.1]);
+            xlabel(ax, 'RESIST_TH（入力の膜厚単位）', 'Interpreter', 'none'); ylabel(ax, '残差 = SHAP値 − 近似値');
+            title(ax, '残差対膜厚：周期性・ばらつきの偏りを確認');
+            fields = fieldnames(view.DiagnosticAxes);
+            for index = 1:numel(fields)
+                ax = view.DiagnosticAxes.(fields{index}); ax.XGrid = 'on'; ax.YGrid = 'on';
+            end
         end
 
         function drawFit(view, fit, range, extrema, segments)

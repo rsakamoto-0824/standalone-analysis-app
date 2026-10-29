@@ -5,6 +5,7 @@ if ~isequal(size(shap_all), size(inputs))
 end
 [~, order] = sort(mean(abs(shap_all), 1), 'descend');
 charts = cell(1, numel(order) + 1); names = cell(size(charts));
+diagnostic_charts = {}; diagnostic_names = {};
 names{1} = 'SHAP 分布';
 tab = uitab(parent, 'Title', names{1}); layout = uigridlayout(tab, [1, 1]);
 ax = uiaxes(layout); charts{1} = ax; hold(ax, 'on');
@@ -24,6 +25,8 @@ for position = 1:numel(order)
         if ~isempty(others), color_values = inputs(:, others(1)); color_name = predictor_names{others(1)}; end
         view = SwingCurveView(tab, inputs(:, column), shap_all(:, column), color_values, color_name);
         charts{position + 1} = view.Axes;
+        diagnostic_charts = {view.DiagnosticAxes.Histogram, view.DiagnosticAxes.QQ, view.DiagnosticAxes.Residual};
+        diagnostic_names = {'SHAPスイング近似: 残差分布', 'SHAPスイング近似: 正規Q–Q', 'SHAPスイング近似: 残差対膜厚'};
         continue;
     end
     layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout); charts{position + 1} = ax;
@@ -37,4 +40,5 @@ for position = 1:numel(order)
     xlabel(ax, predictor_names{column}, 'Interpreter', 'none'); ylabel(ax, 'SHAP value');
     title(ax, names{position + 1}, 'Interpreter', 'none');
 end
+charts = [charts, diagnostic_charts]; names = [names, diagnostic_names];
 end

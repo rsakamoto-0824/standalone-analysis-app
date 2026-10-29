@@ -3,6 +3,7 @@
 const TOP_BUTTON_SCROLL_THRESHOLD_PX = 480;
 const MOBILE_LAYOUT_MAX_WIDTH_PX = 900;
 const COPY_SUCCESS_DISPLAY_MS = 1600;
+const ACTIVE_SECTION_OFFSET_PX = 120;
 
 const body = document.body;
 const sidebar = document.getElementById("sidebar");
@@ -46,6 +47,17 @@ function setActiveTocLink(sectionId) {
       link.removeAttribute("aria-current");
     }
   });
+}
+
+function updatePageNavigation() {
+  updateBackToTopVisibility();
+  let currentSection = observedSections[0];
+  // 長い章は画面に入る面積の割合が小さいため、章の開始位置で判定する。
+  for (const section of observedSections) {
+    if (section.getBoundingClientRect().top > ACTIVE_SECTION_OFFSET_PX) break;
+    currentSection = section;
+  }
+  setActiveTocLink(currentSection?.id ?? "overview");
 }
 
 function copyTextWithLegacyFallback(text) {
@@ -107,11 +119,13 @@ backToTopButton.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-window.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
+window.addEventListener("scroll", updatePageNavigation, { passive: true });
+window.addEventListener("load", updatePageNavigation);
 window.addEventListener("resize", () => {
   if (!isMobileLayout()) {
     setSidebarOpen(false);
   }
+  updatePageNavigation();
 });
 
 document.addEventListener("keydown", (event) => {
@@ -121,21 +135,4 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-const sectionObserver = new IntersectionObserver(
-  (entries) => {
-    const visibleEntry = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-    if (visibleEntry) {
-      setActiveTocLink(visibleEntry.target.id);
-    }
-  },
-  {
-    rootMargin: "-18% 0px -68% 0px",
-    threshold: [0.05, 0.2, 0.5],
-  },
-);
-
-observedSections.forEach((section) => sectionObserver.observe(section));
-updateBackToTopVisibility();
-setActiveTocLink(observedSections[0]?.id ?? "overview");
+updatePageNavigation();
