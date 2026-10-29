@@ -21,6 +21,38 @@ classdef TestFurnaceInterpolation < matlab.unittest.TestCase
             second = fit_furnace_model(x, 1000 + 5*curved, 'rbf', options);
             testCase.verifyEqual(predict_furnace_model(second, query), 1000 + 5*predict_furnace_model(first, query), 'AbsTol', 1e-9);
         end
+        function cubicPolynomialPreservesSmallResponseAndShiftedSlots(testCase)
+            offsets = [0; 3; 11; 24; 38; 49]; x = 999950 + offsets;
+            response = @(z) 1.46 + 1e-5*(0.01*z.^3 - 0.4*z.^2 + z);
+            model = fit_furnace_model(x, response(offsets), 'poly3'); query = (0:49)';
+            [prediction, deviation, interval] = predict_furnace_model(model, 999950 + query);
+            testCase.verifyEqual(prediction, response(query), 'AbsTol', 1e-14);
+            testCase.verifyTrue(all(isnan(deviation))); testCase.verifyTrue(all(isnan(interval), 'all'));
+            constant = fit_furnace_model(x, 1.46*ones(size(x)), 'poly3');
+            testCase.verifyEqual(predict_furnace_model(constant, x), 1.46*ones(size(x)), 'AbsTol', 1e-14);
+        end
+        function cubicPolynomialUsesAllRowsForLeastSquares(testCase)
+            x = (-3:3)'; y = 10 + x.^3 + [0; 0.3; -0.2; 0.5; -0.1; 0.2; 0];
+            design = [x.^3, x.^2, x, ones(size(x))]; coefficients = design \ y;
+            model = fit_furnace_model(x + 10, y, 'poly3'); prediction = predict_furnace_model(model, x + 10);
+            testCase.verifyEqual(prediction, design*coefficients, 'AbsTol', 1e-12);
+            testCase.verifyGreaterThan(norm(prediction - y), 0.1);
+            testCase.verifyEqual(design'*(prediction - y), zeros(4, 1), 'AbsTol', 1e-10);
+        end
+        function cubicValidationRefitsWithoutHeldOutResponse(testCase)
+            x = [1; 5; 12; 19; 30; 45]; y = 100 + 0.01*x.^3 - 0.4*x.^2 + x + [0; 1; -2; 3; -1; 0];
+            report = evaluate_furnace_models(x, y, {'Film'}, (1:45)', {'poly3'}, struct());
+            testCase.verifyEqual(report.Comparison.Status, "成功"); testCase.verifyEqual(height(report.Metrics), 16);
+            for held_out = 2:numel(x) - 1
+                train = true(size(x)); train(held_out) = false;
+                design = [x(train).^3, x(train).^2, x(train), ones(sum(train), 1)]; coefficients = design \ y(train);
+                expected = [x(held_out)^3, x(held_out)^2, x(held_out), 1]*coefficients;
+                testCase.verifyEqual(report.Series{1}.ValidationPrediction(held_out), expected, 'AbsTol', 1e-9);
+            end
+            inside = report.Series{1}.ValidationPrediction(2:end - 1);
+            testCase.verifyEqual(report.Comparison.RMSE, sqrt(mean((y(2:end - 1) - inside).^2)), 'AbsTol', 1e-12);
+            testCase.verifyTrue(all(isnan(report.Series{1}.ValidationPrediction([1, end]))));
+        end
         function smallResponseScaleIsRestoredWithoutChangingUnits(testCase)
             x = (1:7)'; model = fit_furnace_model(x, x/10, 'spline');
             model.ResponseCenter = 1.46; model.ResponseScale = 1e-5;
@@ -91,8 +123,8 @@ classdef TestFurnaceInterpolation < matlab.unittest.TestCase
         end
         function batchProfilesNeverUseOtherRunsAndKeepWaferIds(testCase)
             source = batchSource(); data = prepare_furnace_data(source, 'WaferId', 'BoatSlot', {'Thickness', 'RefractiveIndex'}, 'バッチ');
-            report = interpolate_furnace_batches(data, (1:9)', {'spline', 'rbf'}, struct());
-            testCase.verifyEqual(height(report.Comparison), 8);
+            report = interpolate_furnace_batches(data, (1:9)', {'spline', 'rbf', 'poly3'}, struct());
+            testCase.verifyEqual(height(report.Comparison), 12);
             testCase.verifyEqual(unique(report.Comparison.Batch), ["A"; "B"]);
             a = report.Predictions(report.Predictions.Batch == "A" & report.Predictions.Target == "Thickness" & report.Predictions.Method == "spline", :);
             b = report.Predictions(report.Predictions.Batch == "B" & report.Predictions.Target == "Thickness" & report.Predictions.Method == "spline", :);
@@ -100,6 +132,9 @@ classdef TestFurnaceInterpolation < matlab.unittest.TestCase
             testCase.verifyEqual(a.WaferId(1:7), "W" + string((1:7)')); testCase.verifyEqual(a.WaferId(8:9), [""; ""]);
             testCase.verifyEqual(a.SourceRow(1:7), (2:8)'); testCase.verifyTrue(all(isnan(a.SourceRow(8:9))));
             testCase.verifyEqual(report.Validation.WaferId(1:7), "W" + string((1:7)'));
+            a = report.Predictions(report.Predictions.Batch == "A" & report.Predictions.Target == "Thickness" & report.Predictions.Method == "poly3", :);
+            b = report.Predictions(report.Predictions.Batch == "B" & report.Predictions.Target == "Thickness" & report.Predictions.Method == "poly3", :);
+            testCase.verifyEqual(b.Predicted(1:7) - a.Predicted(1:7), 100*ones(7, 1), 'AbsTol', 1e-10);
             for index = 1:numel(report.Series)
                 item = report.Series{index};
                 if item.Target == "Thickness" && item.Batch == "A", testCase.verifyLessThan(max(item.Actual), 100); end

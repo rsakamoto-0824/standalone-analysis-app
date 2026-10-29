@@ -12,6 +12,16 @@ model = struct('Method', method, 'Fit', []);
 switch method
     case 'spline'
         model.Fit = spline(slots, response);
+    case 'poly3'
+        center = mean(slots); scale = max(slots) - min(slots);
+        model.ResponseCenter = mean(response); model.ResponseScale = std(response);
+        if model.ResponseScale == 0, model.ResponseScale = 1; end
+        standardized_response = (response - model.ResponseCenter) / model.ResponseScale;
+        [coefficients, statistics] = polyfit((slots - center) / scale, standardized_response, constants.PolynomialDegree);
+        if rcond(statistics.R) < constants.MinimumReciprocalCondition
+            error('furnace:illConditioned', '3次多項式近似の計算が不安定です。計測Slotの配置を確認してください。');
+        end
+        model.Fit = struct('Center', center, 'Scale', scale, 'Coefficients', coefficients);
     case 'rbf'
         validateattributes(options.RBFWidth, {'numeric'}, {'scalar', 'real', 'finite', 'nonnegative'});
         validateattributes(options.RBFRidge, {'numeric'}, {'scalar', 'real', 'finite', '>=', constants.MinimumRBFRidge, '<=', constants.MaximumRBFRidge});

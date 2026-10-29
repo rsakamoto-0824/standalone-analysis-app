@@ -1,11 +1,12 @@
 function create_app_help(tab, project_root)
 layout = uigridlayout(tab, [6, 1], 'Scrollable', 'on');
-layout.RowHeight = {40, 270, 90, 230, 170, 36};
+layout.RowHeight = {40, 270, 90, 230, 204, 36};
 uilabel(layout, 'Text', 'Help — 用語、評価の読み方、公式の関数ヘルプ', 'FontWeight', 'bold');
 terms = {
     '炉内補間 / バッチ', 'LP-CVDのBoatSlotと膜厚・屈折率の関係を、成膜Runごとに別々に学習します。同時処理する複数Lotは同じRunのSlotプロファイルとして扱い、異なるバッチの値は混ぜません。';
     'WaferId / 未計測', '識別子はモデルの説明変数にしません。計測列の空欄だけを未計測として除き、項目別に利用できるSlotで学習します。入力行に対応するWaferIdを予測表へ残し、入力にない生成SlotのWaferIdは空欄です。';
     'スプライン / RBF', 'スプラインはnot-a-knotの3次補間。RBFはGaussian基底＋直線トレンドで正則化します。幅0では学習Slot間隔の中央値の2倍を使用。両者には予測区間を付けません。';
+    '3次多項式近似 / poly3', 'Run・計測項目ごとにy=a×BoatSlot³+b×BoatSlot²+c×BoatSlot+dを最小二乗法で当てはめます。スプラインと異なり、計測点を必ず通りません。学習行だけでSlot・応答を規格化し、内部Slot検証と8指標で比較します。予測区間は付けません。';
     '炉内のGPR', 'squaredexponential、matern52、rationalquadraticを比較。exact・線形基底・標準化を使い、各学習でカーネル量とノイズを学習します。表示する95%区間は応答の予測区間で、真の成膜値の範囲を保証するものではありません。';
     '内部Slot検証', '計測位置が5点以上の項目で、両端を固定し内部Slotを1点ずつ学習から外して予測。8指標は内部Slotの検証予測を結合して計算し、順位は同じバッチ・同じ計測項目の中で付けます。端部や外挿の精度は評価しません。';
     '炉内の外挿', '計測範囲外は初期状態で予測せずNaNと理由を表示。明示的に有効にした場合だけ計算し、表と破線で区別します。カーネル選定にも使った検証値は独立な最終評価の代わりにはなりません。';
@@ -54,11 +55,11 @@ uitextarea(layout, 'Editable', 'off', 'Value', {
     'D/I の探索候補は各因子 −1/0/1。I の積分対象は連続な一様領域 [-1,1]^k。局所探索のため最適性は保証しません。';
     '実験計画は1〜8因子、追加1〜300件、既存＋追加500件以下。直交表では実験数の欄を使用しません。';
     '設定：保存先、テーマ、kernel、fit_method、入力数、ビン数、因子数、実験数、seed、SHAP表示の初期値を変更できます。'});
-links = uigridlayout(layout, [5, 4]); links.Padding = [0, 0, 0, 0];
+links = uigridlayout(layout, [6, 4]); links.Padding = [0, 0, 0, 0];
 functions = {'fitrgp', 'RegressionGP', 'shapley', 'swarmchart', 'wordcloud', 'cordexch', 'daugment', 'fracfact', ...
-    'lillietest', 'skewness', 'kurtosis', 'norminv', 'cvpartition', 'crossval', 'rng', 'randperm', 'spline', 'ppval', 'fill', 'RegressionGP.predict'};
+    'lillietest', 'skewness', 'kurtosis', 'norminv', 'cvpartition', 'crossval', 'rng', 'randperm', 'spline', 'ppval', 'fill', 'RegressionGP.predict', 'polyfit', 'polyval'};
 folders = {'stats', 'stats', 'stats', 'matlab/ref', 'matlab/ref', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', ...
-    'stats', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'stats'};
+    'stats', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'stats', 'matlab/ref', 'matlab/ref'};
 for index = 1:numel(functions)
     url = ['https://www.mathworks.com/help/' folders{index} '/' lower(functions{index}) '.html'];
     uibutton(links, 'Text', [functions{index} ' ↗'], 'ButtonPushedFcn', @(~, ~) web(url, '-browser'));

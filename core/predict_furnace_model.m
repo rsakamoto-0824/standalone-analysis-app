@@ -5,6 +5,8 @@ slots = double(slots(:)); deviation = NaN(size(slots)); interval = NaN(numel(slo
 switch model.Method
     case 'spline'
         prediction = ppval(model.Fit, slots); prediction = prediction(:);
+    case 'poly3'
+        fit = model.Fit; prediction = polyval(fit.Coefficients, (slots - fit.Center) / fit.Scale);
     case 'rbf'
         fit = model.Fit; z = (slots - fit.Center) / fit.Scale;
         basis = [exp(-0.5 * ((z - fit.Slots') / fit.Width).^2), ones(size(z)), z];

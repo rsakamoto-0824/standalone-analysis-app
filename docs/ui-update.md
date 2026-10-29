@@ -139,14 +139,15 @@ APC・Swing Curve・汎用GPRの3学習へ「カーネル比較」を追加す�
 - 入力はWaferId、正の整数BoatSlot、1列以上の計測値、任意のバッチ列。ユーザー確認済みのとおり、同じRunの複数Lotは一つのSlotプロファイルとして扱い、異なるバッチは完全に分離して学習する。バッチを数値特徴へ変換しない。バッチ列なしは単一Run。識別子は文字列として保持し、同一バッチ内のWaferId・BoatSlot重複、識別子欠損を拒否する。CSVの識別子の先頭ゼロと列名を保持するため文字列型で読む。Excelの識別子は文字列セルで入力する。
 - 膜厚・屈折率などは計測列ごとにNaN/空欄を除く。ほかの項目が未計測でもその項目の計測値は使う。数値以外とInfは停止する。各バッチ・各項目で計測済みSlotが5点以上必要。これより少ない対象は全候補を失敗として理由を残し、他の対象を続行する。
 - スプラインは`spline`のnot-a-knotによる3次補間。追加のCurve Fitting Toolboxは不要。RBFは`exp(−0.5 ((s−s_i)/w)^2)`と定数・線形トレンドを用い、`[K+λI, P; P', 0]`の連立式を解く。Slotを範囲で規格化し、応答を平均・標準偏差で規格化して解き、元の単位に戻す。定数応答は尺度1。w=0指定時は各学習内のSlot間隔の中央値の2倍。手入力は物理Slot単位で固定する。λ既定1e−8、許容1e−12〜1。rcond<1e−14は不安定として停止する。
+- 3次多項式近似（`poly3`）は`y=a s³+b s²+c s+d`を全学習行へ最小二乗法で当てはめる。各学習内のSlotを平均と範囲、応答を平均・標準偏差で規格化し、`polyfit`の次数を3に固定する。`polyval`で予測して応答を元の単位へ戻す。定数応答の尺度は1。QR分解のRのrcond<1e−14は不安定として候補を失敗にする。スプラインと異なり計測点を必ず通らない。検証・順位・外挿・CSV/Excel/PNGは他候補と共通で、最少計測点は5点のまま。
 - GPR候補はsquaredexponential、matern52、rationalquadratic。exact学習・exact予測、Standardize=true、BasisFunction=linear。学習行の応答を平均・標準偏差で規格化し、予測平均・応答標準偏差・区間を元の単位へ戻す。応答一定時の尺度は1。標準化した応答でカーネル量の初期値を1、Sigma初期値0.1、下限1e−6とし、カーネル量とノイズは各学習でfitrgpが学習する。屈折率の微小な変動に対するSigma初期化の絶対許容差の影響を減らすためである。旧APC/Swing Curve/汎用のfitrgp設定は変更しない。GPRのfit/predictと製品画面はR2025b制約を維持する。
 - 各対象の計測点をSlot昇順にし、最小・最大の2点を固定して、内部Slotを1点ずつ学習から外す。除いた行の応答を学習・標準化・RBF幅計算・GPRの推定に使わない。端点を除いた検証予測を結合して8指標を計算し、端点は検証対象外理由とNaNを残す。全計測Slotの当てはまりも別のScopeで8指標を計算する。順位はバッチ・目的変数ごとに検証RMSE、同値ならMAE、さらに同値なら選択順。単位が違う目的変数や異なるRunの指標をまとめて順位付けしない。
 - 比較中の乱数は既定seed=0を基に分割ごとに同じ状態から開始し、終了・中止・失敗で呼出前の状態を復元する。学習・予測失敗は対象候補のNoteへ記録し、次の候補へ進む。中止は学習の境界で受け付け、今回の部分結果を画面やファイルに残さない。処理中は操作部品をロックし、終了・例外で復元する。
 - 指定範囲・間隔で予測Slotを作る。計測範囲はバッチ・目的変数ごとに異なる。外挿は既定無効でNaNと理由を表示し、有効化時だけ予測して表のOutsideMeasuredRange/Regionと図の破線で示す。元入力にあるSlotへWaferIdと物理行SourceRowを対応付け、入力にない生成SlotはWaferId空欄・SourceRow=NaN。未知のWaferIdを作らず、計測値もモデル予測へ置き換えない。
-- GPRのpredictが返す応答標準偏差と95%応答予測区間を表へ保持し、選択モデルの区間を帯で表示する。平均関数だけの信頼区間とは呼ばない。スプライン/RBFでは標準偏差・区間をNaNとし、近似的な区間を捏造しない。
+- GPRのpredictが返す応答標準偏差と95%応答予測区間を表へ保持し、選択モデルの区間を帯で表示する。平均関数だけの信頼区間とは呼ばない。スプライン/RBF/3次多項式では標準偏差・区間をNaNとし、近似的な区間を捏造しない。
 - 予測・比較・全指標・検証予測・要約・プレビュー・アプリ内グラフを用意し、バッチ/目的変数/方式を切り替えて確認する。比較曲線は同じバッチ・目的変数の成功候補を重ねる。表はCSV/Excel、図はPNG。炉内補間のモデルMATは保存せず、計算中のモデルを制御用Train_Modelへ混在させない。入力・条件・ユーザー設定変更で結果と確認状態を消す。
 - 1バッチ300行、100バッチ、20目的変数、Slot値1〜1e6、予測位置2000点まで。一括予測20万行、計画学習2万回を超える場合は分割を案内する。1候補・1項目で計測点数−1回の学習となる。比較や学習の測定値は集約ログに記録しない。
 
 内部Slotの検証は端部・外挿性能を評価しない。また、候補選定にも使った検証値は独立な最終評価ではない。別の未使用計測値で確認する。R2025bの実GPRとWindows / Runtimeは未確認。
 
-参照：[splineの端条件](https://www.mathworks.com/help/matlab/ref/spline.html)、[fitrgp](https://www.mathworks.com/help/stats/fitrgp.html)、[predictの応答標準偏差・予測区間](https://www.mathworks.com/help/stats/regressiongp.predict.html)。2026-10-29参照。
+参照：[polyfitの最小二乗近似](https://www.mathworks.com/help/matlab/ref/polyfit.html)、[polyval](https://www.mathworks.com/help/matlab/ref/polyval.html)、[splineの端条件](https://www.mathworks.com/help/matlab/ref/spline.html)、[fitrgp](https://www.mathworks.com/help/stats/fitrgp.html)、[predictの応答標準偏差・予測区間](https://www.mathworks.com/help/stats/regressiongp.predict.html)。2026-10-29参照。

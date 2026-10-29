@@ -1,6 +1,7 @@
 function constants = furnace_constants()
-constants.Methods = {'spline', 'rbf', 'gpr_squaredexponential', 'gpr_matern52', 'gpr_rationalquadratic'};
-constants.Labels = {'スプライン（3次）', 'RBF（Gaussian＋直線）', 'GPR: squaredexponential', 'GPR: matern52', 'GPR: rationalquadratic'};
+constants.Methods = {'spline', 'poly3', 'rbf', 'gpr_squaredexponential', 'gpr_matern52', 'gpr_rationalquadratic'};
+constants.Labels = {'スプライン（3次）', '3次多項式近似', 'RBF（Gaussian＋直線）', 'GPR: squaredexponential', 'GPR: matern52', 'GPR: rationalquadratic'};
+constants.PolynomialDegree = 3;
 constants.MinimumMeasuredSlots = 5;
 constants.MaximumMeasuredSlots = 300;
 constants.MaximumQuerySlots = 2000;
