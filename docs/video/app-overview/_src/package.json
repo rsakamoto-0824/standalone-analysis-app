@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Local rendering of the Japanese application overview video",
+  "dependencies": {
+    "playwright": "1.62.1",
+    "sharp": "0.35.5"
+  }
+}

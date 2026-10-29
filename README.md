@@ -12,6 +12,8 @@
 
 スクリーンショット付きの詳細手順は、[ビルド・利用手順書（HTML）](docs/user-guide/procedure-guide.html)を参照してください。GitHub では HTML のソースが表示されるため、**Code → Download ZIP で取得・展開し、`docs/user-guide/procedure-guide.html` を PC のブラウザで開きます。** 画像やスタイルも必要なので、`docs/user-guide/` のフォルダ一式を保持してください。アプリ画像は R2022b の表示見本、App Designer の説明画像は出典を記した公式資料の掲載例です。
 
+音声・字幕付きの[アプリ解説動画（MP4、約3分27秒）](docs/video/app-overview/app-overview-ja.mp4)も用意しています。[動画の閲覧方法](docs/video/app-overview/README.md)を参照してください。章を選んで再生する場合は、ZIPを展開後に`docs/video/app-overview/index.html`を開きます。
+
 ## 必要な環境
 
 - 開発・単体テスト: MATLAB R2025b、Statistics and Machine Learning Toolbox。
