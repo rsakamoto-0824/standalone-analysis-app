@@ -1,4 +1,6 @@
-function [Train_Model, warnings] = train_swing_curve_model(X, RESIST_TH, y, kernel, fit_method)
+function [Train_Model, warnings, details] = train_swing_curve_model(X, RESIST_TH, y, kernel, fit_method, progress)
+details = [];
+if nargin < 6, progress = []; end
 constants = model_constants();
 if nargin < 4 || isempty(kernel), kernel = constants.DEFAULT_KERNEL; end
 if nargin < 5 || isempty(fit_method), fit_method = constants.DEFAULT_FIT_METHOD; end
@@ -27,11 +29,15 @@ end
 if ~ismatrix(X) || size(X, 2) ~= 3
     error('train_swing_curve_model:columnCount', 'X は3列（SIN_TH, SIN_RN, NSG_TH）で渡してください。');
 end
-validate_model_parameters(kernel, fit_method, 'train_swing_curve_model');
+validate_model_parameters(kernel, fit_method, 'train_swing_curve_model', true);
 validate_numeric_data(X, 'X', 'train_swing_curve_model');
 validate_numeric_data(RESIST_TH, 'RESIST_TH', 'train_swing_curve_model');
 validate_numeric_data(y(:), 'y', 'train_swing_curve_model');
 require_r2025b();
+if strcmpi(kernel, 'swingperiodic')
+    [Train_Model, warnings, details] = train_swing_periodic_model(X, RESIST_TH, y, fit_method, progress);
+    return;
+end
 X_table = array2table(X);
 RESIST_TH_col = array2table(RESIST_TH);
 y_col = double(y(:));

@@ -40,10 +40,28 @@ try
         S.Train_Model.ResponseName, isequal(S.Train_Model.ResponseName, Train_Model_before.ResponseName)};
     for field = {'KernelFunction', 'FitMethod', 'BasisFunction'}
         name = field{1};
-        passed = strcmpi(S.Train_Model.(name), expected.(name)) && ...
-            isequal(S.Train_Model.(name), Train_Model_before.(name));
-        checks(end + 1, :) = {name, char(string(expected.(name))), ...
-            char(string(S.Train_Model.(name))), passed};
+        if strcmp(name, 'KernelFunction')
+            wanted = model_kernel_name(expected.(name)); actual = model_kernel_name(S.Train_Model.(name));
+            passed = strcmpi(actual, wanted) && strcmpi(actual, model_kernel_name(Train_Model_before.(name))) && ...
+                isequaln(swing_kernel_info(S.Train_Model.(name)), swing_kernel_info(Train_Model_before.(name)));
+            if ~isa(Train_Model_before.(name), 'function_handle')
+                passed = passed && isequal(S.Train_Model.(name), Train_Model_before.(name));
+            end
+        else
+            wanted = char(string(expected.(name))); actual = char(string(S.Train_Model.(name)));
+            passed = strcmpi(actual, wanted) && isequal(S.Train_Model.(name), Train_Model_before.(name));
+        end
+        checks(end + 1, :) = {name, wanted, actual, passed};
+    end
+    periodic = swing_kernel_info(Train_Model_before.KernelFunction);
+    if ~isempty(periodic)
+        loaded_periodic = swing_kernel_info(S.Train_Model.KernelFunction);
+        period = NaN; if ~isempty(loaded_periodic), period = loaded_periodic.Period; end
+        checks(end + 1, :) = {'周期（入力の膜厚単位）', num2str(periodic.Period, 17), num2str(period, 17), isequal(periodic.Period, period)};
+        wanted_parameters = Train_Model_before.KernelInformation.KernelParameters;
+        actual_parameters = S.Train_Model.KernelInformation.KernelParameters;
+        checks(end + 1, :) = {'KernelParameters', mat2str(wanted_parameters, 17), mat2str(actual_parameters, 17), ...
+            isequal(wanted_parameters, actual_parameters)};
     end
     checks(end + 1, :) = {'NumObservations', num2str(expected.NumObservations), ...
         num2str(S.Train_Model.NumObservations), ...

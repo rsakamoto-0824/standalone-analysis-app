@@ -2,6 +2,7 @@ function constants = model_constants()
 constants.PREDICTOR_NAMES = {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'};
 constants.KERNELS = {'squaredexponential', 'matern32', 'matern52', ...
     'exponential', 'rationalquadratic', 'ardmatern52', 'ardsquaredexponential'};
+constants.SWING_KERNELS = [constants.KERNELS, {'swingperiodic'}];
 constants.FIT_METHODS = {'exact', 'sd', 'sr', 'fic'};
 constants.DEFAULT_KERNEL = constants.KERNELS{1};
 constants.DEFAULT_FIT_METHOD = constants.FIT_METHODS{1};
