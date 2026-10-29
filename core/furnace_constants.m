@@ -1,0 +1,23 @@
+function constants = furnace_constants()
+constants.Methods = {'spline', 'poly3', 'rbf', 'gpr_squaredexponential', 'gpr_matern52', 'gpr_rationalquadratic'};
+constants.Labels = {'スプライン（3次）', '3次多項式近似', 'RBF（Gaussian＋直線）', 'GPR: squaredexponential', 'GPR: matern52', 'GPR: rationalquadratic'};
+constants.PolynomialDegree = 3;
+constants.MinimumMeasuredSlots = 5;
+constants.MaximumMeasuredSlots = 300;
+constants.MaximumQuerySlots = 2000;
+constants.MaximumTargets = 20;
+constants.MaximumBatches = 100;
+constants.MaximumOutputRows = 200000;
+constants.MaximumFits = 20000;
+constants.MaximumSlot = 1e6;
+constants.DefaultRBFWidth = 0;
+constants.AutomaticRBFGapMultiplier = 2;
+constants.DefaultRBFRidge = 1e-8;
+constants.MinimumRBFRidge = 1e-12;
+constants.MaximumRBFRidge = 1;
+constants.MinimumReciprocalCondition = 1e-14;
+constants.DefaultBins = 0;
+constants.ComparisonSeed = 0;
+constants.GPRInitialSigma = 0.1;
+constants.GPRMinimumSigma = 1e-6;
+end

@@ -4,7 +4,7 @@ if strcmp(theme, 'ダーク')
 else
     background = [0.94, 0.96, 0.98]; surface = [1, 1, 1]; text = [0.12, 0.17, 0.25];
 end
-window.Color = background;
+if isprop(window, 'Color'), window.Color = background; end
 objects = findall(window);
 for index = 1:numel(objects)
     item = objects(index);
@@ -19,6 +19,12 @@ for index = 1:numel(objects)
         item.Color = text;
     elseif isa(item, 'matlab.ui.control.Table')
         item.BackgroundColor = [surface; background]; item.ForegroundColor = text;
+    elseif isa(item, 'matlab.ui.container.TabGroup')
+        % ネイティブなタブ見出しは明るい背景を保つため、文字もそれに合わせる。
+        if isprop(item, 'FontColor'), item.FontColor = [0.12, 0.17, 0.25]; end
+    elseif isa(item, 'matlab.ui.container.Tab')
+        item.BackgroundColor = background;
+        if isprop(item, 'FontColor'), item.FontColor = [0.12, 0.17, 0.25]; end
     else
         if isprop(item, 'BackgroundColor'), item.BackgroundColor = background; end
         if isprop(item, 'FontColor'), item.FontColor = text; end

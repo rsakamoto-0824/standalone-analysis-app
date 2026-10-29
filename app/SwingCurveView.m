@@ -205,7 +205,7 @@ classdef SwingCurveView < handle
                 end
             end
             ax.XLim = range;
-            title(ax, sprintf('SHAP スイング近似 / 周期 %.5g / 振幅 %.5g / R² %.4g / RMSE %.4g', ...
+            title(ax, sprintf('SHAP Swing Curve近似 / 周期 %.5g / 振幅 %.5g / R² %.4g / RMSE %.4g', ...
                 fit.Period, fit.Amplitude, fit.RSquared, fit.RMSE), 'Interpreter', 'none');
             legend(ax, 'Location', 'best'); ax.XGrid = 'on'; ax.YGrid = 'on';
             if height(segments) > 0, view.TableTabs.SelectedTab = view.Tables.Slopes.Parent.Parent; end

@@ -3,6 +3,7 @@ classdef AnalysisController < handle
         Window
         Panels = cell(1, 7)
         LogFolder
+        Furnace = []
     end
     properties (Access = private)
         Constants
@@ -10,6 +11,7 @@ classdef AnalysisController < handle
         SettingsPath
         SettingsUI
         MainTabs
+        FurnaceTab
     end
     methods
         function app = AnalysisController(window)
@@ -29,14 +31,16 @@ classdef AnalysisController < handle
             window.Position(3:4) = [1320, 860]; window.Resize = 'on'; window.AutoResizeChildren = 'off';
             app.LogFolder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
             tabs = uitabgroup(window, 'TabLocation', 'left'); app.MainTabs = tabs;
-            titles = {'APC 学習', 'スイングカーブ学習', '汎用 GPR 学習', '保存モデルで推定', 'SHAP 解析', '実験計画作成', 'ワードクラウド'};
+            titles = {'APC 学習', 'Swing Curve学習', '汎用 GPR 学習', '保存モデルで推定', 'SHAP 解析', '実験計画作成', 'ワードクラウド'};
             kinds = {'apc', 'swing', 'generic', 'predict', 'shap', 'doe', 'words'};
             for index = 1:numel(titles)
                 tab = uitab(tabs, 'Title', sprintf('%d %s', index, titles{index}));
                 app.createPanel(index, tab, kinds{index});
             end
-            app.createSettings(uitab(tabs, 'Title', '8 設定'));
-            create_app_help(uitab(tabs, 'Title', '9 Help'), project_root);
+            app.FurnaceTab = uitab(tabs, 'Title', '8 炉内補間');
+            tabs.SelectionChangedFcn = @(~, event) app.openFurnace(event.NewValue);
+            app.createSettings(uitab(tabs, 'Title', '9 設定'));
+            create_app_help(uitab(tabs, 'Title', '10 Help'), project_root);
             window.SizeChangedFcn = @(~, ~) app.resizePanels();
             app.resizePanels(); app.applyTheme();
             if ~isempty(settings_warning), app.message(1, ['設定を読めないため初期値を使用: ' settings_warning]); end
@@ -56,11 +60,13 @@ classdef AnalysisController < handle
             state.LoadModel = uibutton(controls, 'Text', '学習済み MAT を開く', 'ButtonPushedFcn', @(~, ~) app.loadModel(index));
             state.ModelInfo = uitextarea(controls, 'Editable', 'off', 'Value', {'BasisFunction: constant（固定）'});
             state.Mode = uidropdown(controls, 'Items', {'通常'}, 'ValueChangedFcn', @(~, ~) app.updateMapping(index));
-            options = uigridlayout(controls, [1, 2]); options.Padding = [0, 0, 0, 0];
+            options = uigridlayout(controls, [2, 2]); options.Padding = [0, 0, 0, 0]; options.RowHeight = {30, 30};
             kernels = app.Constants.KERNELS; default_kernel = app.Settings.Kernel;
             if strcmp(kind, 'swing'), kernels = app.Constants.SWING_KERNELS; default_kernel = app.Settings.SwingKernel; end
             state.Kernel = uidropdown(options, 'Items', kernels, 'Value', default_kernel, 'Tooltip', 'kernel。swingperiodicはRESIST_THの周期を内部で最適化します。');
             state.FitMethod = uidropdown(options, 'Items', app.Constants.FIT_METHODS, 'Value', app.Settings.FitMethod, 'Tooltip', 'fit_method');
+            compare_button = uibutton(options, 'Text', '複数カーネルの比較画面を開く', 'ButtonPushedFcn', @(~, ~) app.openComparison(index));
+            compare_button.Layout.Row = 2; compare_button.Layout.Column = [1, 2];
             state.Mapping = uitable(controls, 'Data', cell(0, 3), 'ColumnName', {'順序', '変数', '入力列'}, ...
                 'ColumnEditable', [false, false, true], 'ColumnWidth', {42, 110, 'auto'}, 'CellEditCallback', @(~, ~) app.invalidate(index));
             state.Actual = app.choiceRow(controls, '評価用の実測列（任意）', {'(実測値なし)'});
@@ -79,6 +85,9 @@ classdef AnalysisController < handle
             state.Metrics = app.tableTab(state.Views, 'モデル評価'); state.Summary = app.tableTab(state.Views, '列の要約');
             chart_tab = uitab(state.Views, 'Title', 'グラフ'); chart_grid = uigridlayout(chart_tab, [1, 1]);
             state.ChartTabs = uitabgroup(chart_grid); state.Verification = app.tableTab(state.Views, '保存後検証');
+            if any(strcmp(kind, {'apc', 'swing', 'generic'}))
+                controls.RowHeight{7} = 66;
+            end
             state.BaseTabs = state.Views.Children;
             export_bar = uigridlayout(state.Right, [1, 2]); export_bar.Padding = [0, 0, 0, 0];
             uibutton(export_bar, 'Text', '表示中の表を保存', 'ButtonPushedFcn', @(~, ~) app.exportResult(index));
@@ -91,7 +100,7 @@ classdef AnalysisController < handle
             if ~any(strcmp(kind, {'apc', 'swing', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{12} = 0; end
             if strcmp(kind, 'swing')
                 controls.RowHeight{5} = 100;
-                state.IsPlot.Text = '学習後にSHAP・スイング近似を計算'; state.IsPlot.Value = false;
+                state.IsPlot.Text = '学習後にSHAP・Swing Curve近似を計算'; state.IsPlot.Value = false;
                 state.IsPlot.Tooltip = '保存・検証後に先頭最大1000行でSHAPを計算します。処理時間が増えます。';
             end
             if strcmp(kind, 'generic')
@@ -172,6 +181,15 @@ classdef AnalysisController < handle
                     state.Layout.RowHeight = {'1x'};
                 end
             end
+            if ~isempty(app.Furnace), app.Furnace.resize(app.Window.Position(3)); end
+        end
+        function openFurnace(app, selected_tab)
+            if nargin > 1 && ~isequal(selected_tab, app.FurnaceTab), return; end
+            if isempty(app.Furnace)
+                app.Furnace = FurnaceInterpolationView(app.FurnaceTab, app.Window, app.Settings, @() app.lockControls(app.Furnace), app.LogFolder);
+                apply_app_theme(app.Furnace.Layout, app.Settings.Theme);
+            end
+            app.MainTabs.SelectedTab = app.FurnaceTab;
         end
         function loadData(app, index)
             try
@@ -254,11 +272,20 @@ classdef AnalysisController < handle
             end
         end
         function clearOutput(app, index)
+            app.clearModelOutput(index);
+            state = app.Panels{index};
+            if isfield(state, 'Comparison'), state.Comparison.clear(); end
+            state.Figures = {}; state.FigureNames = {}; app.Panels{index} = state;
+        end
+        function clearModelOutput(app, index)
             state = app.Panels{index}; state.Result = table(); state.Figures = {}; state.FigureNames = {};
             state.Results.Data = table(); state.Metrics.Data = table(); state.Summary.Data = table(); state.Verification.Data = table();
             delete(state.ChartTabs.Children);
             extra = state.Views.Children(~ismember(state.Views.Children, state.BaseTabs)); delete(extra);
             state.Headline.Text = 'RMSE: —    R²: —'; app.Panels{index} = state;
+            if isfield(state, 'Comparison') && ~isempty(state.Comparison.Report)
+                app.registerCharts(index, state.Comparison.Charts, state.Comparison.ChartNames);
+            end
         end
         function matrix = mappedInput(~, state)
             if isempty(state.Data), error('AnalysisApp:noInput', '入力ファイルを選択してください。'); end
@@ -344,15 +371,12 @@ classdef AnalysisController < handle
                 app.displayEvaluation(index, X, y, prediction, '学習データへの当てはまり（汎化性能ではありません）');
                 if ~isempty(periodic_details), app.displayPeriodicTraining(index, periodic_details); end
                 app.result(index, table(state.Data.RowNumbers, y, prediction, y - prediction, 'VariableNames', {'SourceRow', 'Actual', 'Predicted', 'Residual'}));
-                [name, folder] = uiputfile('*.mat', '学習済みモデルを保存', fullfile(app.Settings.SaveFolder, 'Train_Model.mat'));
-                if isequal(name, 0)
+                [entry.SavePath, report] = app.saveModel(index, model, kernel, fit_method, size(X, 1));
+                if isempty(entry.SavePath)
                     entry.Status = 'save_cancelled'; entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
                     app.message(index, '保存をキャンセルしました。評価結果は表示します。後続 SHAP は行いません。'); return;
                 end
-                entry.SavePath = fullfile(folder, name); save_train_model(model, entry.SavePath);
-                expected = struct('KernelFunction', kernel, 'FitMethod', fit_method, 'BasisFunction', 'constant', 'NumObservations', size(X, 1));
-                report = verify_saved_model(entry.SavePath, model, state.Kind, expected);
-                state.Verification.Data = report.Checks; entry.Verification = table2struct(report.Checks); app.message(index, report.Message);
+                entry.Verification = table2struct(report.Checks);
                 if ~report.Success, error('AnalysisApp:verificationFailed', '%s', app.Constants.INVALID_MODEL_MESSAGE); end
                 if strcmp(state.Kind, 'apc') || (strcmp(state.Kind, 'swing') && state.IsPlot.Value)
                     app.runShap(index, model, X, true);
@@ -362,6 +386,114 @@ classdef AnalysisController < handle
                 entry.Status = ['failed:' err.identifier]; entry.ElapsedSeconds = toc(started); app.logTraining(index, entry); rethrow(err);
             end
             entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
+        end
+        function [path, report] = saveModel(app, index, model, kernel, fit_method, rows)
+            path = ''; report = [];
+            [name, folder] = uiputfile('*.mat', ['学習済みモデルを保存: ' char(kernel)], fullfile(app.Settings.SaveFolder, 'Train_Model.mat'));
+            if isequal(name, 0), return; end
+            path = fullfile(folder, name); save_train_model(model, path);
+            expected = struct('KernelFunction', char(kernel), 'FitMethod', fit_method, 'BasisFunction', 'constant', 'NumObservations', rows);
+            state = app.Panels{index}; report = verify_saved_model(path, model, state.Kind, expected);
+            state.Verification.Data = report.Checks; app.message(index, report.Message);
+        end
+        function openComparison(app, index)
+            state = app.Panels{index};
+            if ~isfield(state, 'Comparison')
+                state.Comparison = KernelComparisonView(state.Views, state.Kernel.Items, state.Kernel.Value, ...
+                    @() app.runComparison(index), @() app.saveComparedModel(index));
+                state.BaseTabs = [state.BaseTabs(:); state.Comparison.Tab]; app.Panels{index} = state; app.applyTheme();
+            end
+            state.Views.SelectedTab = state.Comparison.Tab;
+        end
+        function runComparison(app, index)
+            state = app.Panels{index}; view = state.Comparison; started = tic;
+            entry = struct('Function', [state.Kind '_kernel_comparison'], 'Kernel', strjoin(string(view.Kernels.Value), ','), ...
+                'FitMethod', state.FitMethod.Value, 'Folds', view.Folds.Value, 'Seed', view.Seed.Value, 'Status', 'started');
+            progress = [];
+            try
+                if ~state.Confirmed, error('AnalysisApp:unconfirmed', '列対応・順序の確認ボタンを押してください。'); end
+                matrix = app.mappedInput(state); X = matrix(:, 1:end - 1); y = matrix(:, end);
+                [~, name, extension] = fileparts(state.Data.FileName); entry.InputFile = [name extension]; entry.Rows = size(X, 1);
+                app.clearOutput(index); app.openComparison(index); state.Messages.Value = {'カーネルを比較中'};
+                controls_cleanup = app.lockControls(view); %#ok<NASGU>
+                progress = uiprogressdlg(app.Window, 'Title', 'カーネルの一括比較', 'Message', '共通の検証分割を作成中', 'Indeterminate', 'on', 'Cancelable', 'on');
+                progress_cleanup = onCleanup(@() app.closeProgress(progress));
+                report = compare_gpr_kernels(state.Kind, X, y, view.Kernels.Value, state.FitMethod.Value, ...
+                    view.Folds.Value, view.Seed.Value, state.Bins.Value, @(event) app.comparisonProgress(progress, event));
+                clear progress_cleanup;
+                view.showReport(report, X, y, state.Data.RowNumbers, state.Mapping.Data(1:end - 1, 2));
+                app.registerCharts(index, view.Charts, view.ChartNames);
+                success = report.Summary.Status == "成功";
+                if any(success)
+                    best = find(report.Summary.Rank == 1, 1);
+                    state.Headline.Text = sprintf('検証RMSE: %.6g    R²: %.6g / %s\n%d分割・seed=%d：採用候補を選んでMAT保存してください。', ...
+                        report.Summary.RMSE(best), report.Summary.R2(best), report.Summary.Kernel(best), report.Folds, report.Seed);
+                else
+                    state.Headline.Text = 'すべての候補が失敗しました。「比較一覧」のNoteを確認してください。';
+                end
+                app.message(index, sprintf('比較終了：成功 %d / %d。検証に使った行は、その分割の学習や周期探索に使っていません。', sum(success), numel(success)));
+                app.message(index, '比較用のランダム行分割です。ロット・時系列などの依存がある場合は、別の独立データでも評価してください。');
+                entry.Status = 'comparison_completed';
+                if ~all(success), entry.Status = 'comparison_partial_or_failed'; end
+                app.applyTheme();
+                clear controls_cleanup;
+            catch err
+                app.closeProgress(progress); entry.Status = ['failed:' err.identifier]; app.showError(index, err);
+            end
+            entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
+        end
+        function comparisonProgress(~, progress, event)
+            phase = event.Stage;
+            if event.Fold > 0, phase = sprintf('交差検証 %d / %d', event.Fold, event.Folds); end
+            message = sprintf('カーネル %d / %d：%s\n%s', event.KernelIndex, event.KernelCount, event.Kernel, phase);
+            if event.PeriodCount > 0
+                message = sprintf('%s\n周期候補 %d / 最大%d：%.7g', message, event.PeriodCount, event.PeriodMaximum, event.Period);
+            end
+            progress.Message = message; drawnow;
+            if progress.CancelRequested, error('AnalysisApp:cancelled', '比較を中止しました。モデルは保存していません。'); end
+        end
+        function saveComparedModel(app, index)
+            state = app.Panels{index}; view = state.Comparison; started = tic;
+            entry = struct('Function', [state.Kind '_comparison_save'], 'Status', 'started', 'SavePath', '');
+            try
+                selected = view.selectedIndex(); report = view.Report; kernel = report.Summary.Kernel(selected);
+                model = report.Models{selected}; matrix = app.mappedInput(state); X = matrix(:, 1:end - 1); y = matrix(:, end);
+                [~, name, extension] = fileparts(state.Data.FileName);
+                entry.InputFile = [name extension]; entry.Rows = size(X, 1); entry.Kernel = char(kernel); entry.FitMethod = report.FitMethod;
+                entry.PredictorNames = model.PredictorNames; entry.ResponseName = model.ResponseName;
+                controls_cleanup = app.lockControls(view); %#ok<NASGU>
+                app.clearModelOutput(index);
+                state.ModelInfo.Value = {sprintf('比較から選択: %s / fit_method=%s', kernel, report.FitMethod); 'BasisFunction: constant（固定）'};
+                prediction = report.TrainingPredictions(:, selected);
+                app.displayEvaluation(index, X, y, prediction, '選択モデル：全データで学習した当てはまり（検証値はカーネル比較内）');
+                if ~isempty(report.Details{selected}), app.displayPeriodicTraining(index, report.Details{selected}); end
+                app.result(index, table(state.Data.RowNumbers, y, prediction, y - prediction, 'VariableNames', {'SourceRow', 'Actual', 'Predicted', 'Residual'}));
+                [entry.SavePath, verification] = app.saveModel(index, model, kernel, report.FitMethod, size(X, 1));
+                if isempty(entry.SavePath)
+                    entry.Status = 'save_cancelled'; app.message(index, '保存をキャンセルしました。比較結果は残っています。');
+                else
+                    entry.Verification = table2struct(verification.Checks);
+                    if ~verification.Success, error('AnalysisApp:verificationFailed', '%s', app.Constants.INVALID_MODEL_MESSAGE); end
+                    if strcmp(state.Kind, 'apc') || (strcmp(state.Kind, 'swing') && state.IsPlot.Value), app.runShap(index, model, X, true); end
+                    state.Views.SelectedTab = state.Verification.Parent.Parent;
+                    entry.Status = 'completed'; app.message(index, ['比較で選択したモデルを保存しました: ' char(kernel)]);
+                end
+                app.applyTheme(); clear controls_cleanup;
+            catch err
+                entry.Status = ['failed:' err.identifier]; app.showError(index, err);
+            end
+            entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
+        end
+        function cleanup = lockControls(app, view)
+            controls = findall(app.Window, '-property', 'Enable'); enabled = get(controls, 'Enable');
+            if ~iscell(enabled), enabled = {enabled}; end
+            set(controls, 'Enable', 'off'); cleanup = onCleanup(@() app.unlockControls(controls, enabled, view));
+        end
+        function unlockControls(~, controls, enabled, view)
+            for item = 1:numel(controls)
+                if isvalid(controls(item)), controls(item).Enable = enabled{item}; end
+            end
+            view.setBusy(false);
         end
         function closeProgress(~, progress)
             if ~isempty(progress) && isvalid(progress), close(progress); end
@@ -515,14 +647,16 @@ classdef AnalysisController < handle
         function exportResult(app, index)
             try
                 state = app.Panels{index}; data = table();
-                if strcmp(state.Views.SelectedTab.Title, 'グラフ')
+                if strcmp(state.Views.SelectedTab.Title, 'カーネル比較')
+                    data = state.Comparison.currentTable();
+                elseif strcmp(state.Views.SelectedTab.Title, 'グラフ')
                     chart_tab = state.ChartTabs.SelectedTab;
                     if ~isempty(chart_tab) && isa(chart_tab.UserData, 'SwingCurveView'), data = chart_tab.UserData.currentTable(); end
                 else
                     view = findobj(state.Views.SelectedTab, 'Type', 'uitable');
                     if ~isempty(view), data = view(1).Data; end
                 end
-                if isempty(data), error('AnalysisApp:noResult', '結果・評価・要約・スイング近似などの表を選択してください。'); end
+                if isempty(data), error('AnalysisApp:noResult', '結果・評価・要約・Swing Curve近似などの表を選択してください。'); end
                 if strcmp(state.Views.SelectedTab.Title, '入力プレビュー'), error('AnalysisApp:preview', 'プレビューは先頭100行のみです。計算結果のタブを選択してください。'); end
                 if ~istable(data), data = cell2table(data, 'VariableNames', matlab.lang.makeValidName(view(1).ColumnName)); end
                 [name, folder] = uiputfile({'*.csv', 'CSV'; '*.xlsx', 'Excel'}, '表示中の表を保存', fullfile(app.Settings.SaveFolder, 'result.csv'));
@@ -534,7 +668,9 @@ classdef AnalysisController < handle
         end
         function exportFigure(app, index)
             try
-                state = app.Panels{index}; valid = cellfun(@isgraphics, state.Figures); charts = state.Figures(valid); names = state.FigureNames(valid);
+                state = app.Panels{index};
+                valid = cellfun(@(chart) isgraphics(chart) && (~isa(chart, 'matlab.ui.control.UIAxes') || ~isempty(chart.Children)), state.Figures);
+                charts = state.Figures(valid); names = state.FigureNames(valid);
                 if isempty(charts), error('AnalysisApp:noChart', '保存するグラフがありません。'); end
                 [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', '保存するグラフ'); if ~accepted, return; end
                 [name, folder] = uiputfile('*.png', 'グラフを保存', fullfile(app.Settings.SaveFolder, 'chart.png')); if isequal(name, 0), return; end
@@ -566,7 +702,7 @@ classdef AnalysisController < handle
             uibutton(row, 'Text', 'フォルダ選択', 'ButtonPushedFcn', @(~, ~) app.chooseFolder());
             app.SettingsUI.Theme = app.choiceRow(layout, 'カラーテーマ', {'ライト', 'ダーク'});
             app.SettingsUI.Kernel = app.choiceRow(layout, '既定 kernel', app.Constants.KERNELS);
-            app.SettingsUI.SwingKernel = app.choiceRow(layout, 'スイング専用 kernel', app.Constants.SWING_KERNELS);
+            app.SettingsUI.SwingKernel = app.choiceRow(layout, 'Swing Curve専用 kernel', app.Constants.SWING_KERNELS);
             app.SettingsUI.FitMethod = app.choiceRow(layout, '既定 fit_method', app.Constants.FIT_METHODS);
             app.SettingsUI.InputCount = app.numberRow(layout, '汎用 GPR の説明変数数', app.Settings.InputCount, [1, 100]);
             app.SettingsUI.Bins = app.numberRow(layout, 'KL / MI ビン数（0=自動）', app.Settings.Bins, [0, 1000]);
@@ -604,6 +740,7 @@ classdef AnalysisController < handle
                     if strcmp(state.Kind, 'doe'), state.Factors.Value = app.Settings.Factors; state.Runs.Value = app.Settings.Runs; state.Seed.Value = app.Settings.Seed; end
                     if ~strcmp(state.Kind, 'words'), app.updateMapping(index); end
                 end
+                if ~isempty(app.Furnace), app.Furnace.applySettings(app.Settings); end
                 app.applyTheme(); app.SettingsUI.Message.Text = ['保存・適用しました: ' app.SettingsPath];
             catch err
                 uialert(app.Window, err.message, '設定を保存できませんでした');
