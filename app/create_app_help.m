@@ -1,6 +1,6 @@
 function create_app_help(tab, project_root)
 layout = uigridlayout(tab, [6, 1], 'Scrollable', 'on');
-layout.RowHeight = {40, 270, 90, 170, 104, 36};
+layout.RowHeight = {40, 270, 90, 200, 140, 36};
 uilabel(layout, 'Text', 'Help — 用語、評価の読み方、公式の関数ヘルプ', 'FontWeight', 'bold');
 terms = {
     'GPR', 'ガウス過程回帰。入力から応答を予測するモデル。kernel と fit_method を選択します。';
@@ -13,6 +13,10 @@ terms = {
     'RMSPE / MAE', 'RMSPE は相対誤差の二乗平均平方根（%）、実測に0があれば未定義。MAE は絶対誤差の平均。';
     'KL / 相互情報量', 'KL は分布の違い（nats）、相互情報量は依存の強さ（bits）。ヒストグラムと擬似度数1を使用。ビン数で値が変わります。';
     '学習時の評価', '学習に使ったデータで計算した当てはまりです。未知データの性能を示す交差検証ではありません。保存モデルで推定＋未使用の実測列で評価できます。';
+    'カーネル比較', 'APC・スイング・汎用GPRで2個以上を一括検証。同じ分割・乱数条件・fit_methodを使い、未使用行の予測をまとめた8指標で比較します。検証RMSE、同値ならMAE、さらに同値なら候補順で順位を付けます。';
+    '交差検証 / 分割数', '行をランダムに2〜10群に分け、各群を学習から外して予測します。既定5分割。8指標は全行の検証予測を結合して計算し、分割別指標の単純平均ではありません。周期は各分割の学習データ内で求め直します。';
+    '比較用seed / 採用モデル', '既定seed=0で分割と候補ごとの乱数条件をそろえます。通常の単独学習の乱数設定は変更しません。候補ごとに全データの完全モデルも学習し、選択した1個を再学習せずMAT保存します。';
+    '検証値の限界', 'カーネルの選定にも使った交差検証値には選定による偏りがあります。採用後は別の独立データで確認してください。ロット・時系列・同じ試料の反復などの依存を分離する機能はありません。';
     'SHAP', 'モデルの予測に各入力がどれだけ寄与したかを示す値。因果関係を証明するものではありません。';
     'スイング近似', 'RESIST_THのSHAP値を、オフセット＋直線トレンド＋一定振幅の正弦波で近似します。周期・振幅・R²・RMSEはSHAP散布点への近似結果で、GPRの評価とは別です。';
     '極値の膜厚', '傾きを含む近似曲線の微分が0になる位置。プロット範囲内の極大・極小のみを表示します。端点を自動で極値扱いしません。';
@@ -33,6 +37,8 @@ description = uitextarea(layout, 'Editable', 'off', 'Value', {'用語表の行�
 glossary.CellSelectionCallback = @(~, event) showTerm(event, terms, description);
 uitextarea(layout, 'Editable', 'off', 'Value', {
     '操作：入力を開く → 列対応を確認 → 実行。結果・モデル評価・列の要約・グラフ・保存後検証を右側で切替。';
+    '複数比較：左欄の比較画面を開く → Ctrl / Commandで2個以上選択 → 分割数・seedを設定 → 列対応を確認 → 一括比較。採用候補を選んでMAT保存。CSV / Excel、PNGの書出しにも対応。';
+    '比較は候補ごとに順に計算。各候補で分割数＋1回の学習を行い、周期カーネルはその都度周期探索します。成功候補の完全モデルをメモリーに保持するため時間・メモリーが増えます。APCの分割内学習は25行以上必要です。';
     '周期カーネル：スイング学習でswingperiodicを選択。周期と尤度は左欄、履歴は「周期の最適化」、図はグラフ内で確認。周期ごとの再学習で時間が増えます。設定でスイング専用の既定kernelを変更できます。';
     '推定 / SHAP：実測列を任意で選ぶと評価指標も計算。実測列なしでは RMSE / R² は計算しません。';
     'スイング近似：RESIST_TH依存図で膜厚・周期範囲を設定し更新。近似指標・極値・隣接傾きの表を選んで保存。膜厚の異なる点が8点以上必要です。';
@@ -41,10 +47,11 @@ uitextarea(layout, 'Editable', 'off', 'Value', {
     'D/I の探索候補は各因子 −1/0/1。I の積分対象は連続な一様領域 [-1,1]^k。局所探索のため最適性は保証しません。';
     '実験計画は1〜8因子、追加1〜300件、既存＋追加500件以下。直交表では実験数の欄を使用しません。';
     '設定：保存先、テーマ、kernel、fit_method、入力数、ビン数、因子数、実験数、seed、SHAP表示の初期値を変更できます。'});
-links = uigridlayout(layout, [3, 4]); links.Padding = [0, 0, 0, 0];
+links = uigridlayout(layout, [4, 4]); links.Padding = [0, 0, 0, 0];
 functions = {'fitrgp', 'RegressionGP', 'shapley', 'swarmchart', 'wordcloud', 'cordexch', 'daugment', 'fracfact', ...
-    'lillietest', 'skewness', 'kurtosis', 'norminv'};
-folders = {'stats', 'stats', 'stats', 'matlab/ref', 'matlab/ref', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats'};
+    'lillietest', 'skewness', 'kurtosis', 'norminv', 'cvpartition', 'crossval', 'rng', 'randperm'};
+folders = {'stats', 'stats', 'stats', 'matlab/ref', 'matlab/ref', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', ...
+    'stats', 'stats', 'matlab/ref', 'matlab/ref'};
 for index = 1:numel(functions)
     url = ['https://www.mathworks.com/help/' folders{index} '/' lower(functions{index}) '.html'];
     uibutton(links, 'Text', [functions{index} ' ↗'], 'ButtonPushedFcn', @(~, ~) web(url, '-browser'));
