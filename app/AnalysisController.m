@@ -57,7 +57,9 @@ classdef AnalysisController < handle
             state.ModelInfo = uitextarea(controls, 'Editable', 'off', 'Value', {'BasisFunction: constant（固定）'});
             state.Mode = uidropdown(controls, 'Items', {'通常'}, 'ValueChangedFcn', @(~, ~) app.updateMapping(index));
             options = uigridlayout(controls, [1, 2]); options.Padding = [0, 0, 0, 0];
-            state.Kernel = uidropdown(options, 'Items', app.Constants.KERNELS, 'Value', app.Settings.Kernel, 'Tooltip', 'kernel');
+            kernels = app.Constants.KERNELS; default_kernel = app.Settings.Kernel;
+            if strcmp(kind, 'swing'), kernels = app.Constants.SWING_KERNELS; default_kernel = app.Settings.SwingKernel; end
+            state.Kernel = uidropdown(options, 'Items', kernels, 'Value', default_kernel, 'Tooltip', 'kernel。swingperiodicはRESIST_THの周期を内部で最適化します。');
             state.FitMethod = uidropdown(options, 'Items', app.Constants.FIT_METHODS, 'Value', app.Settings.FitMethod, 'Tooltip', 'fit_method');
             state.Mapping = uitable(controls, 'Data', cell(0, 3), 'ColumnName', {'順序', '変数', '入力列'}, ...
                 'ColumnEditable', [false, false, true], 'ColumnWidth', {42, 110, 'auto'}, 'CellEditCallback', @(~, ~) app.invalidate(index));
@@ -88,6 +90,7 @@ classdef AnalysisController < handle
             state.Mode.Visible = 'off'; controls.RowHeight{6} = 0;
             if ~any(strcmp(kind, {'apc', 'swing', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{12} = 0; end
             if strcmp(kind, 'swing')
+                controls.RowHeight{5} = 100;
                 state.IsPlot.Text = '学習後にSHAP・スイング近似を計算'; state.IsPlot.Value = false;
                 state.IsPlot.Tooltip = '保存・検証後に先頭最大1000行でSHAPを計算します。処理時間が増えます。';
             end
@@ -139,6 +142,7 @@ classdef AnalysisController < handle
                 state.Headline.Text = '結果とグラフをこの画面内に表示します。';
             end
             app.Panels{index} = state;
+            if strcmp(kind, 'swing'), app.describeSwingKernel(index); end
         end
 
         function view = tableTab(~, parent, title_text)
@@ -205,6 +209,11 @@ classdef AnalysisController < handle
                 state = app.Panels{index}; state.Model = load_train_model(fullfile(folder, name)); state.ModelPath = fullfile(folder, name);
                 state.ModelInfo.Value = {['PredictorNames: ' strjoin(state.Model.PredictorNames, ', ')]; ...
                     ['ResponseName: ' state.Model.ResponseName]; ['MAT: ' name]};
+                periodic = swing_kernel_info(state.Model.KernelFunction);
+                if ~isempty(periodic)
+                    state.ModelInfo.Value = [state.ModelInfo.Value; {sprintf('swingperiodic / 周期 %.8g（入力の膜厚単位）', periodic.Period)}];
+                    state.Controls.RowHeight{5} = 100;
+                end
                 app.Panels{index} = state; app.updateMapping(index);
             catch err
                 app.showError(index, err);
@@ -237,6 +246,7 @@ classdef AnalysisController < handle
         end
         function invalidate(app, index)
             state = app.Panels{index}; state.Confirmed = false; app.Panels{index} = state; app.clearOutput(index);
+            if strcmp(state.Kind, 'swing'), app.describeSwingKernel(index); end
             if strcmp(state.Kind, 'doe')
                 app.message(index, '設定・列対応を変更しました。内容を確認して再実行してください。');
             else
@@ -314,14 +324,25 @@ classdef AnalysisController < handle
             try
                 matrix = app.mappedInput(state); X = matrix(:, 1:end - 1); y = matrix(:, end);
                 kernel = state.Kernel.Value; fit_method = state.FitMethod.Value;
+                periodic_details = [];
                 switch state.Kind
                     case 'apc', [model, warnings] = train_apc_model(X, y, state.IsPlot.Value, kernel, fit_method);
-                    case 'swing', [model, warnings] = train_swing_curve_model(X(:, 1:3), X(:, 4), y, kernel, fit_method);
+                    case 'swing'
+                        progress = [];
+                        if strcmpi(kernel, 'swingperiodic')
+                            progress = uiprogressdlg(app.Window, 'Title', '周期カーネルの学習', 'Message', '周期候補を準備中', ...
+                                'Indeterminate', 'on', 'Cancelable', 'on');
+                        end
+                        progress_cleanup = onCleanup(@() app.closeProgress(progress));
+                        callback = @(count, maximum, period) app.periodProgress(progress, count, maximum, period);
+                        [model, warnings, periodic_details] = train_swing_curve_model(X(:, 1:3), X(:, 4), y, kernel, fit_method, callback);
+                        clear progress_cleanup;
                     case 'generic', [model, warnings] = train_generic_gpr_model(X, y, kernel, fit_method);
                 end
                 entry.PredictorNames = model.PredictorNames; entry.ResponseName = model.ResponseName; app.showWarnings(index, warnings);
                 prediction = predict(model, format_model_input(model, X));
                 app.displayEvaluation(index, X, y, prediction, '学習データへの当てはまり（汎化性能ではありません）');
+                if ~isempty(periodic_details), app.displayPeriodicTraining(index, periodic_details); end
                 app.result(index, table(state.Data.RowNumbers, y, prediction, y - prediction, 'VariableNames', {'SourceRow', 'Actual', 'Predicted', 'Residual'}));
                 [name, folder] = uiputfile('*.mat', '学習済みモデルを保存', fullfile(app.Settings.SaveFolder, 'Train_Model.mat'));
                 if isequal(name, 0)
@@ -341,6 +362,39 @@ classdef AnalysisController < handle
                 entry.Status = ['failed:' err.identifier]; entry.ElapsedSeconds = toc(started); app.logTraining(index, entry); rethrow(err);
             end
             entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
+        end
+        function closeProgress(~, progress)
+            if ~isempty(progress) && isvalid(progress), close(progress); end
+        end
+        function periodProgress(~, progress, count, maximum, period)
+            if isempty(progress), return; end
+            progress.Message = sprintf('候補 %d / 最大%d：周期 %.7g\n候補ごとにGPRを学習し、周辺尤度を比較しています。', count, maximum, period);
+            drawnow;
+            if progress.CancelRequested, error('AnalysisApp:cancelled', '周期探索を中止しました。モデルは保存していません。'); end
+        end
+        function describeSwingKernel(app, index)
+            state = app.Panels{index};
+            if strcmpi(state.Kernel.Value, 'swingperiodic')
+                state.ModelInfo.Value = {'swingperiodic：RESIST_THの周期カーネル'; ...
+                    '周期は入力不要。周辺尤度で内部最適化します。'; '候補ごとに再学習するため時間が増えます。'; '周期はGPRのKernelParametersには含めません。'};
+            else
+                state.ModelInfo.Value = {'BasisFunction: constant（固定）'};
+            end
+        end
+        function displayPeriodicTraining(app, index, details)
+            state = app.Panels{index};
+            state.ModelInfo.Value = {sprintf('swingperiodic / 周期 %.8g（入力の膜厚単位）', details.Period); ...
+                sprintf('%s %.8g / 評価 %d回', details.Criterion, details.LogLikelihood, details.Evaluations); ...
+                sprintf('探索範囲 %.7g 〜 %.7g / fit_method=%s', details.SearchBounds, details.FitMethod); ...
+                '周期はKernelParametersの外で最適化。大域最適性は未保証。'};
+            view = app.tableTab(state.Views, '周期の最適化'); view.Data = details.Trace;
+            tab = uitab(state.ChartTabs, 'Title', '周期探索（周辺尤度）'); layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout);
+            valid = details.Trace.Succeeded; [periods, order] = sort(details.Trace.Period(valid)); likelihood = details.Trace.LogLikelihood(valid);
+            plot(ax, periods, likelihood(order), '.-', 'DisplayName', '評価した候補'); hold(ax, 'on');
+            scatter(ax, details.Period, details.LogLikelihood, 60, 'filled', 'DisplayName', '採用した周期');
+            xlabel(ax, '周期（入力の膜厚単位）'); ylabel(ax, details.Criterion); title(ax, '大きい尤度の周期を採用');
+            legend(ax, 'Location', 'best'); grid(ax, 'on'); app.registerCharts(index, {ax}, {'周期探索（周辺尤度）'});
+            app.message(index, sprintf('内部最適化の周期 %.8g。探索履歴は「周期の最適化」で確認・保存できます。', details.Period));
         end
         function evaluateImported(app, index, matrix, prediction)
             state = app.Panels{index};
@@ -505,13 +559,14 @@ classdef AnalysisController < handle
             end
         end
         function createSettings(app, tab)
-            layout = uigridlayout(tab, [13, 1], 'Scrollable', 'on'); layout.RowHeight = {48, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 36, 70};
+            layout = uigridlayout(tab, [14, 1], 'Scrollable', 'on'); layout.RowHeight = {48, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 36, 70};
             uilabel(layout, 'Text', '保存した設定は次回起動にも反映します。適用時は現在の評価結果と列対応の確認を解除します。', 'WordWrap', 'on');
             row = uigridlayout(layout, [1, 3]); row.ColumnWidth = {150, '1x', 100}; row.Padding = [0, 0, 0, 0];
             uilabel(row, 'Text', 'デフォルト保存先'); app.SettingsUI.SaveFolder = uieditfield(row, 'Value', app.Settings.SaveFolder);
             uibutton(row, 'Text', 'フォルダ選択', 'ButtonPushedFcn', @(~, ~) app.chooseFolder());
             app.SettingsUI.Theme = app.choiceRow(layout, 'カラーテーマ', {'ライト', 'ダーク'});
             app.SettingsUI.Kernel = app.choiceRow(layout, '既定 kernel', app.Constants.KERNELS);
+            app.SettingsUI.SwingKernel = app.choiceRow(layout, 'スイング専用 kernel', app.Constants.SWING_KERNELS);
             app.SettingsUI.FitMethod = app.choiceRow(layout, '既定 fit_method', app.Constants.FIT_METHODS);
             app.SettingsUI.InputCount = app.numberRow(layout, '汎用 GPR の説明変数数', app.Settings.InputCount, [1, 100]);
             app.SettingsUI.Bins = app.numberRow(layout, 'KL / MI ビン数（0=自動）', app.Settings.Bins, [0, 1000]);
@@ -539,7 +594,10 @@ classdef AnalysisController < handle
                 app.Settings = app_settings('save', app.SettingsPath, proposed);
                 for index = 1:numel(app.Panels)
                     state = app.Panels{index};
-                    if any(strcmp(state.Kind, {'apc', 'swing', 'generic'})), state.Kernel.Value = app.Settings.Kernel; state.FitMethod.Value = app.Settings.FitMethod; end
+                    if any(strcmp(state.Kind, {'apc', 'swing', 'generic'}))
+                        state.Kernel.Value = app.Settings.Kernel; state.FitMethod.Value = app.Settings.FitMethod;
+                        if strcmp(state.Kind, 'swing'), state.Kernel.Value = app.Settings.SwingKernel; end
+                    end
                     if any(strcmp(state.Kind, {'apc', 'swing', 'generic', 'predict', 'shap'})), state.Bins.Value = app.Settings.Bins; end
                     if any(strcmp(state.Kind, {'apc', 'shap'})), state.IsPlot.Value = app.Settings.ShowPlots; end
                     if strcmp(state.Kind, 'generic'), state.InputCount.Value = app.Settings.InputCount; end

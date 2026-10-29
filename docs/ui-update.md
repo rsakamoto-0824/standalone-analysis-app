@@ -83,3 +83,32 @@ RESIST_TH のSHAP依存図に `c + m(t−t0) + A sin(2π(t−t0)/T + φ)` を近
 近似に使用したデータの残差は、係数・周期の推定やSHAPの計算によって依存し得る。Lilliefors検定の独立同分布という前提に対して、再近似を含む検定分布の補正は行っていない。このためp値は参考診断と明示する。少数標本では非正規性を検出しにくく、大標本では小さなずれでも棄却し得る。正規性と、残差の独立性・等分散性・曲線モデルの妥当性は別に確認する。
 
 参照：[lillietest](https://www.mathworks.com/help/stats/lillietest.html)、[skewness](https://www.mathworks.com/help/stats/skewness.html)、[kurtosis](https://www.mathworks.com/help/stats/kurtosis.html)、[norminv](https://www.mathworks.com/help/stats/norminv.html)。2026-10-29参照。追加製品は既存のStatistics and Machine Learning Toolboxの範囲。
+
+## 周期カーネルの追加（2026-10-29）
+
+スイング学習だけに `swingperiodic` を追加する。ユーザー確認済みの周辺尤度による内部最適化を使い、周期Pを `KernelParameters` / `OptimizeHyperparameters` の探索変数やユーザー入力欄に含めない。既存7カーネルの学習本体は維持し、新しい選択時だけ `train_swing_periodic_model` へ分岐する。既存モデルの公開範囲や保存変数名を変更しない。
+
+標準化した入力を u=(SIN_TH,SIN_RN,NSG_TH)、z=RESIST_TH として、カーネルは次の和とする。
+
+```
+B(u,v) = exp(−0.5 Σ_j ((u_j−v_j)/ℓ_j)²)
+Q(z,w) = exp(−2 sin²(π(z−w)/(P/s_t))/ℓ_p²)
+k = σ_b² B + σ_p² B Q + σ_l² z w
+```
+
+Bは他3変数の滑らかな影響、BQは条件によって寄与が変わる膜厚の周期成分、最後の線形カーネルはバルク効果を想定した膜厚トレンド。和・積を構成する各成分は正半定値。GPRの基底関数は従来同様の既定constant、Standardize=trueを使う。s_tは学習データの膜厚標準偏差で、Pは入力の膜厚単位のまま保持する。s_t<sqrt(eps)の場合はMATLABの標準化と同じく1を使い、学習後にモデルのPredictorScaleとの一致を検証する。
+
+各周期でGPRが学習するthetaは、ℓ_1, ℓ_2, ℓ_3, ℓ_p, σ_b, σ_p, σ_lの対数7個。数値計算では対数値を−30〜30に制限してexpのオーバーフローを避ける。周期はこの7個とは別に固定する。ノイズ・基底係数もfitrgpが通常どおり学習する。独自のCurve Fitting / Optimization Toolboxは追加しない。
+
+- 周期範囲は `[max(4×異なる膜厚点間隔の中央値, 膜厚幅/20), 膜厚幅]`。異なる膜厚8点以上が必要。外側の無次元周波数探索で9候補を評価し、正弦波近似から得た周期・半分・2倍が範囲内なら追加する。正弦波近似は候補の追加だけに使い、採否はGPRの周辺尤度で決める。
+- 初期候補の上位3点それぞれの近傍をfminbndで最大12評価ずつ探索する。合計最大48評価。各候補で7カーネル量などを同じ初期値から学習し、最大のLogLikelihoodを持つ実際のモデルをそのまま採用する。再学習した別のモデルへ置き換えない。局所解や候補密度の影響があり、大域最適性は保証しない。
+- exactは全データの周辺対数尤度、sd / sr / ficはそれぞれの近似周辺対数尤度を比較する。近似法では全行から等間隔の行番号で最大1000点のActiveSetを一度決め、同じ部分集合で周期を比較する。最終モデルのXとNumObservationsは全入力行を保持する。
+- 呼出元の乱数状態を保存・復元し、各候補は同じ状態から開始する。候補の学習に失敗した理由は探索表へ記録し、他候補を続ける。全候補失敗時はモデルを返さない。探索境界、評価回数による打切り、一部失敗、周期による尤度差が小さい場合を警告する。
+- 進捗と中止ボタンを表示する。中止は進行中の1候補の学習が終わった後、次の候補に移る前に反映する。中止時のモデル保存は行わない。
+- 周期・範囲・尤度・評価回数を左欄へ表示し、「周期の最適化」表とアプリ内のグラフを追加する。表はCSV / Excel、図はPNGへ保存できる。履歴は実行画面・書出し表の情報で、MATには履歴変数を追加しない。入力や設定を変更すると古い結果と周期表示を消去する。
+- `make_swing_periodic_kernel` は固定した式へ検証済み数値だけを埋め込み、str2funcで作成元ファイルへの参照を持たない匿名関数を作る。式に外部入力のコードや名前を連結しない。外部の独自mファイルを呼ぶカーネルはMATへ保存しない。数値7要素の引数は共分散計算、文字列の独自照会は保存済み周期の読出しに使い、functions(handle).workspaceの内部表現に依存しない。MAT内は完全なRegressionGPのTrain_Modelだけ。保存前後で周期・カーネル量・予測の一致を確認する。
+- 設定にSwingKernelを追加し、APC・汎用GPR用のKernelと分ける。旧設定にSwingKernelがなければ旧Kernelの値を引き継ぐ。保存モデル推定・SHAPでもMAT内の周期を表示する。
+
+GPRカーネルの周期と、後処理のSHAP散布点への正弦波近似の周期は、対象と目的関数が異なる別の結果であり、一致を保証しない。周辺尤度も学習時の基準であり、未知データへの予測性能は別に確認する。R2025bでの実モデル、別PCの制御側、Windows Compiler / Runtimeでの最終検証は未実施。
+
+参照：[fitrgpのカスタムカーネル](https://www.mathworks.com/help/stats/fitrgp.html)、[RegressionGPのLogLikelihoodとKernelInformation](https://www.mathworks.com/help/stats/regressiongp.html)、[共分散関数の指定](https://www.mathworks.com/help/stats/kernel-covariance-function-options.html)、[匿名関数の値の保存](https://www.mathworks.com/help/matlab/matlab_prog/anonymous-functions.html)。2026-10-29参照。

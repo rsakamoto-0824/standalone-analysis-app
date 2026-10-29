@@ -1,7 +1,7 @@
 function settings = app_settings(action, path, proposed)
 constants = model_constants();
 defaults = struct('SaveFolder', pwd, 'Theme', 'ライト', ...
-    'Kernel', constants.DEFAULT_KERNEL, 'FitMethod', constants.DEFAULT_FIT_METHOD, ...
+    'Kernel', constants.DEFAULT_KERNEL, 'SwingKernel', constants.DEFAULT_KERNEL, 'FitMethod', constants.DEFAULT_FIT_METHOD, ...
     'ShowPlots', true, 'InputCount', 4, 'Bins', 0, 'Factors', 3, 'Runs', 20, 'Seed', 42);
 settings = defaults;
 if strcmp(action, 'defaults'), return; end
@@ -12,6 +12,7 @@ elseif ~strcmp(action, 'save')
     error('settings:action', '設定操作が不正です。');
 end
 if ~isstruct(proposed) || ~isscalar(proposed), error('settings:invalid', '設定は単一の構造体が必要です。'); end
+if ~isfield(proposed, 'SwingKernel') && isfield(proposed, 'Kernel'), settings.SwingKernel = proposed.Kernel; end
 fields = fieldnames(defaults);
 for index = 1:numel(fields)
     name = fields{index};
@@ -23,6 +24,7 @@ end
 settings.SaveFolder = char(settings.SaveFolder);
 if ~any(strcmp(settings.Theme, {'ライト', 'ダーク'})), error('settings:theme', 'テーマが不正です。'); end
 validate_model_parameters(settings.Kernel, settings.FitMethod, 'settings');
+validate_model_parameters(settings.SwingKernel, settings.FitMethod, 'settings', true);
 validateattributes(settings.ShowPlots, {'logical', 'numeric'}, {'scalar', 'binary'});
 settings.ShowPlots = logical(settings.ShowPlots);
 validateattributes(settings.InputCount, {'numeric'}, {'scalar', 'integer', '>=', 1, '<=', 100});
