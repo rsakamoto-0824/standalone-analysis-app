@@ -485,7 +485,11 @@ classdef AnalysisController < handle
                 [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', '保存するグラフ'); if ~accepted, return; end
                 [name, folder] = uiputfile('*.png', 'グラフを保存', fullfile(app.Settings.SaveFolder, 'chart.png')); if isequal(name, 0), return; end
                 state.Views.SelectedTab = state.ChartTabs.Parent.Parent;
-                state.ChartTabs.SelectedTab = ancestor(charts{choice}, 'uitab');
+                container = charts{choice}.Parent;
+                while ~isempty(container) && ~isequal(container, app.Window)
+                    if isa(container, 'matlab.ui.container.Tab'), container.Parent.SelectedTab = container; end
+                    container = container.Parent;
+                end
                 drawnow;
                 exportgraphics(charts{choice}, fullfile(folder, name), 'Resolution', 150);
             catch err

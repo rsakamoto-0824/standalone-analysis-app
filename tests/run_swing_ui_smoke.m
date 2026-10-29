@@ -14,6 +14,7 @@ tab = state.ChartTabs.Children(strcmp({state.ChartTabs.Children.Title}, 'SHAP �
 view = tab.UserData;
 assert(isa(view, 'SwingCurveView')); assert(~isempty(view.Fit), view.Summary.Text);
 assert(abs(view.Fit.Period - 80) < 1e-4);
+assert(~view.Diagnostics.Tested); % 数値誤差だけの残差は正規性の判定対象外
 assert(all(abs(view.Tables.Slopes.Data.Slope - 0.01) < 1e-6));
 view.TableTabs.SelectedTab = view.Tables.Extrema.Parent.Parent;
 assert(isequal(view.currentTable(), view.Tables.Extrema.Data));
@@ -43,17 +44,48 @@ if ~isempty(image_folder)
     view.TableTabs.SelectedTab = view.Tables.Extrema.Parent.Parent;
     scroll(view.Layout, 'bottom');
     drawnow; exportapp(app.Window, fullfile(image_folder, '23-swing-extrema.png'));
-    training = app.Panels{2}; main.SelectedTab = training.Layout.Parent;
-    training.Mapping.Data = [num2cell((1:5)'), [names, {'y'}]', [names, {'CD'}]'];
-    actual = 50 + shap(:, 4); prediction = actual + 0.05*cos(x/60);
-    app.displayEvaluation(2, inputs, actual, prediction, '合成ベクトルでの表示見本 / GP未学習');
-    training.Results.Data = table((1:numel(actual))', actual, prediction, actual - prediction, ...
-        'VariableNames', {'SourceRow', 'Actual', 'Predicted', 'Residual'});
-    training.Source.Text = 'demo_swing.csv / 合成データ（モデル未学習）';
-    training.ModelInfo.Value = {'表示見本 / GPモデル未読込・未学習'; '正本の学習・保存コードは未変更'};
-    training.IsPlot.Value = true;
-    training.Messages.Value = {'表示見本：このチェックで学習後SHAPを計算'; 'この撮影ではGP学習・保存・実SHAPは未実行。'};
-    app.applyTheme(); drawnow; exportapp(app.Window, fullfile(image_folder, '02-swing.png'));
 end
-fprintf('Swing UI: fit, range, extrema, slopes, table selection, recovery, theme, embedded PNG: PASS\n');
+% 分布の診断はノイズを加えた別の合成SHAP値で確認する。
+delete(state.ChartTabs.Children);
+stream = RandStream('mt19937ar', 'Seed', 42); shap(:, 4) = shap(:, 4) + 0.15*randn(stream, size(x));
+[charts, labels] = plot_shap_figures(state.ChartTabs, shap, inputs, names); app.registerCharts(5, charts, labels);
+tab = state.ChartTabs.Children(strcmp({state.ChartTabs.Children.Title}, 'SHAP 依存: RESIST_TH')); view = tab.UserData;
+state.ChartTabs.SelectedTab = tab;
+assert(view.Diagnostics.Tested); assert(numel(charts) == 8);
+assert(isequal(view.Tables.Residuals.Data.Residual, shap(:, 4) - view.Fit.Prediction));
+view.TableTabs.SelectedTab = view.Tables.Normality.Parent.Parent;
+assert(isequaln(view.currentTable(), view.Diagnostics.Table));
+view.Controls.RangeMin.Value = 900; view.Controls.RangeMax.Value = 1200; view.refit();
+assert(view.Diagnostics.Count == nnz(thickness >= 900 & thickness <= 1200));
+assert(isequal(view.Tables.Residuals.Data.InputRow, find(thickness >= 900 & thickness <= 1200)));
+view.Controls.PeriodMin.Value = 100; view.Controls.PeriodMax.Value = 50; view.refit();
+assert(isempty(view.Diagnostics)); assert(isempty(view.Tables.Normality.Data)); assert(isempty(view.Tables.Residuals.Data));
+assert(isempty(view.DiagnosticAxes.QQ.Children));
+view.Controls.RangeMin.Value = 850; view.Controls.RangeMax.Value = 1250;
+view.Controls.PeriodMin.Value = 0; view.Controls.PeriodMax.Value = 0; view.refit();
+assert(view.Diagnostics.Tested);
+apply_app_theme(app.Window, 'ダーク'); apply_app_theme(app.Window, 'ライト');
+fields = {'Histogram', 'QQ', 'Residual'};
+for index = 1:numel(fields)
+    ax = view.DiagnosticAxes.(fields{index}); view.PlotTabs.SelectedTab = ancestor(ax, 'uitab');
+    scroll(view.Layout, 'bottom'); drawnow;
+    exportgraphics(ax, chart_file, 'Resolution', 100); assert(isfile(chart_file));
+end
+assert(numel(findall(groot, 'Type', 'figure')) == 1);
+if ~isempty(image_folder)
+    state.Messages.Value = {'表示専用 R2022b / 合成SHAP値＋正規乱数ノイズ'; '残差の分布・検定・歪度・尖度の参考診断'};
+    scroll(view.Layout, view.PlotTabs);
+    view.PlotTabs.SelectedTab = ancestor(view.DiagnosticAxes.Histogram, 'uitab');
+    view.TableTabs.SelectedTab = view.Tables.Normality.Parent.Parent;
+    drawnow; exportapp(app.Window, fullfile(image_folder, '24-swing-residual-histogram.png'));
+    view.PlotTabs.SelectedTab = ancestor(view.DiagnosticAxes.QQ, 'uitab');
+    drawnow; exportapp(app.Window, fullfile(image_folder, '25-swing-residual-qq.png'));
+    view.PlotTabs.SelectedTab = ancestor(view.DiagnosticAxes.Residual, 'uitab');
+    view.TableTabs.SelectedTab = view.Tables.Residuals.Parent.Parent;
+    drawnow; exportapp(app.Window, fullfile(image_folder, '26-swing-residual-thickness.png'));
+    help_tab = main.Children(strcmp({main.Children.Title}, '9 Help')); main.SelectedTab = help_tab;
+    scroll(help_tab.Children(1), 'bottom');
+    drawnow; pause(0.5); exportapp(app.Window, fullfile(image_folder, '09-help.png'));
+end
+fprintf('Swing UI: fit, range, extrema, slopes, residual diagnostics, table selection, recovery, theme, embedded PNG: PASS\n');
 end
