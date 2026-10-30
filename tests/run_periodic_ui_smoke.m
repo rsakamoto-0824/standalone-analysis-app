@@ -16,7 +16,7 @@ state.Headline.Text = '表示見本：GPR学習・周辺尤度の計算は未実
 details = optimize_swing_period(@(period, ~) -((400/period - 5)/0.4)^2, linspace(850, 1250, 101)', 80);
 details.FitMethod = '表示試験'; details.Criterion = '合成目的関数（周辺尤度ではありません）';
 app.displayPeriodicTraining(2, details);
-main = findobj(app.Window, 'Type', 'uitabgroup', 'TabLocation', 'left'); main.SelectedTab = state.Layout.Parent;
+main = app.MainTabs; main.SelectedTab = state.Layout.Parent;
 state.Views.SelectedTab = state.Views.Children(strcmp({state.Views.Children.Title}, '周期の最適化'));
 assert(height(state.Views.SelectedTab.Children.Children.Data) == details.Evaluations);
 if ~isempty(image_folder)
@@ -26,7 +26,12 @@ state.Views.SelectedTab = state.ChartTabs.Parent.Parent;
 state.ChartTabs.SelectedTab = state.ChartTabs.Children(strcmp({state.ChartTabs.Children.Title}, '周期探索（周辺尤度）'));
 chart_file = [tempname, '.png']; chart_cleanup = onCleanup(@() delete(chart_file));
 drawnow; exportgraphics(app.Panels{2}.Figures{1}, chart_file, 'Resolution', 100); assert(isfile(chart_file));
-if ~isempty(image_folder), exportapp(app.Window, fullfile(image_folder, '28-periodic-search.png')); end
+if ~isempty(image_folder)
+    exportapp(app.Window, fullfile(image_folder, '28-periodic-search.png'));
+    apply_app_theme(app.Window, 'ダーク'); main.applyTheme('ダーク'); drawnow; pause(0.5); drawnow;
+    exportapp(app.Window, fullfile(image_folder, '14-dark-theme.png'));
+    app.applyTheme();
+end
 app.SettingsUI.Kernel.Value = 'matern32'; app.SettingsUI.SwingKernel.Value = 'swingperiodic'; app.saveSettings();
 assert(strcmp(app.Panels{2}.Kernel.Value, 'swingperiodic'));
 assert(strcmp(app.Panels{1}.Kernel.Value, 'matern32')); assert(strcmp(app.Panels{3}.Kernel.Value, 'matern32'));

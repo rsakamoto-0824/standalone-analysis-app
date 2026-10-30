@@ -3,7 +3,7 @@ function run_furnace_ui_smoke(image_folder)
 if nargin < 1, image_folder = ''; end
 [app, cleanup] = create_display_preview(); %#ok<ASGLU>
 assert(isempty(app.Furnace)); app.openFurnace(); view = app.Furnace;
-main = findobj(app.Window, 'Type', 'uitabgroup', 'TabLocation', 'left');
+main = app.MainTabs;
 assert(numel(main.Children) == 10); assert(any(strcmp({main.Children.Title}, '2 Swing Curve学習')));
 app.Window.Position = [40, 40, 1600, 1000];
 slots = (5:10:95)'; rows = numel(slots);
@@ -43,7 +43,7 @@ lock = app.lockControls(view); assert(strcmp(view.Run.Enable, 'off')); clear loc
 assert(strcmp(view.Run.Enable, 'on') && strcmp(view.Selection.Enable, 'on'));
 view.RBFWidth.ValueChangedFcn(view.RBFWidth, []); assert(isempty(view.Report) && ~view.Confirmed);
 view.showReport(report); app.SettingsUI.Theme.Value = 'ダーク'; app.saveSettings();
-assert(isempty(view.Report) && ~view.Confirmed); assert(view.Bins.Value == app.SettingsUI.Bins.Value);
+assert(isempty(view.Report) && ~view.Confirmed); assert(~isprop(view, 'Bins')); assert(view.evaluationOptions().Bins == app.SettingsUI.Bins.Value);
 app.Window.Position(3:4) = [900, 780]; app.Window.SizeChangedFcn(app.Window, []); drawnow;
 fprintf('Furnace native resize: width=%g / row=%g / column=%g\n', app.Window.Position(3), view.Right.Layout.Row, view.Right.Layout.Column);
 assert(view.Right.Layout.Row == 2);

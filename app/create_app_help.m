@@ -19,6 +19,7 @@ terms = {
     '相関係数の2乗', 'Pearson r の2乗。予測の偏りを検出できない場合があり、決定係数 R² とは別の指標です。';
     'RMSPE / MAE', 'RMSPE は相対誤差の二乗平均平方根（%）、実測に0があれば未定義。MAE は絶対誤差の平均。';
     'KL / 相互情報量', 'KL は分布の違い（nats）、相互情報量は依存の強さ（bits）。ヒストグラムと擬似度数1を使用。ビン数で値が変わります。';
+    'KL / MIビン数の共通設定', '全画面で同じ値を使います。「9 設定」で0（自動）または2〜1000を指定し、保存・適用します。設定変更後は古い評価結果と列対応の確認を解除します。';
     '学習時の評価', '学習に使ったデータで計算した当てはまりです。未知データの性能を示す交差検証ではありません。保存モデルで推定＋未使用の実測列で評価できます。';
     'カーネル比較', 'APC・Swing Curve・汎用GPRで2個以上を一括検証。同じ分割・乱数条件・fit_methodを使い、未使用行の予測をまとめた8指標で比較します。検証RMSE、同値ならMAE、さらに同値なら候補順で順位を付けます。';
     '交差検証 / 分割数', '行をランダムに2〜10群に分け、各群を学習から外して予測します。既定5分割。8指標は全行の検証予測を結合して計算し、分割別指標の単純平均ではありません。周期は各分割の学習データ内で求め直します。';
@@ -44,22 +45,22 @@ description = uitextarea(layout, 'Editable', 'off', 'Value', {'用語表の行�
 glossary.CellSelectionCallback = @(~, event) showTerm(event, terms, description);
 uitextarea(layout, 'Editable', 'off', 'Value', {
     '操作：入力を開く → 列対応を確認 → 実行。結果・モデル評価・列の要約・グラフ・保存後検証を右側で切替。';
-    '炉内補間：「8 炉内補間」でWaferId、BoatSlot、計測列、任意のバッチ列を選択。範囲と方式を確認して一括実行します。設定は「9 設定」、用語は「10 Help」です。';
+    '炉内補間：「4 炉内補間」でWaferId、BoatSlot、計測列、任意のバッチ列を選択。範囲と方式を確認して一括実行します。設定は「9 設定」、用語は「10 Help」です。';
     '複数比較：左欄の比較画面を開く → Ctrl / Commandで2個以上選択 → 分割数・seedを設定 → 列対応を確認 → 一括比較。採用候補を選んでMAT保存。CSV / Excel、PNGの書出しにも対応。';
     '比較は候補ごとに順に計算。各候補で分割数＋1回の学習を行い、周期カーネルはその都度周期探索します。成功候補の完全モデルをメモリーに保持するため時間・メモリーが増えます。APCの分割内学習は25行以上必要です。';
     '周期カーネル：Swing Curve学習でswingperiodicを選択。周期と尤度は左欄、履歴は「周期の最適化」、図はグラフ内で確認。周期ごとの再学習で時間が増えます。設定でSwing Curve専用の既定kernelを変更できます。';
     '推定 / SHAP：実測列を任意で選ぶと評価指標も計算。実測列なしでは RMSE / R² は計算しません。';
     'Swing Curve近似：RESIST_TH依存図で膜厚・周期範囲を設定し更新。近似指標・極値・隣接傾きの表を選んで保存。膜厚の異なる点が8点以上必要です。';
     '残差診断：近似カーブ横の「残差分布」「正規Q–Q」「残差対膜厚」で確認。「残差の正規性」「残差データ」の表はCSV/Excelへ保存。ばらつきが数値しきい値以下なら検定・形状統計を対象外と表示します。';
-    '保存：表示中の表を CSV / Excel へ、アプリ内グラフを PNG へ保存できます。';
+    '保存：表示中の表を CSV / Excel へ、アプリ内グラフを PNG へ保存できます。グラフをコピーで画像をクリップボードに入れ、ExcelやPowerPointなどへ貼り付けられます。表示中の図を優先し、必要な場合は対象を選択します。';
     'D/I の探索候補は各因子 −1/0/1。I の積分対象は連続な一様領域 [-1,1]^k。局所探索のため最適性は保証しません。';
     '実験計画は1〜8因子、追加1〜300件、既存＋追加500件以下。直交表では実験数の欄を使用しません。';
-    '設定：保存先、テーマ、kernel、fit_method、入力数、ビン数、因子数、実験数、seed、SHAP表示の初期値を変更できます。'});
+    '設定：保存先、テーマ、kernel、fit_method、入力数、因子数、実験数、seed、SHAP表示の初期値と、全画面共通のKL / MIビン数を変更できます。'});
 links = uigridlayout(layout, [6, 4]); links.Padding = [0, 0, 0, 0];
 functions = {'fitrgp', 'RegressionGP', 'shapley', 'swarmchart', 'wordcloud', 'cordexch', 'daugment', 'fracfact', ...
-    'lillietest', 'skewness', 'kurtosis', 'norminv', 'cvpartition', 'crossval', 'rng', 'randperm', 'spline', 'ppval', 'fill', 'RegressionGP.predict', 'polyfit', 'polyval'};
+    'lillietest', 'skewness', 'kurtosis', 'norminv', 'cvpartition', 'crossval', 'rng', 'randperm', 'spline', 'ppval', 'fill', 'RegressionGP.predict', 'polyfit', 'polyval', 'copygraphics'};
 folders = {'stats', 'stats', 'stats', 'matlab/ref', 'matlab/ref', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', ...
-    'stats', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'stats', 'matlab/ref', 'matlab/ref'};
+    'stats', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref'};
 for index = 1:numel(functions)
     url = ['https://www.mathworks.com/help/' folders{index} '/' lower(functions{index}) '.html'];
     uibutton(links, 'Text', [functions{index} ' ↗'], 'ButtonPushedFcn', @(~, ~) web(url, '-browser'));

@@ -28,7 +28,7 @@ view.Controls.PeriodMin.Value = 60; view.refit(); assert(~isempty(view.Fit), vie
 view.Controls.Trend.Value = false; view.refit(); assert(view.Fit.Slope == 0);
 view.Controls.Trend.Value = true; view.Controls.RangeMin.Value = 850; view.Controls.RangeMax.Value = 1250;
 view.refit(); app.applyTheme(); apply_app_theme(app.Window, 'ダーク'); apply_app_theme(app.Window, 'ライト');
-main = findobj(app.Window, 'Type', 'uitabgroup', 'TabLocation', 'left');
+main = app.MainTabs;
 main.SelectedTab = state.Layout.Parent; state.Views.SelectedTab = state.ChartTabs.Parent.Parent; state.ChartTabs.SelectedTab = tab;
 state.Source.Text = '合成データ（GP学習・実SHAP未実行）';
 state.ModelInfo.Value = {'表示試験：正弦波＋直線で作成した合成SHAP値'; '周期80 / 振幅2.5 / 傾き0.01'};
