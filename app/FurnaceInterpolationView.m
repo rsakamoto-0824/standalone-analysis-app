@@ -15,7 +15,6 @@ classdef FurnaceInterpolationView < handle
         RBFWidth
         RBFRidge
         Extrapolate
-        Bins
         Confirm
         Run
         Messages
@@ -25,6 +24,7 @@ classdef FurnaceInterpolationView < handle
         Tables
         PlotTabs
         Charts
+        CopyFigure
         Report = []
         Data = []
         Confirmed = false
@@ -41,8 +41,8 @@ classdef FurnaceInterpolationView < handle
         function view = FurnaceInterpolationView(parent, window, settings, lock_callback, log_folder)
             view.Window = window; view.Settings = settings; view.Constants = furnace_constants(); view.Lock = lock_callback; view.LogFolder = log_folder;
             view.Layout = uigridlayout(parent, [1, 2]); view.Layout.ColumnWidth = {380, '1x'};
-            view.Controls = uigridlayout(view.Layout, [18, 1], 'Scrollable', 'on');
-            view.Controls.RowHeight = {56, 32, 44, 32, 32, 32, 120, 146, 32, 32, 32, 32, 32, 26, 32, 32, 34, 100};
+            view.Controls = uigridlayout(view.Layout, [17, 1], 'Scrollable', 'on');
+            view.Controls.RowHeight = {56, 32, 44, 32, 32, 32, 120, 146, 32, 32, 32, 32, 32, 26, 32, 34, 100};
             uilabel(view.Controls, 'Text', 'WaferId・BoatSlot・計測列を指定。バッチがあればRunごとに分けます。計測列の空欄は未計測として扱います。', 'WordWrap', 'on');
             uibutton(view.Controls, 'Text', 'Excel / CSV を開く', 'ButtonPushedFcn', @(~, ~) view.load());
             view.Source = uilabel(view.Controls, 'Text', '入力ファイル未選択', 'WordWrap', 'on');
@@ -58,11 +58,10 @@ classdef FurnaceInterpolationView < handle
             view.RBFWidth = view.numberRow('RBF幅（0=自動）', view.Constants.DefaultRBFWidth, [0, Inf], false);
             view.RBFRidge = view.numberRow('RBF正則化', view.Constants.DefaultRBFRidge, [view.Constants.MinimumRBFRidge, view.Constants.MaximumRBFRidge], false);
             view.Extrapolate = uicheckbox(view.Controls, 'Text', '計測範囲外も予測する（外挿）', 'Value', false);
-            view.Bins = view.numberRow('KL / MIビン数（0=自動）', settings.Bins, [0, 1000], true);
             view.Confirm = uibutton(view.Controls, 'Text', '列・バッチ区分・予測範囲を確認', 'ButtonPushedFcn', @(~, ~) view.confirm());
             view.Run = uibutton(view.Controls, 'Text', 'バッチごとに比較・補間', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) view.run());
             view.Messages = uitextarea(view.Controls, 'Editable', 'off', 'Value', {'実行待ち'});
-            parameters = {view.Wafer, view.Slot, view.Batch, view.Targets, view.Methods, view.Minimum, view.Maximum, view.Step, view.RBFWidth, view.RBFRidge, view.Extrapolate, view.Bins};
+            parameters = {view.Wafer, view.Slot, view.Batch, view.Targets, view.Methods, view.Minimum, view.Maximum, view.Step, view.RBFWidth, view.RBFRidge, view.Extrapolate};
             for index = 1:numel(parameters), parameters{index}.ValueChangedFcn = @(~, ~) view.changed(); end
             view.Slot.ValueChangedFcn = @(~, ~) view.slotChanged();
             view.Right = uigridlayout(view.Layout, [4, 1]); view.Right.RowHeight = {62, 34, '1x', 34};
@@ -78,9 +77,10 @@ classdef FurnaceInterpolationView < handle
             for index = 1:3
                 tab = uitab(view.PlotTabs, 'Title', view.ChartNames{index}); grid = uigridlayout(tab, [1, 1]); view.Charts{index} = uiaxes(grid);
             end
-            exports = uigridlayout(view.Right, [1, 2]); exports.Padding = [0, 0, 0, 0];
+            exports = uigridlayout(view.Right, [1, 3]); exports.Padding = [0, 0, 0, 0];
             uibutton(exports, 'Text', '表示中の表を保存', 'ButtonPushedFcn', @(~, ~) view.exportTable());
             uibutton(exports, 'Text', 'グラフをPNGに保存', 'ButtonPushedFcn', @(~, ~) view.exportFigure());
+            view.CopyFigure = uibutton(exports, 'Text', 'グラフをコピー', 'ButtonPushedFcn', @(~, ~) view.copyFigure());
             view.resize(window.Position(3));
         end
         function importSource(view, source)
@@ -134,7 +134,7 @@ classdef FurnaceInterpolationView < handle
             try
                 require_r2025b();
                 if ~view.Confirmed, error('furnace:unconfirmed', '列・バッチ区分・予測範囲の確認ボタンを押してください。'); end
-                data = view.preparedData(); query = view.querySlots(); options = view.options();
+                data = view.preparedData(); query = view.querySlots(); options = view.evaluationOptions();
                 entry.InputFile = view.fileName(); entry.Rows = numel(data.Slots); entry.Kernel = strjoin(string(view.Methods.Value), ',');
                 view.clear(); controls_cleanup = view.Lock(); %#ok<NASGU>
                 progress = uiprogressdlg(view.Window, 'Title', '炉内補間', 'Message', 'バッチごとの計測データを準備中', 'Indeterminate', 'on', 'Cancelable', 'on');
@@ -223,7 +223,11 @@ classdef FurnaceInterpolationView < handle
             end
         end
         function applySettings(view, settings)
-            view.Settings = settings; view.Bins.Value = settings.Bins; view.changed(); apply_app_theme(view.Layout, settings.Theme);
+            view.Settings = settings; view.changed(); apply_app_theme(view.Layout, settings.Theme);
+        end
+        function options = evaluationOptions(view)
+            options = struct('RBFWidth', view.RBFWidth.Value, 'RBFRidge', view.RBFRidge.Value, ...
+                'AllowExtrapolation', view.Extrapolate.Value, 'Bins', view.Settings.Bins);
         end
         function setBusy(view, busy)
             view.Run.Enable = matlab.lang.OnOffSwitchState(~busy);
@@ -260,9 +264,6 @@ classdef FurnaceInterpolationView < handle
             count = floor((view.Maximum.Value - view.Minimum.Value) / view.Step.Value) + 1;
             if count > view.Constants.MaximumQuerySlots, error('furnace:querySize', '予測位置は%dSlotまでです。', view.Constants.MaximumQuerySlots); end
             query = (view.Minimum.Value:view.Step.Value:view.Maximum.Value)';
-        end
-        function options = options(view)
-            options = struct('RBFWidth', view.RBFWidth.Value, 'RBFRidge', view.RBFRidge.Value, 'AllowExtrapolation', view.Extrapolate.Value, 'Bins', view.Bins.Value);
         end
         function name = fileName(view)
             [~, base, extension] = fileparts(view.Data.FileName); name = [base extension];
@@ -308,6 +309,16 @@ classdef FurnaceInterpolationView < handle
                 [name, folder] = uiputfile('*.png', '炉内補間の図を保存', fullfile(view.Settings.SaveFolder, 'furnace_chart.png')); if isequal(name, 0), return; end
                 view.Tabs.SelectedTab = view.PlotTabs.Parent.Parent; view.PlotTabs.SelectedTab = ancestor(view.Charts{choice}, 'uitab'); drawnow;
                 exportgraphics(view.Charts{choice}, fullfile(folder, name), 'Resolution', 150);
+            catch err
+                view.showError(err);
+            end
+        end
+        function copyFigure(view)
+            try
+                copied_name = copy_app_chart(view.Charts, view.ChartNames);
+                if ~isempty(copied_name)
+                    view.Messages.Value = [status_lines(view.Messages.Value); {['クリップボードにコピーしました: ' copied_name]}];
+                end
             catch err
                 view.showError(err);
             end

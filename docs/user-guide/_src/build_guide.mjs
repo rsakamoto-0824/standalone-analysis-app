@@ -111,6 +111,7 @@ ${note('アプリの利用中の通信','アプリから外部サービスへ測
 `);
 
 add('input','入力ファイルと列の割当','USER · COMMON OPERATION',`
+<p>左の1〜10の画面切替メニューは見出し全文を読める幅を確保しています。4番の炉内補間は、3番の汎用GPRの直下です。ウィンドウを狭くした場合もメニュー幅を保ち、入力と結果を上下に配置します。</p>
 <p>学習・推定・SHAPでは、最初に入力データを読み込みます。<strong>ファイルの列順と、モデルへ渡す説明変数の順番は別です。</strong>必ず対応表を確認してください。</p>
 ${step('7-1','CSV / Excel を選び、シートとヘッダー行を指定する',`<ol><li>使う機能のタブを選び、<span class="ui-name">Excel / CSV を開く</span> を押します。</li><li><code>.xlsx</code> または <code>.csv</code> を選択します。</li><li>Excel ではシート一覧から対象シートを選びます。CSV ではシート選択はありません。</li><li>「ヘッダーの行番号」に列名が書かれている行番号を入力します。先頭行なら <code>1</code> です。</li></ol>`,'選択したファイル名とデータ件数が左側に表示されること。')}
 ${table(['SIN_TH','SIN_RN','NSG_TH','RESIST_TH','CD'],[['100.1','1.91','60.2','905','50.3'],['99.8','1.90','60.4','898','50.1']])}
@@ -145,7 +146,7 @@ ${note('内部探索の範囲と読み方','周期範囲は、膜厚点間隔と
 <p>カーネルで選んだ周期と、10-DのSHAP散布点への正弦波近似の周期は、対象と基準が異なる別の結果です。同じ値になるとは限りません。毎回swingperiodicを使う場合は、11-Dの「設定」→「Swing Curve専用 kernel」で既定値を保存できます。計算方式は<a href="../ui-update.md">更新仕様</a>に記載しています。<strong>R2025bでの実学習・モデル保存・SHAP、制御側での予測、Windows Runtimeの最終確認は未実施です。</strong></p>
 <h3 id="kernel-comparison">8-5　複数カーネルを一括検証して採用モデルを選ぶ</h3>
 <p>APC・Swing Curve・汎用GPRの各学習で利用できます。左のkernelは通常の単独学習用です。比較では、右側の一覧から選んだカーネルと、左の共通fit_methodを使います。</p>
-<ol><li>入力ファイルを開き、説明変数とyを割り当てます。</li><li>左欄の「複数カーネルの比較画面を開く」を押します。右側に「カーネル比較」が開きます。</li><li>Ctrl（MacはCommand）を押しながら、比較するカーネルを2個以上選びます。Shiftで範囲を選べます。Swing Curveではswingperiodicも選択できます。</li><li>検証の分割数（2〜10、既定5）と比較用seed（既定0）を設定します。左欄でfit_method、必要ならKL / MIのビン数も確認します。</li><li>列対応を確認し、「選択したカーネルを一括比較」を押します。</li><li>候補・分割・全データ学習の進捗を確認して待ちます。中止は実行中の学習や周期候補の計算が終わった時点で反映されます。中止時はモデルを保存せず、比較結果を破棄します。</li></ol>
+<ol><li>入力ファイルを開き、説明変数とyを割り当てます。</li><li>左欄の「複数カーネルの比較画面を開く」を押します。右側に「カーネル比較」が開きます。</li><li>Ctrl（MacはCommand）を押しながら、比較するカーネルを2個以上選びます。Shiftで範囲を選べます。Swing Curveではswingperiodicも選択できます。</li><li>検証の分割数（2〜10、既定5）と比較用seed（既定0）を設定します。左欄でfit_methodを確認します。KL / MIのビン数は「9 設定」で保存・適用した共通値を使います。</li><li>列対応を確認し、「選択したカーネルを一括比較」を押します。</li><li>候補・分割・全データ学習の進捗を確認して待ちます。中止は実行中の学習や周期候補の計算が終わった時点で反映されます。中止時はモデルを保存せず、比較結果を破棄します。</li></ol>
 ${shot('29-kernel-comparison','複数カーネルの選択と比較一覧','合成データと代替学習器によるR2022bの表示試験です。実際のGPR学習・交差検証の性能を示した画像ではありません。')}
 ${table(['画面内の表・項目','確認する内容'],[
 ['比較一覧','Statusが成功した候補のRank（検証RMSEの小さい順）と8指標を比較。R2は決定係数、Training_R2 / Training_RMSEは全データへの当てはまり。Secondsは検証＋全データ学習の時間、Periodは全データモデルの周期。Folds / Seed / Rows / FitMethodで比較条件を確認。失敗理由や警告はNote。'],
@@ -162,7 +163,7 @@ ${note('採用後に独立データで確認する','この比較はロット・
 `);
 
 add('prediction','保存済みモデルで推定・評価する','USER · PREDICTION',`
-${step('9-1','モデルと推定方式を選ぶ',`<ol><li>「4 保存モデルで推定」を選びます。</li><li>APC / Swing Curve / 汎用は「汎用推定」、既存の面内モデルは「面内推定（既存モデル）」を選びます。</li><li>学習済みMATを開き、PredictorNames / ResponseNameを確認します。</li><li>入力ファイルを開き、モデルと同じ説明変数の順番に割り当てます。</li></ol><p>既存の面内モデルはX・Yの2列を割り当てます。半径は内部で追加します。列数だけでモデルの用途を自動判別しません。</p>`)}
+${step('9-1','モデルと推定方式を選ぶ',`<ol><li>「5 保存モデルで推定」を選びます。</li><li>APC / Swing Curve / 汎用は「汎用推定」、既存の面内モデルは「面内推定（既存モデル）」を選びます。</li><li>学習済みMATを開き、PredictorNames / ResponseNameを確認します。</li><li>入力ファイルを開き、モデルと同じ説明変数の順番に割り当てます。</li></ol><p>既存の面内モデルはX・Yの2列を割り当てます。半径は内部で追加します。列数だけでモデルの用途を自動判別しません。</p>`)}
 ${step('9-2','実測値列を任意で選ぶ',`<p>未使用データで評価したい場合、「評価用の実測列（任意）」で目的変数を選びます。説明変数と同じ列は選べません。実測値なしのままでも予測できますが、RMSE・R²は計算しません。入力・予測値の要約だけ表示します。評価・要約には2件以上必要です。</p>`)}
 ${step('9-3','列対応を確認して実行する',`<p>確認ボタンを押してから実行します。結果の SourceRow は元ファイルの行、y_pred は予測値です。既存の面内モデルの推定では OutsideTrainingRange で範囲外の行を確認します。実測を指定した場合は上部のRMSE・R²と評価表・要約・グラフも確認します。</p>`)}
 ${shot('04-predict','保存モデル推定：任意の実測値列を指定すると評価も計算')}
@@ -170,14 +171,14 @@ ${shot('04-predict','保存モデル推定：任意の実測値列を指定す�
 
 add('shap','SHAP解析とアプリ内のグラフ','USER · SHAP',`
 <h3>10-A　APC学習後のSHAP</h3><p>APCは保存・検証の成功後に先頭最大1000行でSHAPを計算します。評価指標は全学習行を使います。背景データは原仕様どおりモデル内の学習データです。処理時間の保証はありません。</p>
-<h3>10-B　保存済みモデルのSHAP</h3><ol><li>「5 SHAP 解析」で「SHAP依存確認」を選びます。</li><li>MATと入力ファイルを開き、PredictorNamesと同じ順に列を割り当てます。</li><li>必要なら実測値列とKL/MIのビン数を指定します。</li><li>列対応を確認し、「SHAP グラフをアプリ内に表示」をオンにして実行します。</li><li>右側の「グラフ」を開き、その中で「SHAP 分布」「SHAP 依存: 変数名」を切り替えます。</li></ol><p>分布図は平均|SHAP|の大きい順です。依存図は横軸が入力値、縦軸がSHAP値、色が自分以外の重要な変数です。外部のfigureウィンドウは作りません。</p>
+<h3>10-B　保存済みモデルのSHAP</h3><ol><li>「6 SHAP 解析」で「SHAP依存確認」を選びます。</li><li>MATと入力ファイルを開き、PredictorNamesと同じ順に列を割り当てます。</li><li>必要なら実測値列を指定します。KL/MIのビン数は「9 設定」の共通設定で変更します。</li><li>列対応を確認し、「SHAP グラフをアプリ内に表示」をオンにして実行します。</li><li>右側の「グラフ」を開き、その中で「SHAP 分布」「SHAP 依存: 変数名」を切り替えます。</li></ol><p>分布図は平均|SHAP|の大きい順です。依存図は横軸が入力値、縦軸がSHAP値、色が自分以外の重要な変数です。外部のfigureウィンドウは作りません。</p>
 ${shot('05-shap','SHAP解析：モデル・入力・任意の実測値列を設定')}
 ${shot('21-shap-chart','SHAP分布もアプリ内部のグラフタブで表示','SHAPを計算した画像ではありません。合成入力の0.1倍を描画用の値として設定した表示試験です。')}
 <h3>10-C　ノイズ除去用SHAP</h3><p>方式を「ノイズ除去用SHAP」にして、SIN_TH、SIN_RN、NSG_TH、RESIST_THを割り当てます。結果の shap_resist はRESIST_THの寄与であり、測定値やノイズ除去済み測定値そのものではありません。背景データ数の引数を追加しない原仕様を維持します。</p>
 ${shot('18-denoise','ノイズ除去用SHAP：4番目の説明変数の寄与を取得')}
 <h3>10-D　Swing Curve近似・極値膜厚・バルク効果の傾き</h3>
 <p>レジスト膜厚のSHAP依存図を、<code>c + m(t−t₀) + A sin(2π(t−t₀)/T + φ)</code> で近似します。tは膜厚、Tは周期、Aは片振幅、mは直線トレンドです。表示するR²・RMSEは<strong>SHAP散布点への近似</strong>の評価であり、画面上部のGPRモデルの評価とは別です。</p>
-<ol><li>新規学習から進める場合は「2 Swing Curve学習」で「学習後にSHAP・Swing Curve近似を計算」をオンにして実行し、MAT保存と検証を完了します。既定ではオフです。学習後のSHAP対象は先頭最大1000件で、GPR評価は全行です。</li><li>保存済みモデルなら「5 SHAP 解析」でMATと入力を開き、「SHAP依存確認」または「ノイズ除去用SHAP」を実行します。グラフ表示をオンにします。</li><li>右の「グラフ」→「SHAP 依存: RESIST_TH」を開きます。RESIST_THという説明変数名を持つモデルが対象です。</li><li>「膜厚下限・上限」で近似・プロットする範囲を指定します。読込データ内の範囲を指定し、異なる膜厚を8点以上含めます。</li><li>周期下限・上限を両方0にすると自動探索します。膜厚点の間隔と範囲から初期探索範囲を決めます。周期が既知なら両方に正の値を入力して探索を絞ります。</li><li>バルク効果の傾きを見る場合は「直線トレンドを含む」をオンにし、「近似を更新」を押します。設定変更時は古い近似・表を消します。</li></ol>
+<ol><li>新規学習から進める場合は「2 Swing Curve学習」で「学習後にSHAP・Swing Curve近似を計算」をオンにして実行し、MAT保存と検証を完了します。既定ではオフです。学習後のSHAP対象は先頭最大1000件で、GPR評価は全行です。</li><li>保存済みモデルなら「6 SHAP 解析」でMATと入力を開き、「SHAP依存確認」または「ノイズ除去用SHAP」を実行します。グラフ表示をオンにします。</li><li>右の「グラフ」→「SHAP 依存: RESIST_TH」を開きます。RESIST_THという説明変数名を持つモデルが対象です。</li><li>「膜厚下限・上限」で近似・プロットする範囲を指定します。読込データ内の範囲を指定し、異なる膜厚を8点以上含めます。</li><li>周期下限・上限を両方0にすると自動探索します。膜厚点の間隔と範囲から初期探索範囲を決めます。周期が既知なら両方に正の値を入力して探索を絞ります。</li><li>バルク効果の傾きを見る場合は「直線トレンドを含む」をオンにし、「近似を更新」を押します。設定変更時は古い近似・表を消します。</li></ol>
 <p>近似曲線はオレンジ、極大は紫、極小は青緑で表示します。極値の膜厚を点の近くへ表示し、同じ色の破線で隣接する山同士・谷同士を結びます。凡例のmが傾きです。表示範囲内の極値が24個を超える場合は文字の重なりを避け、膜厚の数値は表で確認します。</p>
 ${shot('22-swing-fit','SHAP Swing Curve近似：周期・振幅・適合度、山・谷を結ぶ傾きを表示','R2022b / 合成SHAP値の補助確認。入力は膜厚850〜1250、周期80、片振幅2.5、直線傾き0.01。GP学習・実SHAP計算の結果ではありません。')}
 <p>内容が収まらない場合は、この依存図の内側を下へスクロールします。下の表は「近似指標」「極値の膜厚」「隣接する山・谷の傾き」を切り替えます。「極値の膜厚」は極大・極小ごとの膜厚とSHAP値、「隣接する山・谷の傾き」は両端の膜厚・SHAP値と差分の傾きです。目的の表を選び、画面下の「表示中の表を保存」でCSV / Excelへ出力します。グラフのPNGには近似曲線・極値・破線・凡例を含めます。</p>
@@ -204,24 +205,26 @@ ${table(['指標','意味・未定義となる条件'],[['R²','1−SSE/SST。1�
 ${shot('10-model-evaluation','モデル評価：従来7指標に通常の決定係数R²を加えて一括計算','合成実測・合成予測ベクトルからR2022bで計算した補助確認です。GPの予測結果ではありません。')}
 ${shot('11-column-summary','列の要約：入力・実測・予測・残差を自動で集計')}
 ${shot('12-model-chart','実測対予測と残差の図をアプリ内に表示')}
-<h3>11-B　実験計画作成</h3><ol><li>「6 実験計画作成」で方式を選びます。</li><li>因子数と評価モデルを指定します。linearは主効果、interactionは交互作用を含み、quadraticは平方項も含みます。</li><li>D/Iでは実験数とseedを指定します。直交表は2/3水準を選び、必要な実験数を自動選択します。</li><li>実行後、表とランク、グラフ内の交絡図を確認します。</li></ol>
+<h3>11-B　実験計画作成</h3><ol><li>「7 実験計画作成」で方式を選びます。</li><li>因子数と評価モデルを指定します。linearは主効果、interactionは交互作用を含み、quadraticは平方項も含みます。</li><li>D/Iでは実験数とseedを指定します。直交表は2/3水準を選び、必要な実験数を自動選択します。</li><li>実行後、表とランク、グラフ内の交絡図を確認します。</li></ol>
 ${table(['方式','入力・意味'],[['D最適','モデル係数の推定情報量を重視。各因子−1/0/1の座標交換で局所探索。'],['I最適','連続な一様領域[-1,1]^kの平均予測分散を重視。候補は−1/0/1、積分は厳密モーメントで計算。'],['直交表','同一水準の2水準L4/L8/L16、3水準L9/L27。混合水準には非対応。実験数欄を使いません。'],['拡張 D最適 / 拡張 I最適','既存計画を読込み、F1から因子列を割り当てて、追加数を指定。既存点の値・順序を保持します。']])}
 <p>拡張の既存計画は因子ごとに下限−1、上限1へ事前に符号化してください。元の温度・膜厚等へ自動換算しません。既存＋追加がモデル項数未満なら停止します。対応範囲は1〜8因子、追加1〜300行、合計500行以下です。反復点を許します。</p>
 ${shot('06-doe','実験計画作成：方式・評価モデル・実験数・seedを指定','R2022bで純粋な数値処理のI最適探索を行った補助確認です。R2025b/Windowsの実行検証ではありません。')}
 <p>交絡図は二次モデル項の正規化内積の絶対値です。対角線以外の1は2項の完全交絡、0は直交、0ベクトル項は空白です。複数項の依存は「交絡の線形関係」表の各列を使い、係数で重みを付けた項の和が0になる関係として読みます。選択モデルのランクが項数より小さい場合、全係数を独立に推定できません。直交表でも二次モデルはランク不足になることがあります。</p>
 ${shot('19-confounding','交絡の可視化：項の類似度とモデルのランクを確認')}
 ${note('最適計画の限界','D/Iは4初期点・最大12巡の局所探索です。最適性を保証しません。選んだモデルと領域に依存するため、実験を開始する前に計画の妥当性を確認してください。計算方式は<a href="../ui-update.md">更新仕様</a>を参照。')}
-<h3>11-C　ワードクラウド</h3><p>「7 ワードクラウド」で直接入力または.txtを読み込み、実行します。日本語は空白で区切ります。単語数は結果表、図はアプリ内の「グラフ」で確認します。1文字以下は除外し、小文字化して集計します。</p>
+<h3>11-C　ワードクラウド</h3><p>「8 ワードクラウド」で直接入力または.txtを読み込み、実行します。日本語は空白で区切ります。単語数は結果表、図はアプリ内の「グラフ」で確認します。1文字以下は除外し、小文字化して集計します。</p>
 ${shot('07-words','ワードクラウド：テキストから単語数を集計')}
 ${shot('20-wordcloud','ワードクラウドもアプリ内部に表示','R2022bで説明用テキストを集計・描画した補助確認です。')}
 <h3>11-D　ユーザー設定</h3><ol><li>「9 設定」を選びます。</li><li>デフォルト保存先を入力またはフォルダ選択で指定します。</li><li>ライト/ダーク、kernel、Swing Curve専用kernel、fit_method、説明変数数、ビン数、因子数、実験数、seed、SHAP図表示を編集します。swingperiodicはSwing Curve専用kernelで選びます。</li><li>「設定を保存・適用」を押します。適用時は現在の結果を消し、列対応の確認を解除します。</li></ol><p>次回起動にも設定を反映します。「初期値を画面に戻す」は編集欄だけを戻し、保存するまでファイルを変更しません。設定はprefdir配下のsettings.jsonに保存し、モデルMATに混ぜません。旧設定にSwing Curve専用kernelがない場合は、以前のkernelを引き継ぎます。</p>
 ${shot('08-settings','設定：保存パス・テーマ・既定の解析条件を変更')}
+<p>KL / MIビン数は全画面で共通です。この設定画面だけで、0（自動）または2〜1000を指定します。「設定を保存・適用」後の単独学習、保存モデル推定、SHAP、カーネル比較、炉内補間に同じ値を使います。設定を変更すると古い評価結果は消去されるため、再実行してください。</p>
+${shot('34-shared-bins','KL / MIビン数は設定画面だけで編集する全画面共通設定')}
 ${shot('14-dark-theme','ダークテーマの表示')}
 <h3>11-E　Helpと画面サイズ</h3><p>「10 Help」の用語表を選択すると説明全文を表示します。下のボタンでMathWorks公式の関数ヘルプや同梱の手順書を開けます。公式リンクだけネット接続を使用します。図はアプリ内に表示し、ヘルプリンクは既定ブラウザで開きます。</p><p>ウィンドウ幅1100px未満では入力が上、結果が下へ切り替わります。入力欄が収まらなければ入力部をスクロールします。横に広げると左右配置へ戻ります。</p>
 ${shot('09-help','Help：用語説明とMATLAB公式関数ヘルプへの入口')}
 ${shot('13-resize','幅900pxでは入力を上、結果を下に配置')}
 <h3 id="furnace-interpolation">11-F　LP-CVDの炉内補間：バッチ別にBoatSlotから予測する</h3>
-<p>「8 炉内補間」は、同じ成膜Runで同時に処理する複数Lotの膜厚・屈折率を、BoatSlotを説明変数として補間します。異なるRunの入力をまとめた場合は、バッチ列を選ぶとRunごとに別のモデルを学習します。バッチはカテゴリとして区分にだけ使い、数値の大小を学習させません。WaferIdも識別のために保持し、回帰の入力にはしません。</p>
+<p>「4 炉内補間」は、同じ成膜Runで同時に処理する複数Lotの膜厚・屈折率を、BoatSlotを説明変数として補間します。異なるRunの入力をまとめた場合は、バッチ列を選ぶとRunごとに別のモデルを学習します。バッチはカテゴリとして区分にだけ使い、数値の大小を学習させません。WaferIdも識別のために保持し、回帰の入力にはしません。</p>
 ${table(['入力列','指定・扱い'],[
 ['WaferId（必須）','各Waferの識別子。1バッチ内で重複させません。CSVは先頭ゼロを保つ文字列として読みます。Excelでは識別子を文字列で入力してください。'],
 ['BoatSlot（必須）','正の整数の位置。同じバッチ内で重複できません。異なるバッチで同じSlotが出ることはできます。'],
@@ -241,7 +244,7 @@ DEMO-B03,50,,1.475,Run-B
 DEMO-B04,70,107.1,1.477,Run-B
 DEMO-B05,90,107.4,1.479,Run-B
 DEMO-B06,110,107.8,1.480,Run-B`)}
-<ol><li>「8 炉内補間」を開き、Excel / CSVのシートとヘッダー行を指定します。</li><li>WaferId列、BoatSlot列、必要ならバッチ列を指定し、目的変数をCtrl / Commandで複数選択します。列名が一致すれば自動で割り当てますが、内容を確認してください。</li><li>比較する方式を選びます。既定では6方式を選択しています。スプライン・3次多項式・RBFだけ、またはGPRの複数カーネルだけでも実行できます。</li><li>予測Slotの下限・上限・間隔を指定します。読込直後の下限・上限は入力Slotの最小・最大です。実際のBoatの全範囲を自動推定するものではありません。</li><li>必要ならRBF幅・正則化、KL / MIのビン数を変更します。外挿は初期状態で無効です。</li><li>「列・バッチ区分・予測範囲を確認」を押し、バッチ数・計測項目数と識別子の対応を確認します。</li><li>「バッチごとに比較・補間」を押します。バッチ・項目・方式・内部Slot検証の進捗を確認します。中止は実行中の1学習が終わった時点で反映され、今回の部分結果は表示・保存しません。</li></ol>
+<ol><li>「4 炉内補間」を開き、Excel / CSVのシートとヘッダー行を指定します。</li><li>WaferId列、BoatSlot列、必要ならバッチ列を指定し、目的変数をCtrl / Commandで複数選択します。列名が一致すれば自動で割り当てますが、内容を確認してください。</li><li>比較する方式を選びます。既定では6方式を選択しています。スプライン・3次多項式・RBFだけ、またはGPRの複数カーネルだけでも実行できます。</li><li>予測Slotの下限・上限・間隔を指定します。読込直後の下限・上限は入力Slotの最小・最大です。実際のBoatの全範囲を自動推定するものではありません。</li><li>必要ならRBF幅・正則化を変更します。KL / MIのビン数は「9 設定」の共通設定を使います。外挿は初期状態で無効です。</li><li>「列・バッチ区分・予測範囲を確認」を押し、バッチ数・計測項目数と識別子の対応を確認します。</li><li>「バッチごとに比較・補間」を押します。バッチ・項目・方式・内部Slot検証の進捗を確認します。中止は実行中の1学習が終わった時点で反映され、今回の部分結果は表示・保存しません。</li></ol>
 ${shot('31-furnace-comparison','炉内補間：バッチとWaferIdを指定してモデルを比較','2バッチ・2計測項目の架空データを使ったR2022bの補助確認です。スプライン/RBF/3次多項式だけを計算しており、GPRの学習・予測はしていません。')}
 ${table(['方式','今回の設定'],[
 ['スプライン','MATLABのsplineによるnot-a-knotの3次補間です。計測点を通りますが、点間での過大・過小な振れには注意してください。'],
@@ -258,7 +261,9 @@ ${note('検証の限界と失敗時の確認','この検証は内部Slotの補�
 add('export','結果・グラフ・ログを保存する','USER · OUTPUTS',`
 ${step('12-1','結果を CSV / Excel に保存する',`<p>結果・モデル評価・列の要約・保存後検証等の表を開き、<span class="ui-name">表示中の表を保存</span> を押します。保存形式・保存先・ファイル名を選びます。例：<code>model_metrics.csv</code>、<code>prediction.xlsx</code>。出力後にファイルを開き、列名・件数・SourceRow を確認してください。</p>`,'MAT モデルの保存と、結果表の書出しを混同しないこと。CSV / Excel から制御用の RegressionGP は復元できません。')}
 ${step('12-2','グラフを PNG に保存する',`<p>アプリ内の図を作成した後、<span class="ui-name">グラフを PNG に保存</span> を押します。グラフ一覧で保存する図を選び、保存先を指定します。図を作成していない場合は、保存する図がない旨を表示します。</p>`)}
-${step('12-3','学習ログを確認する',`<p>ログは作成・利用した環境の <code>prefdir</code> 配下に保存します。ユーザー名を含む絶対パスは固定しません。MATLAB 上なら次のコマンドで場所を確認できます。</p>${code('開発用 MATLAB でログの場所を表示',`log_folder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
+${step('12-3','グラフをクリップボードへコピーする',`<p>「グラフをコピー」を押すと、表示中の図を画像としてコピーします。表示中の対象を1つに決められない場合は、一覧で選びます。図が1つだけならその図をコピーします。貼り付け先のExcel・PowerPoint・文書などでCtrl＋V（MacはCommand＋V）を押します。SHAP・Swing Curveの残差診断、カーネル比較、炉内補間、実験計画、ワードクラウドにも使えます。</p><p>コピーは画像で、計測データや編集可能なグラフの形式ではありません。実行前はコピー対象がない旨を表示します。</p>`)}
+${shot('33-navigation-clipboard','左の画面切替の幅を確保し、右下へグラフをコピーするボタンを追加')}
+${step('12-4','学習ログを確認する',`<p>ログは作成・利用した環境の <code>prefdir</code> 配下に保存します。ユーザー名を含む絶対パスは固定しません。MATLAB 上なら次のコマンドで場所を確認できます。</p>${code('開発用 MATLAB でログの場所を表示',`log_folder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
 disp(log_folder)`)}<p>ファイル名は <code>training.jsonl</code> です。exe の利用者で場所が分からない場合は、同じ端末・同じユーザーの環境を確認できる配布担当者に確認します。</p>`)}
 ${table(['出力','中身 / 注意点'],[['学習済み .mat','変数は Train_Model の1件。完全な RegressionGP で、学習データも含みます。入力データと同じ管理区分で扱います。'],['結果 .csv / .xlsx','SHAP、予測、統計、実験計画、単語件数など。必要に応じて SourceRow が追加されます。'],['グラフ .png','選択した1枚のグラフ。モデルの代わりにはなりません。'],['training.jsonl','日時、機能、入力ファイル名、行数、学習設定、保存先、検証結果、終了状態、処理時間。X・y の測定値自体は記録しません。']])}
 `);
@@ -272,7 +277,8 @@ add('verification','完了確認','CHECK BEFORE HANDOVER',`
 '旧・新モデルの列順・設定・予測差を比較した。',
 'Windows ビルド出力を確認し、付随ファイルも配布した。',
 'MATLAB 本体のない Runtime R2025b 端末で全機能を確認した。',
-'SHAP / ワードクラウドのグラフと PNG 保存を確認した。',
+'SHAP / ワードクラウドのグラフ、PNG保存、クリップボードからの画像貼付けを確認した。',
+'「9 設定」のKL / MIビン数が全画面の評価に反映することを確認した。',
 '保存先・ログ先の書込みが可能なことを確認した。'].map(check).join('')}</article>
 <article><h3>モデル作成・解析の利用者</h3>${[
 '入力ファイル、シート、ヘッダー行を確認した。',
@@ -313,11 +319,11 @@ add('references','参考資料と、この資料の確認範囲','SOURCES AND SC
 <h3>プロジェクト内の正本</h3><ul class="source-list"><li><a href="../../README.md">README.md</a><small>構成、入力と保存仕様、起動方法。</small></li><li><a href="../windows-build.md">Windows ビルド手順（Markdown）</a></li><li><a href="../specification.md">原仕様</a><small>MR-01〜MR-09、T-01〜T-10、Q-01〜Q-11 の正本。</small></li><li><a href="../../verification.md">検証記録</a> / <a href="../../issues.md">残課題</a></li></ul>
 <h3>MathWorks 公式資料</h3><ul class="source-list"><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-startup-function.html">startupFcn の追加と起動時の処理</a><small>アプリノードの Callbacks メニュー、StartupFcn コールバック。</small></li><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-code-generation.html">App Designer Code View のコード管理</a><small>プロパティ・コールバックの追加。最新ページには R2026b の新仕様もあるため、R2025b の .mlapp 手順を使用。</small></li><li><a href="https://www.mathworks.com/help/compiler/compiler.build.standalonewindowsapplication.html">compiler.build.standaloneWindowsApplication</a><small>Windows での .mlapp ビルド、出力ファイル、Runtime を含まないこと。</small></li><li><a href="https://www.mathworks.com/help/compiler/standalone-application-target.html">スタンドアローンアプリの配布</a><small>ビルドと配布先の OS、配布するファイル。</small></li><li><a href="https://www.mathworks.com/products/compiler/matlab-runtime.html">MATLAB Runtime の入手</a></li><li><a href="https://www.mathworks.com/help/matlab/ref/exportapp.html">exportapp</a><small>参考 UI 画像の書出しに使用。</small></li></ul>
 <h3>画像と文書の確認範囲</h3><p>アプリ画面は <code>app/AnalysisController.m</code> の一時的な表示専用コピーで撮影しました。合成データと説明用の列対応を設定し、評価・実験計画・ワードクラウド等を補助確認しています。GP学習・モデル保存・実SHAPの計算は行っていません。製品ソースのリリース確認と学習・保存処理は変更していません。評価指標・要約統計・実験計画・単語件数・ワードクラウドの補助計算は R2022b です。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
-<p>App Designer の2画像は MathWorks 公式資料から取得し、操作位置の説明に使用しています。原画像の出典と掲載ページのリリースは各画像に記載しています。自端末で撮影した画像ではなく、当プロジェクトのビルド成功を示す画像でもありません。</p><p class="privacy-note">この資料の更新日：2026-10-29（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
+<p>App Designer の2画像は MathWorks 公式資料から取得し、操作位置の説明に使用しています。原画像の出典と掲載ページのリリースは各画像に記載しています。自端末で撮影した画像ではなく、当プロジェクトのビルド成功を示す画像でもありません。</p><p class="privacy-note">この資料の更新日：2026-10-30（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
 `);
 
-const nav = `<aside id="sidebar" class="sidebar" aria-label="目次"><div class="sidebar-header"><p class="eyebrow">MATLAB ANALYSIS APP</p><p class="sidebar-title">ビルド・利用手順書</p><p class="sidebar-subtitle">Windows 64bit · R2025b</p></div><nav><ol class="toc-list">${sections.map((s,i)=>`${[0,3,6,12].includes(i)?`<li class="toc-group">${i===0?'はじめに':i===3?'作成・配布担当者':i===6?'アプリ利用者':'確認と対処'}</li>`:''}<li><a href="#${s.id}">${i+1}. ${s.title}</a></li>`).join('')}</ol></nav><div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>更新 2026-10-29 · PC閲覧用</div></aside>`;
-const main = `<main id="main-content" class="main-content"><header class="hero"><div class="hero-content"><p class="eyebrow">BUILD &amp; OPERATING GUIDE</p><h1>MATLAB 解析アプリ<br><span>ビルド・利用手順書</span></h1><p class="hero-lead">App Designer の入口作成から、Windows 配布、8機能と設定・Helpの操作、出力確認まで。</p><div class="hero-badges"><span>対象：Windows 64bit / R2025b</span><span>画像：R2022b の参考撮影</span><span>更新：2026-10-29</span></div></div></header><p class="guide-status"><strong>現在の到達点：</strong>ソース作成済み。.mlapp 作成・R2025b 全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。</p>${sections.map((s,i)=>`<section id="${s.id}" class="content-section"><div class="section-heading"><span class="section-number">${String(i+1).padStart(2,'0')}</span><div><p class="section-kicker">${s.kicker}</p><h2>${s.title}</h2></div></div>${s.body}</section>`).join('\n')}<footer class="page-footer"><p>StandaloneAnalysisApp · ビルド・利用手順書</p><p>2026-10-29 · 画像は参考プレビュー / 対象環境での確認は未完了</p></footer></main>`;
+const nav = `<aside id="sidebar" class="sidebar" aria-label="目次"><div class="sidebar-header"><p class="eyebrow">MATLAB ANALYSIS APP</p><p class="sidebar-title">ビルド・利用手順書</p><p class="sidebar-subtitle">Windows 64bit · R2025b</p></div><nav><ol class="toc-list">${sections.map((s,i)=>`${[0,3,6,12].includes(i)?`<li class="toc-group">${i===0?'はじめに':i===3?'作成・配布担当者':i===6?'アプリ利用者':'確認と対処'}</li>`:''}<li><a href="#${s.id}">${i+1}. ${s.title}</a></li>`).join('')}</ol></nav><div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>更新 2026-10-30 · PC閲覧用</div></aside>`;
+const main = `<main id="main-content" class="main-content"><header class="hero"><div class="hero-content"><p class="eyebrow">BUILD &amp; OPERATING GUIDE</p><h1>MATLAB 解析アプリ<br><span>ビルド・利用手順書</span></h1><p class="hero-lead">App Designer の入口作成から、Windows 配布、8機能と設定・Helpの操作、出力確認まで。</p><div class="hero-badges"><span>対象：Windows 64bit / R2025b</span><span>画像：R2022b の参考撮影</span><span>更新：2026-10-30</span></div></div></header><p class="guide-status"><strong>現在の到達点：</strong>ソース作成済み。.mlapp 作成・R2025b 全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。</p>${sections.map((s,i)=>`<section id="${s.id}" class="content-section"><div class="section-heading"><span class="section-number">${String(i+1).padStart(2,'0')}</span><div><p class="section-kicker">${s.kicker}</p><h2>${s.title}</h2></div></div>${s.body}</section>`).join('\n')}<footer class="page-footer"><p>StandaloneAnalysisApp · ビルド・利用手順書</p><p>2026-10-30 · 画像は参考プレビュー / 対象環境での確認は未完了</p></footer></main>`;
 let skeleton = `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="MATLAB解析アプリの操作手順書"><title>MATLAB解析アプリの手順書</title>

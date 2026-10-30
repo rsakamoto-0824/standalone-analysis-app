@@ -2,7 +2,7 @@ function run_ui_smoke(image_folder)
 % UI・純粋関数のみ。R2025b のモデル実行確認を代替しない。
 if nargin < 1, image_folder = ''; end
 [app, cleanup] = create_display_preview(); %#ok<ASGLU>
-window = app.Window; main = findobj(window, 'Type', 'uitabgroup', 'TabLocation', 'left');
+window = app.Window; main = app.MainTabs;
 assert(numel(main.Children) == 10);
 assert(~any(contains(string({main.Children.Title}), {'面内学習', '評価指標', '列の要約統計量'})));
 app.message(1, '日本語のステータスが1行で表示されます。');
@@ -33,7 +33,7 @@ main.SelectedTab = app.Panels{1}.Layout.Parent;
 window.Position(3:4) = [900, 780]; drawnow;
 assert(app.Panels{1}.Right.Layout.Row == 2);
 assert(numel(app.Panels{1}.Layout.ColumnWidth) == 1);
-assert(main.Position(3) == window.Position(3) - 20);
+assert(main.Layout.ColumnWidth{1} == main.Width);
 if ~isempty(image_folder), exportapp(window, fullfile(image_folder, '13-resize.png')); end
 window.Position(3:4) = [1600, 1000]; drawnow;
 assert(app.Panels{1}.Right.Layout.Column == 2);

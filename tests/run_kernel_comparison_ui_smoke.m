@@ -4,7 +4,7 @@ if nargin < 1, image_folder = ''; end
 [app, cleanup] = create_display_preview(); %#ok<ASGLU>
 assert(~isfield(app.Panels{1}, 'Comparison'));
 app.Window.Position = [40, 40, 1600, 1000];
-main = findobj(app.Window, 'Type', 'uitabgroup', 'TabLocation', 'left');
+main = app.MainTabs;
 x = (1:40)'; inputs = [sin(x/4), cos(x/5), sin(x/7), 850 + 10*x]; actual = 50 + 2*sin(x/4);
 source_rows = x + 1; names = {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'};
 for panel = 1:3
