@@ -1,5 +1,13 @@
 # 検証記録
 
+## 2026-10-31：Process Insight Toolへの名称変更・紹介画像
+
+- 画面タイトルを `Process Insight Tool`、Windowsビルドの実行ファイル名を `ProcessInsightTool.exe` へ変更した。設定・ログの保存先、MATモデルの仕様、学習計算は維持している。
+- `AnalysisController.m`、`launch_analysis_app.m`、`build_windows.m`、表示専用コピーの生成関数の `checkcode` は指摘0件。HTML生成スクリプトの構文、手順書のローカル参照48箇所、紹介素材とREADMEのリンクを確認した。
+- Playwrightで幅1366×900の手順書を表示し、新タイトル・実行ファイル名、横方向のはみ出しがないことを確認した。
+- imagegenの組み込み画像生成でインフォグラフとグラレコ風サムネイルを作成し、各1672×941pxのPNGとして `docs/promotion/` へ保存した。文字と機能図を目視確認し、インフォグラフの番号は拡大表示でも確認した。生成指示も同梱している。
+- 今回は名称・説明素材の変更であり、Windows R2025bでのビルド・Runtime実行は行っていない。
+
 ## 2026-10-30：画面切替・クリップボード・共通ビン数
 
 - `TestPureFunctions` 20件、`TestIntegratedFeatures` 11件、`TestFurnaceInterpolation` 16件、計47件がR2022b / macOSで成功。GPR学習・モデル保存・実SHAPは実行していない。

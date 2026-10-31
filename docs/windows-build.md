@@ -1,4 +1,4 @@
-# Windows R2025b での仕上げ・ビルド
+# Process Insight Tool — Windows R2025b での仕上げ・ビルド
 
 この文書は、作成済みの MATLAB ソースを会社の Windows PC 等へ移し、MATLAB R2025b で検証・配布するための手順です。会社側で Codex / Claude Code を使う必要はありません。GitHub Copilot の利用も不要です。
 
@@ -72,7 +72,7 @@ comparison = compare_models('old.mat', 'new.mat', Xcheck);
 result = build_windows;
 ```
 
-実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/` へ生成します。`core/`、`app/` とHTML手順書のフォルダを同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
+実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/ProcessInsightTool.exe` と付随ファイルを生成します。画面タイトルは「Process Insight Tool」です。`core/`、`app/` とHTML手順書のフォルダを同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
 
 配布用の Runtime は [MathWorks の MATLAB Runtime 配布ページ](https://www.mathworks.com/products/compiler/matlab-runtime.html)から R2025b / Windows 64bit を取得します。会社の許可済み手順で、ビルド環境と対応する更新版をオフライン配布してください。アプリ自身がネットから Runtime を取得する処理はありません。
 

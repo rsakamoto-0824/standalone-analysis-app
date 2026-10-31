@@ -3,7 +3,7 @@ function controller = launch_analysis_app()
 project_root = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(project_root, 'core'));
 require_r2025b();
-window = uifigure('Name', 'スタンドアローン解析アプリ', 'Position', [100, 100, 1320, 860]);
+window = uifigure('Name', 'Process Insight Tool', 'Position', [100, 100, 1320, 860]);
 controller = AnalysisController(window);
 window.UserData = controller;
 end

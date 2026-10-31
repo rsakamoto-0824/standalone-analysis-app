@@ -11,7 +11,7 @@ source = strrep(source, 'function app = AnalysisController(window)', 'function a
 source = strrep(source, 'require_r2025b();', '% 表示専用コピー。GP学習・モデル保存・SHAP計算は禁止。');
 source = strrep(source, 'methods (Access = private)', 'methods');
 source = strrep(source, 'properties (Access = private)', 'properties');
-source = strrep(source, 'スタンドアローン解析アプリ — R2025b', '表示・操作の補助確認 / R2022b / GP未学習');
+source = strrep(source, 'Process Insight Tool', 'Process Insight Tool / 表示専用 / R2022b / GP未学習');
 source = strrep(source, "app.SettingsPath = fullfile(prefdir, 'StandaloneAnalysisApp', 'settings.json');", ...
     "app.SettingsPath = '" + strrep(fullfile(folder, 'settings.json'), "'", "''") + "';");
 source = strrep(source, "project_root = fileparts(fileparts(mfilename('fullpath')));", ...
