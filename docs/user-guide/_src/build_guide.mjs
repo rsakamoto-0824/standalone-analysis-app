@@ -27,7 +27,7 @@ const sections = [];
 const add = (id,title,kicker,body) => sections.push({id,title,kicker,body});
 
 add('overview','目的と対象','START HERE',`
-<p>この手順書は、<strong>MATLAB R2025b 用の解析アプリを Windows でビルドし、MATLAB 本体のない端末へ配布して利用する</strong>までの操作を説明します。左の目次から必要な章へ移動でき、画像はクリックして拡大できます。コードは「コピー」ボタンでコピーできます。</p>
+<p>この手順書は、<strong>Process Insight Tool（MATLAB R2025b 向け）を Windows でビルドし、MATLAB 本体のない端末へ配布して利用する</strong>までの操作を説明します。左の目次から必要な章へ移動でき、画像はクリックして拡大できます。コードは「コピー」ボタンでコピーできます。</p>
 <div class="card-grid three-columns"><article class="feature-card"><span class="card-label">作成担当者</span><h3>初回のビルド</h3><p>2〜6章で環境を確認し、App Designer の入口、テスト、exe、Runtime を用意します。</p></article><article class="feature-card"><span class="card-label">利用者</span><h3>データを解析</h3><p>ビルド済みアプリを受け取ったら、6章の起動確認と7〜12章の操作を参照します。</p></article><article class="feature-card"><span class="card-label">保守担当者</span><h3>結果と問題を確認</h3><p>13章の完了確認、14章の対処表、15章のソースと公式資料を参照します。</p></article></div>
 ${table(['項目','現在の状態'],[
 ['画面・計算・テストのソース','作成済み。<code>app/</code>、<code>core/</code>、<code>tests/</code> にあります。'],
@@ -92,11 +92,11 @@ results = run_tests;`)}<p>正本コードの照合を行ってから、数値・
 ${code('成否の件数を確認',`fprintf('Passed=%d, Failed=%d, Incomplete=%d\n', ...
     sum([results.Passed]), sum([results.Failed]), sum([results.Incomplete]));`)}
 ${step('5-2','現行モデルとの互換性を確認する',`<p>現行アドインで作った旧モデルと、このアプリで同じデータ・同じ条件から作った新モデルを準備します。照合する数値行列 <code>Xcheck</code> を用意して実行します。</p>${code('MATLAB コマンドウィンドウ',`comparison = compare_models('old.mat', 'new.mat', Xcheck);`)}${table(['モデル','Xcheck の列順'],[['APC / Swing Curve','SIN_TH → SIN_RN → NSG_TH → RESIST_TH の4列。'],['面内','X座標 → Y座標 → 半径の3列。半径は <code>sqrt(X.^2 + Y.^2)</code>。'],['汎用 GPR','学習時と同じ P 列を同じ順序で渡します。']])}`,'属性の比較、予測差の最大値、予測の完全一致を確認すること。旧モデル未提供のまま「互換性確認済み」としないでください。')}
-${step('5-3','Windows 実行ファイルを作る',`${code('MATLAB コマンドウィンドウ',`result = build_windows;`)}<p><code>build_windows</code> は R2025b、Windows 64bit、必要製品、<code>app/AnalysisApp.mlapp</code> の存在を確認し、全テスト成功後にビルドします。</p>`,'<code>build/windows/</code> に <code>StandaloneAnalysisApp.exe</code> と付随ファイルが生成されること。')}
+${step('5-3','Windows 実行ファイルを作る',`${code('MATLAB コマンドウィンドウ',`result = build_windows;`)}<p><code>build_windows</code> は R2025b、Windows 64bit、必要製品、<code>app/AnalysisApp.mlapp</code> の存在を確認し、全テスト成功後にビルドします。</p>`,'<code>build/windows/</code> に <code>ProcessInsightTool.exe</code> と付随ファイルが生成されること。')}
 <pre class="mini-path">StandaloneAnalysisApp/
   build/
     windows/
-      StandaloneAnalysisApp.exe
+      ProcessInsightTool.exe
       readme.txt
       その他、ビルドで生成された付随ファイル</pre>
 ${note('このコマンドが作成する範囲','現在のスクリプトは exe と付随ファイルを作ります。<strong>MATLAB Runtime や Runtime を含むインストーラーは作りません。</strong>出力の <code>readme.txt</code> も確認してください。Windows 用 exe の作成は Windows 上で実行します。','warning')}
@@ -106,7 +106,7 @@ ${note('このコマンドが作成する範囲','現在のスクリプトは ex
 add('runtime','配布とアプリの起動','RUNTIME · INSTALL AND START',`
 ${step('6-1','Runtime R2025b を用意する',`<ol><li>作成担当者がビルドした MATLAB のリリース・更新版を確認します。</li><li>公式の Runtime 配布ページから Windows 64bit / R2025b の対応版を入手します。</li><li>会社の標準手順に従い、配布先へ Runtime をインストールします。</li></ol><p>リリースは R2025b に揃えます。同じリリース内ではビルドに対応する更新版を使用し、その組合せで確認します。参照：<a href="https://www.mathworks.com/products/compiler/matlab-runtime.html">MathWorks MATLAB Runtime</a>。</p>`)}
 ${step('6-2','ビルド出力フォルダをコピーする',`<p><code>build/windows/</code> 内のファイルを一式で渡します。配布先の例は <code>${distributionFolder}</code> です。利用者はこの場所で exe を起動します。ソース一式を持っていない利用者は <code>run_tests</code> や <code>build_windows</code> を実行しません。</p>`)}
-${step('6-3','exe を起動して最初の動作を確認する',`<ol><li><code>StandaloneAnalysisApp.exe</code> をダブルクリックします。</li><li>起動処理が完了し、10個のタブが表示されるまで待ちます。所要時間の基準値は設定していません。</li><li>機密情報のない確認用データで、読込・結果保存・ログ書込みを確認します。</li></ol>`,'MATLAB 本体が入っていない端末でも、必要な画面と機能が動くこと。')}
+${step('6-3','exe を起動して最初の動作を確認する',`<ol><li><code>ProcessInsightTool.exe</code> をダブルクリックします。</li><li>起動処理が完了し、10個のタブが表示されるまで待ちます。所要時間の基準値は設定していません。</li><li>機密情報のない確認用データで、読込・結果保存・ログ書込みを確認します。</li></ol>`,'MATLAB 本体が入っていない端末でも、必要な画面と機能が動くこと。')}
 ${note('アプリの利用中の通信','アプリから外部サービスへ測定データを送信する処理はありません。Runtime の入手・配布と、アプリがデータを解析する操作は別の工程です。')}
 `);
 
@@ -318,15 +318,15 @@ add('troubleshooting','困ったとき','TROUBLESHOOTING',`
 add('references','参考資料と、この資料の確認範囲','SOURCES AND SCOPE',`
 <h3>プロジェクト内の正本</h3><ul class="source-list"><li><a href="../../README.md">README.md</a><small>構成、入力と保存仕様、起動方法。</small></li><li><a href="../windows-build.md">Windows ビルド手順（Markdown）</a></li><li><a href="../specification.md">原仕様</a><small>MR-01〜MR-09、T-01〜T-10、Q-01〜Q-11 の正本。</small></li><li><a href="../../verification.md">検証記録</a> / <a href="../../issues.md">残課題</a></li></ul>
 <h3>MathWorks 公式資料</h3><ul class="source-list"><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-startup-function.html">startupFcn の追加と起動時の処理</a><small>アプリノードの Callbacks メニュー、StartupFcn コールバック。</small></li><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-code-generation.html">App Designer Code View のコード管理</a><small>プロパティ・コールバックの追加。最新ページには R2026b の新仕様もあるため、R2025b の .mlapp 手順を使用。</small></li><li><a href="https://www.mathworks.com/help/compiler/compiler.build.standalonewindowsapplication.html">compiler.build.standaloneWindowsApplication</a><small>Windows での .mlapp ビルド、出力ファイル、Runtime を含まないこと。</small></li><li><a href="https://www.mathworks.com/help/compiler/standalone-application-target.html">スタンドアローンアプリの配布</a><small>ビルドと配布先の OS、配布するファイル。</small></li><li><a href="https://www.mathworks.com/products/compiler/matlab-runtime.html">MATLAB Runtime の入手</a></li><li><a href="https://www.mathworks.com/help/matlab/ref/exportapp.html">exportapp</a><small>参考 UI 画像の書出しに使用。</small></li></ul>
-<h3>画像と文書の確認範囲</h3><p>アプリ画面は <code>app/AnalysisController.m</code> の一時的な表示専用コピーで撮影しました。合成データと説明用の列対応を設定し、評価・実験計画・ワードクラウド等を補助確認しています。GP学習・モデル保存・実SHAPの計算は行っていません。製品ソースのリリース確認と学習・保存処理は変更していません。評価指標・要約統計・実験計画・単語件数・ワードクラウドの補助計算は R2022b です。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
-<p>App Designer の2画像は MathWorks 公式資料から取得し、操作位置の説明に使用しています。原画像の出典と掲載ページのリリースは各画像に記載しています。自端末で撮影した画像ではなく、当プロジェクトのビルド成功を示す画像でもありません。</p><p class="privacy-note">この資料の更新日：2026-10-30（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
+<h3>画像と文書の確認範囲</h3><p>画面画像には撮影当時の旧タイトルが含まれます。現在のアプリ名はProcess Insight Toolです。アプリ画面は <code>app/AnalysisController.m</code> の一時的な表示専用コピーで撮影しました。合成データと説明用の列対応を設定し、評価・実験計画・ワードクラウド等を補助確認しています。GP学習・モデル保存・実SHAPの計算は行っていません。製品ソースのリリース確認と学習・保存処理は変更していません。評価指標・要約統計・実験計画・単語件数・ワードクラウドの補助計算は R2022b です。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
+<p>App Designer の2画像は MathWorks 公式資料から取得し、操作位置の説明に使用しています。原画像の出典と掲載ページのリリースは各画像に記載しています。自端末で撮影した画像ではなく、当プロジェクトのビルド成功を示す画像でもありません。</p><p class="privacy-note">この資料の更新日：2026-10-31（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
 `);
 
-const nav = `<aside id="sidebar" class="sidebar" aria-label="目次"><div class="sidebar-header"><p class="eyebrow">MATLAB ANALYSIS APP</p><p class="sidebar-title">ビルド・利用手順書</p><p class="sidebar-subtitle">Windows 64bit · R2025b</p></div><nav><ol class="toc-list">${sections.map((s,i)=>`${[0,3,6,12].includes(i)?`<li class="toc-group">${i===0?'はじめに':i===3?'作成・配布担当者':i===6?'アプリ利用者':'確認と対処'}</li>`:''}<li><a href="#${s.id}">${i+1}. ${s.title}</a></li>`).join('')}</ol></nav><div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>更新 2026-10-30 · PC閲覧用</div></aside>`;
-const main = `<main id="main-content" class="main-content"><header class="hero"><div class="hero-content"><p class="eyebrow">BUILD &amp; OPERATING GUIDE</p><h1>MATLAB 解析アプリ<br><span>ビルド・利用手順書</span></h1><p class="hero-lead">App Designer の入口作成から、Windows 配布、8機能と設定・Helpの操作、出力確認まで。</p><div class="hero-badges"><span>対象：Windows 64bit / R2025b</span><span>画像：R2022b の参考撮影</span><span>更新：2026-10-30</span></div></div></header><p class="guide-status"><strong>現在の到達点：</strong>ソース作成済み。.mlapp 作成・R2025b 全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。</p>${sections.map((s,i)=>`<section id="${s.id}" class="content-section"><div class="section-heading"><span class="section-number">${String(i+1).padStart(2,'0')}</span><div><p class="section-kicker">${s.kicker}</p><h2>${s.title}</h2></div></div>${s.body}</section>`).join('\n')}<footer class="page-footer"><p>StandaloneAnalysisApp · ビルド・利用手順書</p><p>2026-10-30 · 画像は参考プレビュー / 対象環境での確認は未完了</p></footer></main>`;
+const nav = `<aside id="sidebar" class="sidebar" aria-label="目次"><div class="sidebar-header"><p class="eyebrow">PROCESS INSIGHT TOOL</p><p class="sidebar-title">ビルド・利用手順書</p><p class="sidebar-subtitle">Windows 64bit · R2025b</p></div><nav><ol class="toc-list">${sections.map((s,i)=>`${[0,3,6,12].includes(i)?`<li class="toc-group">${i===0?'はじめに':i===3?'作成・配布担当者':i===6?'アプリ利用者':'確認と対処'}</li>`:''}<li><a href="#${s.id}">${i+1}. ${s.title}</a></li>`).join('')}</ol></nav><div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>更新 2026-10-31 · PC閲覧用</div></aside>`;
+const main = `<main id="main-content" class="main-content"><header class="hero"><div class="hero-content"><p class="eyebrow">BUILD &amp; OPERATING GUIDE</p><h1>Process Insight Tool<br><span>ビルド・利用手順書</span></h1><p class="hero-lead">App Designer の入口作成から、Windows 配布、8機能と設定・Helpの操作、出力確認まで。</p><div class="hero-badges"><span>対象：Windows 64bit / R2025b</span><span>画像：R2022b の参考撮影</span><span>更新：2026-10-31</span></div></div></header><p class="guide-status"><strong>現在の到達点：</strong>ソース作成済み。.mlapp 作成・R2025b 全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。</p>${sections.map((s,i)=>`<section id="${s.id}" class="content-section"><div class="section-heading"><span class="section-number">${String(i+1).padStart(2,'0')}</span><div><p class="section-kicker">${s.kicker}</p><h2>${s.title}</h2></div></div>${s.body}</section>`).join('\n')}<footer class="page-footer"><p>Process Insight Tool · ビルド・利用手順書</p><p>2026-10-31 · 画像は参考プレビュー / 対象環境での確認は未完了</p></footer></main>`;
 let skeleton = `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="MATLAB解析アプリの操作手順書"><title>MATLAB解析アプリの手順書</title>
+<meta name="description" content="Process Insight Toolの操作手順書"><title>Process Insight Toolの手順書</title>
 <link rel="icon" href="data:,"><link rel="stylesheet" href="procedure-guide.css"><script src="procedure-guide.js" defer></script>
 </head><body id="top"><a class="skip-link" href="#main-content">本文へ移動</a>
 <button id="toc-toggle" class="toc-toggle" type="button" aria-controls="sidebar" aria-expanded="false"><span aria-hidden="true">☰</span> 目次</button>
@@ -334,8 +334,8 @@ let skeleton = `<!doctype html>
 <main id="main-content" class="main-content"></main>
 <button id="back-to-top" class="back-to-top" type="button" aria-label="ページ上部へ戻る"><span aria-hidden="true">↑</span> トップへ戻る</button>
 </body></html>`;
-skeleton = skeleton.replace(/<title>[\s\S]*?<\/title>/,'<title>MATLAB解析アプリ｜ビルド・利用手順書</title>');
-skeleton = skeleton.replace(/<meta name="description"[^>]*>/,'<meta name="description" content="MATLAB R2025b解析アプリのWindowsビルド・配布・利用を、参考スクリーンショットとともに説明する手順書。">');
+skeleton = skeleton.replace(/<title>[\s\S]*?<\/title>/,'<title>Process Insight Tool｜ビルド・利用手順書</title>');
+skeleton = skeleton.replace(/<meta name="description"[^>]*>/,'<meta name="description" content="Process Insight Tool（MATLAB R2025b）のWindowsビルド・配布・利用を、参考スクリーンショットとともに説明する手順書。">');
 skeleton = skeleton.replace(/<aside id="sidebar"[\s\S]*?<\/aside>/,nav);
 skeleton = skeleton.replace(/<main id="main-content"[\s\S]*?<\/main>/,main);
 skeleton = skeleton.replace(/\s*<link rel="stylesheet" href="guide-extra.css">/g,'').replace(/\s*<script src="guide-extra.js" defer><\/script>/g,'');

@@ -1,6 +1,10 @@
-# MATLAB スタンドアローン解析アプリ
+# Process Insight Tool
+
+成膜・露光プロセスのモデリング・補間・実験計画をまとめて扱う解析アプリです。画面タイトルは **Process Insight Tool**、Windowsビルド時の実行ファイル名は `ProcessInsightTool.exe` です。
 
 露光 APC、Swing Curve、汎用 GPR、保存モデル推定、SHAP、評価・要約の自動計算、D/I最適・直交表・拡張実験計画、ワードクラウド、炉内補間をローカルで実行する MATLAB R2025b 向けソースです。
+
+紹介用の[インフォグラフ](docs/promotion/process-insight-tool-infographic.png)と[グラレコ風サムネイル](docs/promotion/process-insight-tool-sketchnote-thumbnail.png)を用意しています。[素材の説明・制作指示](docs/promotion/README.md)も参照できます。
 
 左側の1〜10の画面切替メニューは幅を確保し、炉内補間を汎用GPRの直下へ配置しています。KL/MIビン数は「9 設定」で保存・適用する全画面共通設定です。各画面の「グラフをコピー」から図をクリップボードへ画像としてコピーできます。
 

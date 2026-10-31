@@ -27,7 +27,7 @@ classdef AnalysisController < handle
                 app.Settings = app_settings('defaults'); settings_warning = err.message;
             end
             app.Window = window;
-            window.Name = 'スタンドアローン解析アプリ — R2025b';
+            window.Name = 'Process Insight Tool';
             window.Position(3:4) = [1320, 860]; window.Resize = 'on'; window.AutoResizeChildren = 'off';
             app.LogFolder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
             tabs = AnalysisNavigation(window); app.MainTabs = tabs;
