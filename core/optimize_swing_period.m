@@ -1,13 +1,18 @@
-function details = optimize_swing_period(log_likelihood, thickness, seed_period, progress)
+function details = optimize_swing_period(log_likelihood, thickness, seed_period, progress, requested_bounds)
 % 固定周期ごとの周辺対数尤度を比較する。周期はGPRのthetaとは別に探索する。
 if nargin < 3, seed_period = []; end
 if nargin < 4, progress = []; end
+if nargin < 5, requested_bounds = []; end
 validateattributes(thickness, {'numeric'}, {'vector', 'real', 'finite'});
 if ~isa(log_likelihood, 'function_handle'), error('swing_period:objective', '尤度計算関数が必要です。'); end
 distinct = unique(double(thickness(:)));
 if numel(distinct) < 8, error('swing_period:distinct', '周期の推定には異なる膜厚が8点以上必要です。'); end
 span = max(distinct) - min(distinct);
 bounds = [max(4*median(diff(distinct)), span/20), span];
+if ~isempty(requested_bounds)
+    validateattributes(requested_bounds, {'numeric'}, {'vector', 'numel', 2, 'real', 'finite', 'positive'});
+    bounds = double(requested_bounds(:)');
+end
 if ~all(isfinite(bounds)) || bounds(1) >= bounds(2)
     error('swing_period:bounds', '膜厚から周期の探索範囲を設定できません。');
 end
@@ -35,15 +40,17 @@ for index = valid_order(1:min(LOCAL_SEARCHES, numel(valid_order)))
     [~, ~, flag] = fminbnd(@evaluate, lower, upper, options);
     refined = refined && flag > 0;
 end
-[negative_score, best] = min(tested_scores); period = span / tested_frequency(best);
-trace = table((1:numel(tested_scores))', span ./ tested_frequency, -tested_scores, isfinite(tested_scores), messages, ...
+[negative_score, best] = min(tested_scores);
+trace_periods = min(max(span ./ tested_frequency, bounds(1)), bounds(2));
+period = trace_periods(best);
+trace = table((1:numel(tested_scores))', trace_periods, -tested_scores, isfinite(tested_scores), messages, ...
     'VariableNames', {'Evaluation', 'Period', 'LogLikelihood', 'Succeeded', 'Message'});
 details = struct('Period', period, 'LogLikelihood', -negative_score, 'SearchBounds', bounds, ...
     'Evaluations', height(trace), 'MaximumEvaluations', MAX_EVALUATIONS, 'Trace', trace, ...
     'RefinementConverged', refined, 'Warnings', strings(0, 1));
 if ~refined, details.Warnings(end + 1) = "周期探索は評価回数の上限内で選んだ結果です。厳密な収束を保証しません。"; end
 if any(abs(period - bounds) < 1e-3 * span)
-    details.Warnings(end + 1) = "周期が自動探索範囲の端にあります。より広い膜厚データでも確認してください。";
+    details.Warnings(end + 1) = "周期が探索範囲の端にあります。周期範囲と膜厚データを見直してください。";
 end
 if any(~trace.Succeeded), details.Warnings(end + 1) = "一部の周期候補で学習が失敗しました。探索履歴の理由を確認してください。"; end
 if range(trace.LogLikelihood(trace.Succeeded)) < 1e-3
@@ -54,7 +61,7 @@ end
         cached = find(abs(tested_frequency - value) <= 1e-10, 1);
         if ~isempty(cached), score = tested_scores(cached); return; end
         if numel(tested_scores) >= MAX_EVALUATIONS, score = Inf; return; end
-        candidate = span / value; score = Inf; message = "";
+        candidate = min(max(span / value, bounds(1)), bounds(2)); score = Inf; message = "";
         if ~isempty(progress), progress(numel(tested_scores) + 1, MAX_EVALUATIONS, candidate); end
         try
             likelihood = log_likelihood(candidate, bounds);

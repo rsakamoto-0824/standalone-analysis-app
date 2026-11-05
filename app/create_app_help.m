@@ -1,8 +1,13 @@
-function create_app_help(tab, project_root)
+function create_app_help(tab, project_root, edition)
+if nargin < 3, edition = app_edition(); end
 layout = uigridlayout(tab, [6, 1], 'Scrollable', 'on');
 layout.RowHeight = {40, 270, 90, 230, 204, 36};
-uilabel(layout, 'Text', 'Help — 用語、評価の読み方、公式の関数ヘルプ', 'FontWeight', 'bold');
+uilabel(layout, 'Text', ['Help — ' edition ' / 用語と公式の関数ヘルプ'], 'FontWeight', 'bold');
 terms = {
+    '通常版 / Pro版', '通常版はSHAP分布・依存図まで利用できます。レジスト膜厚SHAPの三角関数／スプライン近似、極値・山間／谷間の傾き・近似残差診断はPro版限定。APC学習画面にはSwing Curve評価を付けません。版はビルド時に固定します。';
+    'SHAPとMAT保存', '自動SHAPはMAT保存・検証の成功後です。保存しない場合はSHAP実行タブで対象モデルを選びます。画面内の学習・比較モデルと読込済みMATの両方を選択できます。';
+    '散布図の色', '予実・残差の色を入力ファイルの任意列で指定できます。数値は連続色、文字列はカテゴリ色。学習データや評価値は変わりません。';
+    'Swing Curveの入力', '説明変数はRESIST_THの1列から利用できます。追加の説明変数は前に並べ、レジスト膜厚（nm）を最後に指定します。';
     '炉内補間 / バッチ', 'LP-CVDのBoatSlotと膜厚・屈折率の関係を、成膜Runごとに別々に学習します。同時処理する複数Lotは同じRunのSlotプロファイルとして扱い、異なるバッチの値は混ぜません。';
     'WaferId / 未計測', '識別子はモデルの説明変数にしません。計測列の空欄だけを未計測として除き、項目別に利用できるSlotで学習します。入力行に対応するWaferIdを予測表へ残し、入力にない生成SlotのWaferIdは空欄です。';
     'スプライン / RBF', 'スプラインはnot-a-knotの3次補間。RBFはGaussian基底＋直線トレンドで正則化します。幅0では学習Slot間隔の中央値の2倍を使用。両者には予測区間を付けません。';
@@ -11,14 +16,14 @@ terms = {
     '内部Slot検証', '計測位置が5点以上の項目で、両端を固定し内部Slotを1点ずつ学習から外して予測。8指標は内部Slotの検証予測を結合して計算し、順位は同じバッチ・同じ計測項目の中で付けます。端部や外挿の精度は評価しません。';
     '炉内の外挿', '計測範囲外は初期状態で予測せずNaNと理由を表示。明示的に有効にした場合だけ計算し、表と破線で区別します。カーネル選定にも使った検証値は独立な最終評価の代わりにはなりません。';
     'GPR', 'ガウス過程回帰。入力から応答を予測するモデル。kernel と fit_method を選択します。';
-    'swingperiodic', 'Swing Curve学習専用の周期カーネル。RESIST_THの周期成分、他3変数の滑らかな影響、膜厚の線形トレンドを組み合わせます。周期の入力は不要で、固定周期ごとのGPR周辺尤度を内部で比較します。';
-    '周期の内部最適化', '周期はKernelParametersやOptimizeHyperparametersに含めません。周期ごとに他の7カーネル量とノイズ等を学習し、最大の周辺対数尤度を採用します。exact以外は近似尤度。最大48候補で大域最適性は保証しません。';
+    'swingperiodic', 'Swing Curve学習専用の周期カーネル。RESIST_THの周期成分、追加の説明変数の滑らかな影響、膜厚の線形トレンドを組み合わせます。既定は248nm÷1.77の75〜125%で、任意の評価範囲も指定でき、固定周期ごとのGPR周辺尤度を内部で比較します。';
+    '周期の内部最適化', '周期はKernelParametersやOptimizeHyperparametersに含めません。周期ごとに説明変数数+3個のカーネル量とノイズ等を学習し、最大の周辺対数尤度を採用します。exact以外は近似尤度。最大48候補で大域最適性は保証しません。';
     '周辺対数尤度', 'GPRがデータを説明する程度を複雑さも含めて評価する基準。今回の周期選択では大きい値を採用します。交差検証による汎化性能ではありません。同じ入力・応答・fit_methodの候補間で比較します。';
     'RMSE', '誤差の二乗平均の平方根。実測値と同じ単位で、小さいほど一致します。';
     '決定係数 R²', '1−Σ(実測−予測)²/Σ(実測−実測平均)²。1が完全一致、負値もあります。実測が一定なら未定義です。';
     '相関係数の2乗', 'Pearson r の2乗。予測の偏りを検出できない場合があり、決定係数 R² とは別の指標です。';
     'RMSPE / MAE', 'RMSPE は相対誤差の二乗平均平方根（%）、実測に0があれば未定義。MAE は絶対誤差の平均。';
-    'KL / 相互情報量', 'KL は分布の違い（nats）、相互情報量は依存の強さ（bits）。ヒストグラムと擬似度数1を使用。ビン数で値が変わります。';
+    'KL / 相互情報量', 'KLダイバージェンスは分布の違い、相互情報量は依存の強さ。ヒストグラムと擬似度数1を使用。ビン数で値が変わります。';
     'KL / MIビン数の共通設定', '全画面で同じ値を使います。「9 設定」で0（自動）または2〜1000を指定し、保存・適用します。設定変更後は古い評価結果と列対応の確認を解除します。';
     '学習時の評価', '学習に使ったデータで計算した当てはまりです。未知データの性能を示す交差検証ではありません。保存モデルで推定＋未使用の実測列で評価できます。';
     'カーネル比較', 'APC・Swing Curve・汎用GPRで2個以上を一括検証。同じ分割・乱数条件・fit_methodを使い、未使用行の予測をまとめた8指標で比較します。検証RMSE、同値ならMAE、さらに同値なら候補順で順位を付けます。';
@@ -26,9 +31,9 @@ terms = {
     '比較用seed / 採用モデル', '既定seed=0で分割と候補ごとの乱数条件をそろえます。通常の単独学習の乱数設定は変更しません。候補ごとに全データの完全モデルも学習し、選択した1個を再学習せずMAT保存します。';
     '検証値の限界', 'カーネルの選定にも使った交差検証値には選定による偏りがあります。採用後は別の独立データで確認してください。ロット・時系列・同じ試料の反復などの依存を分離する機能はありません。';
     'SHAP', 'モデルの予測に各入力がどれだけ寄与したかを示す値。因果関係を証明するものではありません。';
-    'Swing Curve近似', 'RESIST_THのSHAP値を、オフセット＋直線トレンド＋一定振幅の正弦波で近似します。周期・振幅・R²・RMSEはSHAP散布点への近似結果で、GPRの評価とは別です。';
+    'Swing Curve近似', 'Pro版でRESIST_THのSHAP値を三角関数またはスプラインで近似します。三角関数はオフセット＋直線トレンド＋一定振幅の正弦波。周期・振幅・R²・RMSEはSHAP散布点への近似結果で、GPRの評価とは別です。スプラインでは周期・一定振幅を定義しません。';
     '極値の膜厚', '傾きを含む近似曲線の微分が0になる位置。プロット範囲内の極大・極小のみを表示します。端点を自動で極値扱いしません。';
-    '山間・谷間の傾き', '隣接する同種の極値を結ぶ傾き（SHAP値の差/膜厚の差）。この一定振幅＋直線モデルでは全区間で同じ傾きです。バルク効果の物理的な証明ではありません。';
+    '山間・谷間の傾き', '隣接する同種の極値を結ぶ傾き（SHAP値の差/膜厚の差）。三角関数の一定振幅＋直線モデルでは全区間で同じ傾きです。スプラインでは形状に応じて区間ごとに異なります。バルク効果の物理的な証明ではありません。';
     '近似残差', 'SHAP値−Swing Curve近似値。ヒストグラムと標本平均・標準偏差の正規密度、正規Q–Q、残差対膜厚をアプリ内で表示します。GPRの実測−予測の残差とは別です。';
     '正規性検定', 'Lilliefors検定、有意水準α=0.05。正規性を棄却できない場合も正規分布の証明ではありません。近似後の残差の依存性を補正していないためp値は参考診断です。0.001以下/0.5以上のp値は境界を明示します。';
     '歪度 / 尖度', '偏り補正付き。歪度は左右の非対称性（正規分布0）、尖度は裾・外れ値の影響を反映する4次モーメント（正規分布3）。超過尖度は尖度−3（正規分布0）。これらの値だけで正規性を判断しません。';
@@ -50,7 +55,7 @@ uitextarea(layout, 'Editable', 'off', 'Value', {
     '比較は候補ごとに順に計算。各候補で分割数＋1回の学習を行い、周期カーネルはその都度周期探索します。成功候補の完全モデルをメモリーに保持するため時間・メモリーが増えます。APCの分割内学習は25行以上必要です。';
     '周期カーネル：Swing Curve学習でswingperiodicを選択。周期と尤度は左欄、履歴は「周期の最適化」、図はグラフ内で確認。周期ごとの再学習で時間が増えます。設定でSwing Curve専用の既定kernelを変更できます。';
     '推定 / SHAP：実測列を任意で選ぶと評価指標も計算。実測列なしでは RMSE / R² は計算しません。';
-    'Swing Curve近似：RESIST_TH依存図で膜厚・周期範囲を設定し更新。近似指標・極値・隣接傾きの表を選んで保存。膜厚の異なる点が8点以上必要です。';
+    'Swing Curve近似：RESIST_TH依存図で膜厚・周期範囲を設定し更新。近似指標・極値・隣接傾きの表を選んで保存。三角関数は異なる膜厚8点以上、スプライン補間は4点以上が必要です。Pro版限定です。';
     '残差診断：近似カーブ横の「残差分布」「正規Q–Q」「残差対膜厚」で確認。「残差の正規性」「残差データ」の表はCSV/Excelへ保存。ばらつきが数値しきい値以下なら検定・形状統計を対象外と表示します。';
     '保存：表示中の表を CSV / Excel へ、アプリ内グラフを PNG へ保存できます。グラフをコピーで画像をクリップボードに入れ、ExcelやPowerPointなどへ貼り付けられます。表示中の図を優先し、必要な場合は対象を選択します。';
     'D/I の探索候補は各因子 −1/0/1。I の積分対象は連続な一様領域 [-1,1]^k。局所探索のため最適性は保証しません。';
@@ -58,9 +63,9 @@ uitextarea(layout, 'Editable', 'off', 'Value', {
     '設定：保存先、テーマ、kernel、fit_method、入力数、因子数、実験数、seed、SHAP表示の初期値と、全画面共通のKL / MIビン数を変更できます。'});
 links = uigridlayout(layout, [6, 4]); links.Padding = [0, 0, 0, 0];
 functions = {'fitrgp', 'RegressionGP', 'shapley', 'swarmchart', 'wordcloud', 'cordexch', 'daugment', 'fracfact', ...
-    'lillietest', 'skewness', 'kurtosis', 'norminv', 'cvpartition', 'crossval', 'rng', 'randperm', 'spline', 'ppval', 'fill', 'RegressionGP.predict', 'polyfit', 'polyval', 'copygraphics'};
+    'lillietest', 'skewness', 'kurtosis', 'norminv', 'cvpartition', 'crossval', 'rng', 'randperm', 'spline', 'ppval', 'fill', 'RegressionGP.predict', 'polyfit', 'polyval', 'copygraphics', 'shapley.swarmchart'};
 folders = {'stats', 'stats', 'stats', 'matlab/ref', 'matlab/ref', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', 'stats', ...
-    'stats', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref'};
+    'stats', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'stats', 'matlab/ref', 'matlab/ref', 'matlab/ref', 'stats'};
 for index = 1:numel(functions)
     url = ['https://www.mathworks.com/help/' folders{index} '/' lower(functions{index}) '.html'];
     uibutton(links, 'Text', [functions{index} ' ↗'], 'ButtonPushedFcn', @(~, ~) web(url, '-browser'));

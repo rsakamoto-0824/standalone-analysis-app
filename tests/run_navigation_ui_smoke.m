@@ -49,7 +49,7 @@ if ~isempty(image_folder)
     main.SelectedTab = state.Layout.Parent; drawnow;
 end
 % 表示中のグラフは選択ダイアログを出さずにコピーできることを確認する。
-chooser = fullfile(fileparts(which('DisplayPreviewController')), 'listdlg.m');
+chooser = fullfile(fileparts(which(class(app))), 'listdlg.m');
 file = fopen(chooser, 'w');
 fprintf(file, 'function varargout = listdlg(varargin)\nerror(''preview:unexpectedChooser'', ''表示中のグラフで選択ダイアログが呼ばれました。'');\nend\n');
 fclose(file); rehash;

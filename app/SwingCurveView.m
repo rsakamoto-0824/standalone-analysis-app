@@ -19,26 +19,40 @@ classdef SwingCurveView < handle
         ColorName
     end
     methods
-        function view = SwingCurveView(parent, thickness, contribution, colors, color_name)
+        function view = SwingCurveView(parent, thickness, contribution, colors, color_name, options)
+            if nargin < 6, options = struct('Edition', app_edition(), 'PeriodOptions', swing_period_options()); end
+            if ~strcmp(options.Edition, 'pro') || (isdeployed && ~strcmp(app_edition(), 'pro'))
+                error('SwingCurveView:proRequired', 'レジスト膜厚SHAPの近似・カーブ評価はPro版の機能です。');
+            end
             view.Thickness = thickness(:); view.Contribution = contribution(:);
             view.Colors = colors; view.ColorName = color_name;
             layout = uigridlayout(parent, [4, 1], 'Scrollable', 'on');
-            layout.RowHeight = {64, 66, 380, 175}; view.Layout = layout;
-            controls = uigridlayout(layout, [2, 6]); controls.Padding = [0, 0, 0, 0];
+            layout.RowHeight = {128, 100, 380, 190}; view.Layout = layout;
+            controls = uigridlayout(layout, [4, 6]); controls.Padding = [0, 0, 0, 0];
             controls.Layout.Row = 1; controls.Layout.Column = 1;
-            controls.RowHeight = {30, 30}; controls.RowSpacing = 4; controls.ColumnSpacing = 6;
+            controls.RowHeight = {30, 30, 30, 30}; controls.RowSpacing = 4; controls.ColumnSpacing = 6;
             controls.ColumnWidth = {70, '1x', 70, '1x', 150, 94};
             uilabel(controls, 'Text', '膜厚下限');
-            view.Controls.RangeMin = uieditfield(controls, 'numeric', 'Value', min(thickness));
+            view.Controls.RangeMin = uieditfield(controls, 'numeric', 'Value', min(thickness), 'ValueDisplayFormat', '%.6f');
             uilabel(controls, 'Text', '膜厚上限');
-            view.Controls.RangeMax = uieditfield(controls, 'numeric', 'Value', max(thickness));
+            view.Controls.RangeMax = uieditfield(controls, 'numeric', 'Value', max(thickness), 'ValueDisplayFormat', '%.6f');
             view.Controls.Trend = uicheckbox(controls, 'Text', '直線トレンドを含む', 'Value', true);
             view.Controls.Update = uibutton(controls, 'Text', '近似を更新', 'ButtonPushedFcn', @(~, ~) view.refit());
             uilabel(controls, 'Text', '周期下限');
             view.Controls.PeriodMin = uieditfield(controls, 'numeric', 'Limits', [0, Inf], 'Value', 0);
             uilabel(controls, 'Text', '周期上限');
             view.Controls.PeriodMax = uieditfield(controls, 'numeric', 'Limits', [0, Inf], 'Value', 0);
-            hint = uilabel(controls, 'Text', '周期0/0＝自動。単位は入力のまま。', 'WordWrap', 'on'); hint.Layout.Column = [5, 6];
+            hint = uilabel(controls, 'Text', '周期0/0＝波長÷屈折率の75〜125%。膜厚はnm。', 'WordWrap', 'on'); hint.Layout.Column = [5, 6];
+            uilabel(controls, 'Text', '近似方式');
+            view.Controls.Method = uidropdown(controls, 'Items', {'三角関数', 'スプライン補間'});
+            uilabel(controls, 'Text', '波長 nm');
+            view.Controls.Wavelength = uieditfield(controls, 'numeric', 'Value', options.PeriodOptions.Wavelength, 'Limits', [eps, Inf]);
+            uilabel(controls, 'Text', '屈折率');
+            view.Controls.RefractiveIndex = uieditfield(controls, 'numeric', 'Value', options.PeriodOptions.RefractiveIndex, 'Limits', [eps, Inf]);
+            hint = uilabel(controls, 'Text', 'スプラインは同一膜厚の平均値を通る補間です。周期・一定振幅は定義しません。', 'WordWrap', 'on'); hint.Layout.Column = [1, 6];
+            if max(abs(options.PeriodOptions.PeriodBounds - options.PeriodOptions.ReferencePeriod*[0.75, 1.25])) > 1e-9
+                view.Controls.PeriodMin.Value = options.PeriodOptions.PeriodBounds(1); view.Controls.PeriodMax.Value = options.PeriodOptions.PeriodBounds(2);
+            end
             view.Summary = uilabel(layout, 'Text', '近似前', 'WordWrap', 'on');
             view.Summary.Layout.Row = 2; view.Summary.Layout.Column = 1;
             view.PlotTabs = uitabgroup(layout); view.PlotTabs.Layout.Row = 3; view.PlotTabs.Layout.Column = 1;
@@ -55,7 +69,7 @@ classdef SwingCurveView < handle
             view.Tables.Slopes = view.tableTab('隣接する山・谷の傾き');
             view.Tables.Normality = view.tableTab('残差の正規性');
             view.Tables.Residuals = view.tableTab('残差データ');
-            fields = {'RangeMin', 'RangeMax', 'PeriodMin', 'PeriodMax', 'Trend'};
+            fields = {'RangeMin', 'RangeMax', 'PeriodMin', 'PeriodMax', 'Trend', 'Method', 'Wavelength', 'RefractiveIndex'};
             for index = 1:numel(fields)
                 view.Controls.(fields{index}).ValueChangedFcn = @(~, ~) view.clearFit();
             end
@@ -71,18 +85,29 @@ classdef SwingCurveView < handle
                 if range(1) < min(view.Thickness) || range(2) > max(view.Thickness)
                     error('SwingCurveView:range', '表示範囲は読込データの膜厚範囲内で指定してください。');
                 end
-                periods = [view.Controls.PeriodMin.Value, view.Controls.PeriodMax.Value];
-                if all(periods == 0), periods = [];
-                elseif any(periods == 0), error('SwingCurveView:period', '周期は両方0（自動）、または両方正の値で指定してください。'); end
                 selected = view.Thickness >= range(1) & view.Thickness <= range(2);
-                fit = fit_swing_curve(view.Thickness(selected), view.Contribution(selected), ...
-                    struct('PeriodBounds', periods, 'IncludeTrend', view.Controls.Trend.Value));
+                if strcmp(view.Controls.Method.Value, 'スプライン補間')
+                    fit = fit_swing_spline(view.Thickness(selected), view.Contribution(selected));
+                    % 補間点より外側を描いて外挿にしないよう、表示範囲を採用点の端へ合わせる。
+                    range = fit.DataRange; view.Controls.RangeMin.Value = range(1); view.Controls.RangeMax.Value = range(2);
+                else
+                    periods = [view.Controls.PeriodMin.Value, view.Controls.PeriodMax.Value];
+                    if all(periods == 0), periods = [];
+                    elseif any(periods == 0), error('SwingCurveView:period', '周期は両方0、または両方正の値で指定してください。'); end
+                    choice = swing_period_options(view.Controls.Wavelength.Value, view.Controls.RefractiveIndex.Value, periods);
+                    fit = fit_swing_curve(view.Thickness(selected), view.Contribution(selected), ...
+                        struct('PeriodBounds', choice.PeriodBounds, 'IncludeTrend', view.Controls.Trend.Value));
+                end
                 [extrema, segments] = swing_curve_extrema(fit, range);
                 view.Fit = fit;
                 view.Tables.Metrics.Data = table(["Period"; "Amplitude"; "R2_SHAP_fit"; "RMSE_SHAP_fit"; "BulkSlope"; ...
                     "OffsetAtCenter"; "CenterThickness"; "PhaseRadians"; "IncludeLinearTrend"; "Count"; "RangeMin"; "RangeMax"; "PeriodMin"; "PeriodMax"], ...
                     [fit.Period; fit.Amplitude; fit.RSquared; fit.RMSE; fit.Slope; fit.Offset; fit.Center; fit.PhaseRadians; double(fit.IncludeTrend); ...
                     fit.Count; range'; fit.SearchBounds'], 'VariableNames', {'Metric', 'Value'});
+                if strcmp(view.Controls.Method.Value, 'スプライン補間')
+                    view.Tables.Metrics.Data = table(["R2_SHAP_spline"; "RMSE_SHAP_spline"; "Count"; "DistinctThickness"; "RangeMin"; "RangeMax"], ...
+                        [fit.RSquared; fit.RMSE; fit.Count; fit.DistinctCount; range'], 'VariableNames', {'Metric', 'Value'});
+                end
                 view.Tables.Extrema.Data = extrema; view.Tables.Slopes.Data = segments;
                 view.Diagnostics = swing_residual_diagnostics(view.Contribution(selected), fit.Prediction);
                 view.Tables.Normality.Data = view.Diagnostics.Table;
@@ -96,6 +121,9 @@ classdef SwingCurveView < handle
                 elseif isempty(segments), messages(end + 1) = "同種の極値が2個ないため隣接傾きは算出しません。"; end
                 view.Summary.Text = sprintf('SHAP近似: 周期 %.6g / 振幅 %.6g / R² %.6g / RMSE %.6g / n=%d\n直線傾き %.6g（SHAP値/膜厚単位）。一定振幅モデルでは山間・谷間の傾きは同じです。\n%s', ...
                     fit.Period, fit.Amplitude, fit.RSquared, fit.RMSE, fit.Count, fit.Slope, strjoin(messages, ' '));
+                if strcmp(view.Controls.Method.Value, 'スプライン補間')
+                    view.Summary.Text = sprintf('スプライン補間: R² %.6g / RMSE %.6g / n=%d\n山間・谷間の傾きは区間ごとに表で確認してください。\n%s', fit.RSquared, fit.RMSE, fit.Count, strjoin(messages, ' '));
+                end
                 view.Summary.Tooltip = view.Summary.Text;
                 window = ancestor(view.Axes, 'figure');
                 if mean(window.Color) < 0.5, theme = 'ダーク'; else, theme = 'ライト'; end
@@ -107,6 +135,10 @@ classdef SwingCurveView < handle
         end
 
         function clearFit(view)
+            spline_mode = strcmp(view.Controls.Method.Value, 'スプライン補間');
+            for field = {'PeriodMin', 'PeriodMax', 'Trend', 'Wavelength', 'RefractiveIndex'}
+                view.Controls.(field{1}).Enable = matlab.lang.OnOffSwitchState(~spline_mode);
+            end
             view.Fit = []; view.Diagnostics = []; view.Summary.Text = '設定を変更したら「近似を更新」を押してください。';
             view.Summary.Tooltip = view.Summary.Text;
             fields = fieldnames(view.Tables);
@@ -128,7 +160,7 @@ classdef SwingCurveView < handle
             end
             xlabel(ax, 'RESIST_TH（入力の膜厚単位）', 'Interpreter', 'none'); ylabel(ax, 'SHAP値（応答と同じ単位）');
             title(ax, 'RESIST_TH の SHAP 依存図', 'Interpreter', 'none');
-            ax.XLimMode = 'auto'; ax.YLimMode = 'auto'; legend(ax, 'off');
+            ax.XLimMode = 'auto'; ax.YLimMode = 'auto'; ax.XAxis.Exponent = 0; xtickformat(ax, '%.3f'); legend(ax, 'off');
         end
 
         function data = currentTable(view)
@@ -177,7 +209,7 @@ classdef SwingCurveView < handle
             ax = view.DiagnosticAxes.Residual; scatter(ax, thickness, report.Residual, 14, 'filled'); hold(ax, 'on');
             yline(ax, 0, '--', 'Color', [0.9, 0.35, 0.1]);
             xlabel(ax, 'RESIST_TH（入力の膜厚単位）', 'Interpreter', 'none'); ylabel(ax, '残差 = SHAP値 − 近似値');
-            title(ax, '残差対膜厚：周期性・ばらつきの偏りを確認');
+            title(ax, '残差対膜厚：周期性・ばらつきの偏りを確認'); ax.XAxis.Exponent = 0; xtickformat(ax, '%.3f');
             fields = fieldnames(view.DiagnosticAxes);
             for index = 1:numel(fields)
                 ax = view.DiagnosticAxes.(fields{index}); ax.XGrid = 'on'; ax.YGrid = 'on';
@@ -185,9 +217,12 @@ classdef SwingCurveView < handle
         end
 
         function drawFit(view, fit, range, extrema, segments)
-            ax = view.Axes; grid = linspace(range(1), range(2), max(1001, ceil(30 * diff(range) / fit.Period)));
+            ax = view.Axes; count = 1001;
+            if isfinite(fit.Period), count = max(count, ceil(30 * diff(range) / fit.Period)); end
+            grid = linspace(range(1), range(2), min(count, 20001));
             label = '正弦波＋オフセット';
             if fit.IncludeTrend, label = [label '＋直線トレンド']; end
+            if isfield(fit, 'Method') && strcmp(fit.Method, 'spline'), label = 'スプライン補間'; end
             plot(ax, grid, swing_curve_values(fit, grid), 'LineWidth', 1.8, 'Color', [0.9, 0.35, 0.1], 'DisplayName', label);
             types = ["極大", "極小"]; colors = {[0.75, 0.2, 0.65], [0.1, 0.65, 0.65]};
             for kind = 1:2
@@ -195,18 +230,28 @@ classdef SwingCurveView < handle
                 if isempty(points), continue; end
                 scatter(ax, points.Thickness, points.SHAP, 45, colors{kind}, 'filled', 'DisplayName', char(types(kind)));
                 if height(points) >= 2
-                    plot(ax, points.Thickness, points.SHAP, '--', 'Color', colors{kind}, 'LineWidth', 1.3, ...
-                        'DisplayName', sprintf('%s間 m=%.5g', types(kind), fit.Slope));
+                    line_label = sprintf('%s間（傾きは表を参照）', types(kind));
+                    if isfinite(fit.Slope), line_label = sprintf('%s間 m=%.5g', types(kind), fit.Slope); end
+                    plot(ax, points.Thickness, points.SHAP, '--', 'Color', colors{kind}, 'LineWidth', 1.3, 'DisplayName', line_label);
+                    if ~isfinite(fit.Slope) && height(segments) <= 12
+                        group = segments(startsWith(segments.Type, types(kind)), :);
+                        text(ax, (group.StartThickness+group.EndThickness)/2, (group.StartSHAP+group.EndSHAP)/2, ...
+                            cellstr(compose('m=%.4g', group.Slope)), 'FontSize', 9, 'Clipping', 'on');
+                    end
                 end
                 if kind == 1, alignment = 'bottom'; else, alignment = 'top'; end
                 if height(extrema) <= 24
-                    text(ax, points.Thickness, points.SHAP, cellstr(compose('%s %.6g', types(kind), points.Thickness)), ...
+                    text(ax, points.Thickness, points.SHAP, cellstr(compose('%s %.6f', types(kind), points.Thickness)), ...
                         'VerticalAlignment', alignment, 'HorizontalAlignment', 'center', 'FontSize', 9, 'Clipping', 'on');
                 end
             end
             ax.XLim = range;
             title(ax, sprintf('SHAP Swing Curve近似 / 周期 %.5g / 振幅 %.5g / R² %.4g / RMSE %.4g', ...
                 fit.Period, fit.Amplitude, fit.RSquared, fit.RMSE), 'Interpreter', 'none');
+            if isfield(fit, 'Method') && strcmp(fit.Method, 'spline')
+                title(ax, sprintf('SHAP Swing Curve / スプライン / R² %.4g / RMSE %.4g', fit.RSquared, fit.RMSE));
+            end
+            ax.XAxis.Exponent = 0; xtickformat(ax, '%.3f');
             legend(ax, 'Location', 'best'); ax.XGrid = 'on'; ax.YGrid = 'on';
             if height(segments) > 0, view.TableTabs.SelectedTab = view.Tables.Slopes.Parent.Parent; end
         end

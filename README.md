@@ -1,6 +1,6 @@
 # Process Insight Tool
 
-成膜・露光プロセスのモデリング・補間・実験計画をまとめて扱う解析アプリです。画面タイトルは **Process Insight Tool**、Windowsビルド時の実行ファイル名は `ProcessInsightTool.exe` です。
+成膜・露光プロセスのモデリング・補間・実験計画をまとめて扱う解析アプリです。通常版は **Process Insight Tool**（`ProcessInsightTool.exe`）、プロ版は **Process Insight Tool Pro**（`ProcessInsightToolPro.exe`）です。
 
 露光 APC、Swing Curve、汎用 GPR、保存モデル推定、SHAP、評価・要約の自動計算、D/I最適・直交表・拡張実験計画、ワードクラウド、炉内補間をローカルで実行する MATLAB R2025b 向けソースです。
 
@@ -58,7 +58,7 @@ APC・Swing Curve・汎用GPRの各学習では、「複数カーネルの比較
 
 保存モデル推定 / SHAP は、任意の実測列を選ぶと評価も計算します。実測列なしでは評価指標を計算しません。面内学習は削除し、既存の面内モデルでの推定だけ残しています。
 
-評価指標は RMSE、RMSPE、MAE、Pearson r、相関係数の2乗、KL（nats）、相互情報量（bits）と、決定係数 R² = 1−SSE/SST です。未定義の指標は NaN と理由を表示します。従来の `calc_r_squared` は相関係数の2乗のままです。
+評価指標は RMSE、RMSPE、MAE、Pearson r、相関係数の2乗、KLダイバージェンス、相互情報量と、決定係数 R² = 1−SSE/SST です。未定義の指標は NaN と理由を表示します。従来の `calc_r_squared` は相関係数の2乗のままです。
 
 「実験計画作成」は D最適、I最適、2/3水準の同一水準直交表、既存点を固定した D/I 拡張を選択できます。値は −1〜1 の符号化値です。交絡の図・係数表・ランクを確認してください。D/I は局所探索で大域最適性を保証しません。[更新仕様](docs/ui-update.md)に計算方式と制限を記載しています。
 
@@ -66,15 +66,27 @@ APC・Swing Curve・汎用GPRの各学習では、「複数カーネルの比較
 
 APC 学習後の SHAP 対象は先頭から最大1000行、評価指標は全行です。背景データは正本コードどおりモデル内の学習データを使います。ノイズ除去用 SHAP の背景データ数は既定値のままです。
 
-## SHAP Swing Curve近似
+## 通常版／Pro版の作成とSHAPの実行
 
-Swing CurveのGPR学習では、kernelに `swingperiodic` も選択できます。RESIST_THの周期成分、他3変数の滑らかな影響、膜厚の線形トレンドを組み合わせたカーネルです。周期の入力欄は設けず、`KernelParameters` / `OptimizeHyperparameters` に周期を含めません。固定周期ごとにGPRを再学習して周辺対数尤度を比較し、内部探索で周期を決めます。`sd` / `sr` / `fic` は近似尤度を使います。APC・汎用GPRのカーネル候補は従来どおりです。
+`build_windows('standard')` は `build/windows/standard/ProcessInsightTool.exe`、`build_windows('pro')` は `build/windows/pro/ProcessInsightToolPro.exe` を作成します。通常版の隔離ソースにはPro専用の近似・評価7ファイルを入れず、版の設定をコンパイル前に固定します。起動後の設定や引数で通常版をPro版へ切り替える機能はありません。MATLABソースの表示確認は `launch_analysis_app('standard')` / `launch_analysis_app('pro')` で行います。Windows R2025bの実ビルド確認は未実施です。
+
+学習後のSHAP自動計算はMAT保存・検証の成功後です。画面上にこの順序を示しています。保存をキャンセルしてもモデルは画面内に残り、「SHAP実行」で学習・比較した候補または読込み済みMATを選んでSHAPだけを実行できます。学習画面からはモデルの学習データの先頭最大1000行を使用し、ModelRowでモデル内の行を示します。SHAP解析画面では選択モデルに合わせて入力列を確認し、入力ファイルを使います。モデル一覧はアプリ終了で消えるため、後で再利用するモデルはMATへ保存してください。
+
+APCの保存名は従来の `Train_Model.mat`、Swing Curveは `SwingCurve_Model.mat`、汎用GPRは `GenericGPR_Model.mat` が初期値です。MAT内の変数名はすべて `Train_Model` のままです。予実・残差の散布図では「色を指定する列」から入力ファイルの任意列を選べます。数値列は連続色、文字列はカテゴリ色で表示し、色の指定で学習行や評価値は変わりません。
+
+## Swing Curve学習の周期カーネル
+
+Swing CurveのGPR学習では、kernelに `swingperiodic` も選択できます。説明変数はレジスト膜厚RESIST_THの1列から対応し、追加の説明変数の滑らかな影響と膜厚の線形トレンドも組み合わせます。「Swing Curve設定」の露光波長248nm・屈折率1.77から基準周期を計算します。既定は248÷1.77≒140.113nmの75〜125%を周辺尤度で探索し、任意の周期下限・上限も指定できます。周期は`KernelParameters` / `OptimizeHyperparameters` に含めません。固定周期ごとにGPRを再学習して周辺対数尤度を比較し、内部探索で周期を決めます。`sd` / `sr` / `fic` は近似尤度を使います。APC・汎用GPRのカーネル候補は従来どおりです。
 
 選ばれた周期・探索範囲・尤度を左欄に、候補ごとの値を「周期の最適化」とグラフへ表示します。表はCSV / Excel、図はPNGに保存できます。「設定」のSwing Curve専用kernelで既定値を変更できます。最大48候補の再学習で通常の1回の学習より時間がかかり、大域最適性は保証しません。探索履歴は今回の実行画面と書出し表に残し、MATには従来どおり `Train_Model` だけを保存します。周期はモデル内に保持し、読込み時にも表示します。R2025bでの実学習・保存・SHAP・制御側での予測とRuntimeの確認は未実施です。[詳しい利用手順](docs/user-guide/procedure-guide.html#periodic-kernel)を参照してください。
 
-Swing Curve学習で「学習後にSHAP・Swing Curve近似を計算」をオンにするか、保存モデルのSHAPを実行し、「グラフ → SHAP 依存: RESIST_TH」を開きます。正弦波＋直線トレンドで周期・片振幅・R²・RMSEを計算し、指定した膜厚範囲内の極大・極小を注記します。山同士・谷同士を結ぶ破線と傾きを表示し、極値膜厚・隣接傾き・近似指標の表をCSV / Excelへ保存できます。
+## SHAP Swing Curve評価（Pro版）
 
-近似はSHAP寄与に対するもので、実測線幅そのもののフィットや物理的なバルク効果の証明ではありません。この一定振幅モデルでは山間・谷間の傾きは同じ一定値です。膜厚範囲と周期探索範囲を画面で変更でき、異なる膜厚8点以上が必要です。追加のCurve Fitting ToolboxやOptimization Toolboxは使いません。[計算仕様](docs/ui-update.md)と[画像付き手順](docs/user-guide/procedure-guide.html#shap)を参照してください。
+通常版はSHAP分布（標準のswarmchart）と依存図まで利用できます。レジスト膜厚のSHAP値へのフィッティング・極値・山間／谷間の傾き・近似残差診断はPro版に限定します。APC学習画面には、Pro版でもSwing Curve評価を表示しません。
+
+Pro版では「グラフ → SHAP 依存: RESIST_TH」の「近似方式」で三角関数またはスプライン補間を選びます。三角関数は正弦波＋直線トレンドで周期・片振幅・R²・RMSEを計算します。スプラインは同じ膜厚のSHAP値を平均して補間し、周期・一定振幅は定義しません。元の各観測行で残差を計算します。必要な異なる膜厚は三角関数で8点以上、スプラインで4点以上です。
+
+どちらもプロット範囲内の極大・極小と、隣り合う山同士・谷同士を結ぶ直線の傾きを表示します。三角関数の一定振幅＋直線モデルでは傾きは一定で、スプラインでは区間ごとに異なる傾きを評価できます。膜厚の目盛と注記は指数表示を使いません。これらはSHAP寄与の評価であり、物理的なバルク効果を証明するものではありません。
 
 近似後は「残差分布」「正規Q–Q」「残差対膜厚」をアプリ内で切り替えられます。残差はSHAP値−近似値です。Lilliefors検定（α=0.05）の判定・p値、偏り補正付きの歪度・尖度・超過尖度を表示します。「残差の正規性」「残差データ」の表はCSV / Excel、各図はPNGへ保存できます。尖度の正規分布の基準は3、超過尖度は0です。近似後の残差に対する検定は参考診断であり、棄却できなくても正規分布の証明ではありません。残差のばらつきが数値しきい値以下の場合は、検定や形状統計を対象外と明示します。
 
@@ -99,9 +111,9 @@ end
 ```
 
 - MAT 内の変数は `Train_Model` だけ。`fitrgp` の戻り値 `RegressionGP` を保存し、`compact` にしません。
-- APC / Swing Curveの説明変数は `SIN_TH`, `SIN_RN`, `NSG_TH`, `RESIST_TH` の順。
+- APCの説明変数は `SIN_TH`, `SIN_RN`, `NSG_TH`, `RESIST_TH` の順。Swing Curveは1〜100列で最後の説明変数が `RESIST_TH`。4列では従来の順序を初期表示します。旧4列学習関数は互換性照合用に保持し、アプリは可変列の学習関数を使用します。
 - 汎用 GPR は数値行列で学習し、説明変数名や `ResponseName` を指定しません。旧面内学習関数は原仕様の互換性照合用に残していますが、アプリから呼び出しません。
-- `fitrgp` の名前・値引数、順序、標準化、`save` の形式オプションは添付指示の4章を維持しています。
+- APC・旧4列Swing Curve・旧面内・汎用GPRの正本5ブロックとMAT内の変数名は維持しています。可変列Swing Curveは別の学習関数で標準化と完全なRegressionGPの保存に対応します。
 - `verify_saved_model(path, before, model_type)` で保存前モデルと比較できます。アプリは任意の第4引数に画面の kernel / fit_method、固定の BasisFunction、実際の学習行数を渡し、選択値との一致も確認します。
 - 保存後に変数名、クラス、説明変数名と順序、ResponseName、学習設定、行数、予測値の完全一致を検証します。
 
@@ -122,7 +134,7 @@ setup_paths;
 comparison = compare_models('old.mat', 'new.mat', Xcheck);
 ```
 
-`Xcheck` はモデルへの最終入力順の数値行列です。APC / Swing Curveは4列、面内は X・Y・半径の3列、汎用は元の P 列にしてください。列名、行数などの比較表、予測差の最大値、`isequal` の結果を表示します。旧モデルと新モデルの予測が一致したことを、開発側で推測して扱いません。
+`Xcheck` はモデルへの最終入力順の数値行列です。APCは4列、Swing Curveは選択したモデルの説明変数数と順序、面内は X・Y・半径の3列、汎用は元の P 列にしてください。列名、行数などの比較表、予測差の最大値、`isequal` の結果を表示します。旧モデルと新モデルの予測が一致したことを、開発側で推測して扱いません。
 
 ## ファイルと確認状況
 

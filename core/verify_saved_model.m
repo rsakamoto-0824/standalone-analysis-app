@@ -28,7 +28,7 @@ try
         error('verify_saved_model:invalidClass', 'RegressionGP ではありません。');
     end
     wanted_names = Train_Model_before.PredictorNames;
-    if any(strcmp(model_type, {'apc', 'swing'}))
+    if strcmp(model_type, 'apc')
         wanted_names = constants.PREDICTOR_NAMES;
     end
     report.PredictorNames = S.Train_Model.PredictorNames;

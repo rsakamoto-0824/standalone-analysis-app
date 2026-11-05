@@ -25,6 +25,7 @@ classdef FurnaceInterpolationView < handle
         PlotTabs
         Charts
         CopyFigure
+        ColorColumn
         Report = []
         Data = []
         Confirmed = false
@@ -64,9 +65,12 @@ classdef FurnaceInterpolationView < handle
             parameters = {view.Wafer, view.Slot, view.Batch, view.Targets, view.Methods, view.Minimum, view.Maximum, view.Step, view.RBFWidth, view.RBFRidge, view.Extrapolate};
             for index = 1:numel(parameters), parameters{index}.ValueChangedFcn = @(~, ~) view.changed(); end
             view.Slot.ValueChangedFcn = @(~, ~) view.slotChanged();
-            view.Right = uigridlayout(view.Layout, [4, 1]); view.Right.RowHeight = {62, 34, '1x', 34};
+            view.Right = uigridlayout(view.Layout, [4, 1]); view.Right.RowHeight = {62, 34, 32, '1x', 34};
             view.Headline = uilabel(view.Right, 'Text', '内部Slotの検証RMSE: —    R²: —', 'WordWrap', 'on', 'FontWeight', 'bold');
             view.Selection = uidropdown(view.Right, 'Items', {'比較を実行してください'}, 'Enable', 'off', 'ValueChangedFcn', @(~, ~) view.select());
+            color_row = uigridlayout(view.Right, [1, 2]); color_row.Padding = [0, 0, 0, 0]; color_row.ColumnWidth = {130, '1x'};
+            uilabel(color_row, 'Text', '散布図の色を指定する列');
+            view.ColorColumn = uidropdown(color_row, 'Items', {'(単色)'}, 'ValueChangedFcn', @(~, ~) view.select());
             view.Tabs = uitabgroup(view.Right); view.Tables = struct();
             fields = {'Predictions', 'Comparison', 'Metrics', 'Validation', 'Summary', 'Preview'};
             names = {'予測結果', 'モデル比較', '全評価指標', '検証予測', '選択モデル要約', '入力プレビュー'};
@@ -84,7 +88,7 @@ classdef FurnaceInterpolationView < handle
             view.resize(window.Position(3));
         end
         function importSource(view, source)
-            view.Data = source; view.Source.Text = sprintf('%s / %d行', view.fileName(), size(source.Cells, 1));
+            view.Data = source; set(view.ColorColumn, 'Items', [{'(単色)'}, source.Headers], 'Value', '(単色)'); view.Source.Text = sprintf('%s / %d行', view.fileName(), size(source.Cells, 1));
             choices = [{'(未選択)'}, source.Headers]; view.Wafer.Items = choices; view.Slot.Items = choices;
             view.Batch.Items = [{'(バッチ列なし：1Run)'}, source.Headers];
             view.Wafer.Value = view.matchColumn({'WaferId', 'WaferID', 'Wafer_Id'}, '(未選択)');
@@ -115,7 +119,7 @@ classdef FurnaceInterpolationView < handle
         function clear(view)
             view.Report = [];
             for name = {'Predictions', 'Comparison', 'Metrics', 'Validation', 'Summary'}, view.Tables.(name{1}).Data = table(); end
-            for index = 1:numel(view.Charts), cla(view.Charts{index}, 'reset'); end
+            for index = 1:numel(view.Charts), colorbar(view.Charts{index}, 'off'); cla(view.Charts{index}, 'reset'); end
             set(view.Selection, 'Items', {'比較を実行してください'}, 'ItemsData', [], 'Enable', 'off'); view.Headline.Text = '内部Slotの検証RMSE: —    R²: —';
         end
         function confirm(view)
@@ -154,8 +158,8 @@ classdef FurnaceInterpolationView < handle
         end
         function showReport(view, report)
             view.clear(); view.Report = report;
-            view.Tables.Predictions.Data = report.Predictions; view.Tables.Comparison.Data = sortrows(report.Comparison, {'Batch', 'Target', 'Rank'});
-            view.Tables.Metrics.Data = report.Metrics; view.Tables.Validation.Data = report.Validation;
+            view.Tables.Predictions.Data = report.Predictions; view.Tables.Comparison.Data = display_metric_names(sortrows(report.Comparison, {'Batch', 'Target', 'Rank'}));
+            view.Tables.Metrics.Data = display_metric_names(report.Metrics); view.Tables.Validation.Data = report.Validation;
             valid = find(~cellfun(@isempty, report.Series)); labels = cell(numel(valid), 1);
             for index = 1:numel(valid)
                 item = report.Series{valid(index)}; labels{index} = char(item.Batch + " / " + item.Target + " / " + item.Method);
@@ -198,14 +202,22 @@ classdef FurnaceInterpolationView < handle
             end
             measurement_color = [0.1, 0.1, 0.1];
             if strcmp(view.Settings.Theme, 'ダーク'), measurement_color = [0.95, 0.95, 0.95]; end
-            scatter(ax, item.Slots, item.Actual, 36, measurement_color, 'filled', 'DisplayName', '計測値');
+            [known, row] = ismember(item.SourceRows, view.Data.RowNumbers);
+            if ~all(known), error('furnace:colorRows', '散布図の元ファイル行が見つかりません。'); end
+            source = struct('Headers', {view.Data.Headers}, 'Cells', {view.Data.Cells(row, :)});
+            colorbar(ax, 'off');
+            if strcmp(view.ColorColumn.Value, '(単色)')
+                scatter(ax, item.Slots, item.Actual, 36, measurement_color, 'filled', 'DisplayName', '計測値');
+            else
+                color_scatter(ax, item.Slots, item.Actual, source, view.ColorColumn.Value);
+            end
             xline(ax, min(item.Slots), ':', 'HandleVisibility', 'off'); xline(ax, max(item.Slots), ':', 'HandleVisibility', 'off');
             xlabel(ax, 'BoatSlot'); ylabel(ax, char(item.Target), 'Interpreter', 'none'); title(ax, char(item.Batch + " / " + item.Target), 'Interpreter', 'none');
             legend(ax, 'Location', 'best', 'Interpreter', 'none'); grid(ax, 'on');
             selected = comparison.Batch == item.Batch & comparison.Target == item.Target & comparison.Status == "成功";
             scores = sortrows(comparison(selected, :), 'Rank'); ax = view.Charts{2}; cla(ax, 'reset'); bar(ax, scores.RMSE);
             ax.XTick = 1:height(scores); ax.XTickLabel = scores.Method; ax.XTickLabelRotation = 25; ax.TickLabelInterpreter = 'none'; ylabel(ax, '内部Slot検証RMSE'); grid(ax, 'on');
-            ax = view.Charts{3}; cla(ax, 'reset'); scatter(ax, item.Slots, item.Actual - item.ValidationPrediction, 30, 'filled'); yline(ax, 0, '--');
+            ax = view.Charts{3}; cla(ax, 'reset'); colorbar(ax, 'off'); color_scatter(ax, item.Slots, item.Actual - item.ValidationPrediction, source, view.ColorColumn.Value); yline(ax, 0, '--');
             xlabel(ax, '検証したBoatSlot（両端を除く）'); ylabel(ax, 'Actual - validation predicted'); grid(ax, 'on');
             apply_app_theme(view.Layout, view.Settings.Theme);
         end

@@ -91,13 +91,15 @@ ${step('5-1','全単体テストを実行する',`${code('MATLAB コマンドウ
 results = run_tests;`)}<p>正本コードの照合を行ってから、数値・モデル互換・周期カーネル・複数カーネル比較などの単体テストを実行します。対象 PC の結果を見て、<code>Failed</code> と <code>Incomplete</code> が0件であることを確認してください。</p>`,'エラーで停止せず、すべてのテストが成功すること。手元の R2022b の補助確認とは別に、R2025b で全件を確認します。')}
 ${code('成否の件数を確認',`fprintf('Passed=%d, Failed=%d, Incomplete=%d\n', ...
     sum([results.Passed]), sum([results.Failed]), sum([results.Incomplete]));`)}
-${step('5-2','現行モデルとの互換性を確認する',`<p>現行アドインで作った旧モデルと、このアプリで同じデータ・同じ条件から作った新モデルを準備します。照合する数値行列 <code>Xcheck</code> を用意して実行します。</p>${code('MATLAB コマンドウィンドウ',`comparison = compare_models('old.mat', 'new.mat', Xcheck);`)}${table(['モデル','Xcheck の列順'],[['APC / Swing Curve','SIN_TH → SIN_RN → NSG_TH → RESIST_TH の4列。'],['面内','X座標 → Y座標 → 半径の3列。半径は <code>sqrt(X.^2 + Y.^2)</code>。'],['汎用 GPR','学習時と同じ P 列を同じ順序で渡します。']])}`,'属性の比較、予測差の最大値、予測の完全一致を確認すること。旧モデル未提供のまま「互換性確認済み」としないでください。')}
-${step('5-3','Windows 実行ファイルを作る',`${code('MATLAB コマンドウィンドウ',`result = build_windows;`)}<p><code>build_windows</code> は R2025b、Windows 64bit、必要製品、<code>app/AnalysisApp.mlapp</code> の存在を確認し、全テスト成功後にビルドします。</p>`,'<code>build/windows/</code> に <code>ProcessInsightTool.exe</code> と付随ファイルが生成されること。')}
+${step('5-2','現行モデルとの互換性を確認する',`<p>現行アドインで作った旧モデルと、このアプリで同じデータ・同じ条件から作った新モデルを準備します。照合する数値行列 <code>Xcheck</code> を用意して実行します。</p>${code('MATLAB コマンドウィンドウ',`comparison = compare_models('old.mat', 'new.mat', Xcheck);`)}${table(['モデル','Xcheck の列順'],[['APC / 従来の4列Swing Curve','SIN_TH → SIN_RN → NSG_TH → RESIST_TH の4列。'],['現行のSwing Curve','学習時のPredictorNamesと同じ順序。RESIST_THの1列から対応。'],['面内','X座標 → Y座標 → 半径の3列。半径は <code>sqrt(X.^2 + Y.^2)</code>。'],['汎用 GPR','学習時と同じ P 列を同じ順序で渡します。']])}`,'属性の比較、予測差の最大値、予測の完全一致を確認すること。旧モデル未提供のまま「互換性確認済み」としないでください。')}
+${step('5-3','Windows 実行ファイルを作る',`${code('MATLAB コマンドウィンドウ',`standard = build_windows('standard');
+pro = build_windows('pro');`)}<p><code>build_windows</code> は R2025b、Windows 64bit、必要製品、<code>app/AnalysisApp.mlapp</code> の存在を確認し、全テスト成功後にビルドします。</p>`,'<code>build/windows/standard/ProcessInsightTool.exe</code> と <code>build/windows/pro/ProcessInsightToolPro.exe</code> が各版の出力先に生成されること。')}
 <pre class="mini-path">StandaloneAnalysisApp/
   build/
     windows/
-      ProcessInsightTool.exe
-      readme.txt
+      standard/ProcessInsightTool.exe
+      pro/ProcessInsightToolPro.exe
+      （各フォルダにreadme.txtと付随ファイル）
       その他、ビルドで生成された付随ファイル</pre>
 ${note('このコマンドが作成する範囲','現在のスクリプトは exe と付随ファイルを作ります。<strong>MATLAB Runtime や Runtime を含むインストーラーは作りません。</strong>出力の <code>readme.txt</code> も確認してください。Windows 用 exe の作成は Windows 上で実行します。','warning')}
 <p>ビルド成功画面・生成済み exe のスクリーンショットはありません。この工程は Windows R2025b で未実施のため、実際の出力を担当者が確認して記録します。</p>
@@ -105,8 +107,8 @@ ${note('このコマンドが作成する範囲','現在のスクリプトは ex
 
 add('runtime','配布とアプリの起動','RUNTIME · INSTALL AND START',`
 ${step('6-1','Runtime R2025b を用意する',`<ol><li>作成担当者がビルドした MATLAB のリリース・更新版を確認します。</li><li>公式の Runtime 配布ページから Windows 64bit / R2025b の対応版を入手します。</li><li>会社の標準手順に従い、配布先へ Runtime をインストールします。</li></ol><p>リリースは R2025b に揃えます。同じリリース内ではビルドに対応する更新版を使用し、その組合せで確認します。参照：<a href="https://www.mathworks.com/products/compiler/matlab-runtime.html">MathWorks MATLAB Runtime</a>。</p>`)}
-${step('6-2','ビルド出力フォルダをコピーする',`<p><code>build/windows/</code> 内のファイルを一式で渡します。配布先の例は <code>${distributionFolder}</code> です。利用者はこの場所で exe を起動します。ソース一式を持っていない利用者は <code>run_tests</code> や <code>build_windows</code> を実行しません。</p>`)}
-${step('6-3','exe を起動して最初の動作を確認する',`<ol><li><code>ProcessInsightTool.exe</code> をダブルクリックします。</li><li>起動処理が完了し、10個のタブが表示されるまで待ちます。所要時間の基準値は設定していません。</li><li>機密情報のない確認用データで、読込・結果保存・ログ書込みを確認します。</li></ol>`,'MATLAB 本体が入っていない端末でも、必要な画面と機能が動くこと。')}
+${step('6-2','ビルド出力フォルダをコピーする',`<p><code>build/windows/standard/</code> または <code>build/windows/pro/</code> の配布する版のファイルを一式で渡します。配布先の例は <code>${distributionFolder}</code> です。利用者はこの場所で exe を起動します。ソース一式を持っていない利用者は <code>run_tests</code> や <code>build_windows</code> を実行しません。</p>`)}
+${step('6-3','exe を起動して最初の動作を確認する',`<ol><li><code>ProcessInsightTool.exe</code>（Pro版は<code>ProcessInsightToolPro.exe</code>）をダブルクリックします。</li><li>起動処理が完了し、10個のタブが表示されるまで待ちます。所要時間の基準値は設定していません。</li><li>機密情報のない確認用データで、読込・結果保存・ログ書込みを確認します。</li></ol>`,'MATLAB 本体が入っていない端末でも、必要な画面と機能が動くこと。')}
 ${note('アプリの利用中の通信','アプリから外部サービスへ測定データを送信する処理はありません。Runtime の入手・配布と、アプリがデータを解析する操作は別の工程です。')}
 `);
 
@@ -118,7 +120,7 @@ ${table(['SIN_TH','SIN_RN','NSG_TH','RESIST_TH','CD'],[['100.1','1.91','60.2','9
 <p class="privacy-note">上の数値は列構成を説明するための例で、製造条件の推奨値ではありません。この2行だけでは APC の学習はできません。</p>
 ${step('7-2','入力プレビューを確認する',`<p>右側の <span class="ui-name">入力プレビュー</span> タブを開き、ヘッダーと先頭のデータを見ます。画面に表示するのは先頭100行までです。実際の計算には読み込んだ全行を使用します。</p>`,'シートの取り違え、ヘッダー行のずれ、文字列の混入がないこと。')}
 ${shot('17-input-preview','入力プレビュー：読込内容を確認する場所')}
-${step('7-3','列名からモデルの変数へ割り当てる',`<ol><li>左の対応表の <span class="ui-name">入力列</span> を選びます。</li><li>APC / Swing Curveは <code>SIN_TH</code>、<code>SIN_RN</code>、<code>NSG_TH</code>、<code>RESIST_TH</code> の順です。目的変数の行 <code>y</code> には、例では <code>CD</code> を選びます。</li><li>必須変数名と列名が完全一致すれば自動割当されます。一致しない列は手動で割り当てます。</li><li><span class="ui-name">上表の列対応・順序を確認</span> を押します。</li></ol>`,'「列対応・順序を確認済みです。実行できます。」が表示されること。')}
+${step('7-3','列名からモデルの変数へ割り当てる',`<ol><li>左の対応表の <span class="ui-name">入力列</span> を選びます。</li><li>APCは <code>SIN_TH</code>、<code>SIN_RN</code>、<code>NSG_TH</code>、<code>RESIST_TH</code> の順です。Swing Curveは説明変数数を1以上で指定し、最後の説明変数を<code>RESIST_TH</code>へ割り当てます。4列の場合は従来と同じ順序です。目的変数の行 <code>y</code> には、例では <code>CD</code> を選びます。</li><li>必須変数名と列名が完全一致すれば自動割当されます。一致しない列は手動で割り当てます。</li><li><span class="ui-name">上表の列対応・順序を確認</span> を押します。</li></ol>`,'「列対応・順序を確認済みです。実行できます。」が表示されること。')}
 ${note('確認をやり直すタイミング','入力ファイル、列割当、入力数、推定 / SHAP の方式、モデルを変更すると確認が解除されます。実行前に再度確認します。目的変数と説明変数に同じ入力列を割り当てることはできません。','warning')}
 ${table(['入力の状態','アプリの扱い'],[['同名ヘッダーが重複 / ヘッダーが空','読込時に停止します。Excel が自動改名した列として扱いません。'],['選択列に空セル / NaN','学習・推定・SHAP・指標では停止し、元ファイルの行番号を表示します。'],['Inf / 数値以外の文字列','停止します。単位変換や文字列の自動置換で補いません。']])}
 `);
@@ -126,27 +128,27 @@ ${table(['入力の状態','アプリの扱い'],[['同名ヘッダーが重複 
 add('training','3種類のモデルを学習・評価・保存する','USER · TRAINING',`
 ${table(['タブ','説明変数の順序','目的変数','動作'],[
 ['1 APC 学習','SIN_TH → SIN_RN → NSG_TH → RESIST_TH','y','25行未満停止、25〜149行警告。保存・検証後にSHAP。'],
-['2 Swing Curve学習','SIN_TH → SIN_RN → NSG_TH → RESIST_TH','y','学習・評価・保存・検証。チェックすると学習後にSHAPとSwing Curve近似。'],
+['2 Swing Curve学習','1列以上。最後はRESIST_TH（膜厚nm）','y','学習・評価・保存・検証。自動SHAPは保存・検証後。カーブ評価はPro版限定。'],
 ['3 汎用 GPR 学習','入力1 → 入力2 → …','y','説明変数数を指定し、対応表の順に数値行列で学習。']])}
 <p>面内学習機能は削除しました。既存の面内モデルを使った推定は「保存モデルで推定」で利用できます。</p>
 ${step('8-1','学習条件と列対応を確認する',`<p>7章に従って入力を開き、説明変数とyを割り当てます。kernel と fit_method を選びます。初期値は squaredexponential / exact、BasisFunction は constant 固定です。設定を変更したら確認ボタンを押し直します。事前標準化や単位変換は行わず、モデル内の Standardize=true を使います。</p>`)}
 ${step('8-2','実行して画面上の評価を見る',`<ol><li>必要なら「SHAP グラフをアプリ内に表示」をオンにします。</li><li>実行すると画面上部に RMSE、R²、件数を表示します。</li><li>右側の「モデル評価」で全8指標、「列の要約」で入力・実測・予測・残差の11項目を確認します。</li><li>「グラフ」で実測対予測・残差を確認します。</li></ol><p>学習後に表示する指標は<strong>学習データへの当てはまり</strong>です。未知データでの性能や交差検証の結果ではありません。</p>`)}
-${step('8-3','MATを保存して検証する',`<p>保存ダイアログでMATの保存先を指定します。初期フォルダは「設定」のデフォルト保存先です。「保存後検証」タブで Passed が全て成功していることを確認します。失敗したモデルは制御へ渡しません。</p><p>保存をキャンセルした場合も評価は画面に残りますが、MAT保存と後続SHAPは行いません。APC / Swing Curve学習後のSHAP値は別の「SHAP 値」タブに表示するため、実測・予測の結果表を保持できます。</p>`)}
+${step('8-3','MATを保存して検証する',`<p>保存ダイアログでMATの保存先を指定します。初期フォルダは「設定」のデフォルト保存先です。「保存後検証」タブで Passed が全て成功していることを確認します。失敗したモデルは制御へ渡しません。</p><p>保存をキャンセルした場合も評価とモデルは画面内に残ります。自動SHAPは保存・検証の成功後です。保存しない場合は右の「SHAP実行」で対象モデルを選んでSHAPだけを計算できます。保存名の初期値はAPCがTrain_Model.mat、Swing CurveがSwingCurve_Model.mat、汎用GPRがGenericGPR_Model.matです。MAT内の変数名はいずれもTrain_Modelです。APC / Swing Curve学習後のSHAP値は別の「SHAP 値」タブに表示するため、実測・予測の結果表を保持できます。</p>`)}
 ${shot('01-apc','APC：上部にRMSEとR²、右側で結果・評価・要約・グラフを切替')}
-${shot('02-swing','Swing Curve：RESIST_THを4列目に割り当てる')}
+${shot('02-swing','Swing Curveの旧4列画面。現行版は説明変数を1列から指定でき、最後にRESIST_THを割り当てる')}
 ${shot('03-generic','汎用GPR：説明変数数と入力順序を確認する')}
 <h3 id="periodic-kernel">8-4　Swing Curve向けの周期カーネルを選ぶ</h3>
-<p>「2 Swing Curve学習」のkernelで<strong>swingperiodic</strong>を選べます。レジスト膜厚RESIST_THに周期性を持たせ、他3変数の影響と膜厚の線形トレンドも組み合わせます。APC・汎用GPRの候補は従来どおりです。</p>
-<ol><li>入力ファイルを開き、SIN_TH、SIN_RN、NSG_TH、RESIST_TH、yを割り当てます。異なる膜厚を8点以上含めます。</li><li>kernelにswingperiodicを選び、fit_methodを選びます。まずは標準のexactを使えます。</li><li>列対応を確認して実行します。周期の入力は不要です。周期はKernelParametersやOptimizeHyperparametersに含めず、内部の1次元探索で計算します。</li><li>進捗に表示される候補ごとの学習を待ちます。各周期でGPRを再学習するため、通常の学習より時間がかかります。中止は進行中の候補の学習が終わり、次の候補へ移る前に反映されます。</li><li>終了後、左欄で採用した周期・尤度・探索範囲・評価回数を確認します。周期の単位はRESIST_THの入力単位です。</li><li>MATを保存し、保存後検証で周期・カーネル量・予測の一致も確認します。保存モデルを開いたときにも周期を表示します。</li></ol>
+<p>「2 Swing Curve学習」のkernelで<strong>swingperiodic</strong>を選べます。説明変数はRESIST_THの1列から対応し、追加の説明変数の影響と膜厚の線形トレンドも組み合わせます。APC・汎用GPRの候補は従来どおりです。</p>
+<ol><li>説明変数数を1以上で指定し、最後のRESIST_THへレジスト膜厚（nm）、最後のyへ目的変数を割り当てます。周期探索には異なる膜厚を8点以上含めます。</li><li>kernelにswingperiodicを選び、fit_methodを選びます。まずは標準のexactを使えます。</li><li>列対応を確認して実行します。右の「Swing Curve設定」で露光波長と屈折率を確認します。初期値は248nmと1.77で、基準周期約140.113nmの75〜125%を探索します。「周期の評価範囲を指定」をオンにすると下限・上限を入力できます。周期はKernelParametersやOptimizeHyperparametersに含めず、内部の周辺尤度探索で決定します。</li><li>進捗に表示される候補ごとの学習を待ちます。各周期でGPRを再学習するため、通常の学習より時間がかかります。中止は進行中の候補の学習が終わり、次の候補へ移る前に反映されます。</li><li>終了後、左欄で採用した周期・尤度・探索範囲・評価回数を確認します。周期の単位はRESIST_THの入力単位です。</li><li>MATを保存し、保存後検証で周期・カーネル量・予測の一致も確認します。保存モデルを開いたときにも周期を表示します。</li></ol>
 ${shot('27-periodic-kernel','swingperiodicの選択と、周期の最適化履歴を確認する場所','R2022bの表示試験です。表のLogLikelihood欄には合成目的関数の値を設定しています。実際のGPR学習・周辺尤度計算・周期の推定結果ではありません。')}
 <p>右の「周期の最適化」は、Evaluation（評価順）、Period（周期）、LogLikelihood（周辺対数尤度）、Succeeded（学習の成否）、Message（失敗理由）の表です。exactでは周辺対数尤度、sd / sr / ficではそれぞれの近似周辺対数尤度を比較し、大きい値のモデルを採用します。表を選んで「表示中の表を保存」でCSV / Excelへ保存できます。</p>
 ${shot('28-periodic-search','周期候補と目的関数のグラフをアプリ内で確認','同じ合成目的関数を用いた表示見本です。実際の周辺尤度曲線ではありません。製品では候補ごとのGPR学習から得た尤度と採用点を表示します。')}
 <p>「グラフ」→「周期探索（周辺尤度）」で候補と採用点を確認し、必要ならPNGへ保存します。探索履歴は今回の画面と書出し表で保持し、MATには履歴変数を追加しません。MATの変数は従来どおりTrain_Modelだけで、周期はモデル内に保持します。</p>
-${note('内部探索の範囲と読み方','周期範囲は、膜厚点間隔と全体の膜厚幅から自動設定します。最大48候補で、候補ごとに長さ尺度・振幅・ノイズなどを学習します。局所解、周期の取り違え、探索境界の影響があるため、大域最適性や物理的な周期の正しさは保証しません。警告と履歴を確認し、未知データへの予測精度も別に確認してください。')}
+${note('内部探索の範囲と読み方','基準周期は露光波長÷屈折率です。既定は248nm÷1.77≒140.113nmの75〜125%を探索し、任意の下限・上限も指定できます。周期をGPRの学習パラメータに含めず、最大48候補の周辺尤度を比較します。exact以外は近似尤度。範囲端に解がある場合や尤度差が小さい場合は表示される注意を確認してください。大域最適性は保証しません。')}
 <p>カーネルで選んだ周期と、10-DのSHAP散布点への正弦波近似の周期は、対象と基準が異なる別の結果です。同じ値になるとは限りません。毎回swingperiodicを使う場合は、11-Dの「設定」→「Swing Curve専用 kernel」で既定値を保存できます。計算方式は<a href="../ui-update.md">更新仕様</a>に記載しています。<strong>R2025bでの実学習・モデル保存・SHAP、制御側での予測、Windows Runtimeの最終確認は未実施です。</strong></p>
 <h3 id="kernel-comparison">8-5　複数カーネルを一括検証して採用モデルを選ぶ</h3>
 <p>APC・Swing Curve・汎用GPRの各学習で利用できます。左のkernelは通常の単独学習用です。比較では、右側の一覧から選んだカーネルと、左の共通fit_methodを使います。</p>
-<ol><li>入力ファイルを開き、説明変数とyを割り当てます。</li><li>左欄の「複数カーネルの比較画面を開く」を押します。右側に「カーネル比較」が開きます。</li><li>Ctrl（MacはCommand）を押しながら、比較するカーネルを2個以上選びます。Shiftで範囲を選べます。Swing Curveではswingperiodicも選択できます。</li><li>検証の分割数（2〜10、既定5）と比較用seed（既定0）を設定します。左欄でfit_methodを確認します。KL / MIのビン数は「9 設定」で保存・適用した共通値を使います。</li><li>列対応を確認し、「選択したカーネルを一括比較」を押します。</li><li>候補・分割・全データ学習の進捗を確認して待ちます。中止は実行中の学習や周期候補の計算が終わった時点で反映されます。中止時はモデルを保存せず、比較結果を破棄します。</li></ol>
+<ol><li>入力ファイルを開き、説明変数とyを割り当てます。</li><li>左欄の「複数カーネルの比較画面を開く」を押します。右側に「カーネル比較」が開きます。</li><li>Ctrl（MacはCommand）を押しながら、比較するカーネルを2個以上選びます。Shiftで範囲を選べます。Swing Curveではswingperiodicも選択できます。「Swing Curve設定」の周期範囲を各分割でも共通して使い、周期は各分割の学習データ内で探索します。</li><li>検証の分割数（2〜10、既定5）と比較用seed（既定0）を設定します。左欄でfit_methodを確認します。KL / MIのビン数は「9 設定」で保存・適用した共通値を使います。</li><li>列対応を確認し、「選択したカーネルを一括比較」を押します。</li><li>候補・分割・全データ学習の進捗を確認して待ちます。中止は実行中の学習や周期候補の計算が終わった時点で反映されます。中止時はモデルを保存せず、比較結果を破棄します。</li></ol>
 ${shot('29-kernel-comparison','複数カーネルの選択と比較一覧','合成データと代替学習器によるR2022bの表示試験です。実際のGPR学習・交差検証の性能を示した画像ではありません。')}
 ${table(['画面内の表・項目','確認する内容'],[
 ['比較一覧','Statusが成功した候補のRank（検証RMSEの小さい順）と8指標を比較。R2は決定係数、Training_R2 / Training_RMSEは全データへの当てはまり。Secondsは検証＋全データ学習の時間、Periodは全データモデルの周期。Folds / Seed / Rows / FitMethodで比較条件を確認。失敗理由や警告はNote。'],
@@ -174,19 +176,21 @@ add('shap','SHAP解析とアプリ内のグラフ','USER · SHAP',`
 <h3>10-B　保存済みモデルのSHAP</h3><ol><li>「6 SHAP 解析」で「SHAP依存確認」を選びます。</li><li>MATと入力ファイルを開き、PredictorNamesと同じ順に列を割り当てます。</li><li>必要なら実測値列を指定します。KL/MIのビン数は「9 設定」の共通設定で変更します。</li><li>列対応を確認し、「SHAP グラフをアプリ内に表示」をオンにして実行します。</li><li>右側の「グラフ」を開き、その中で「SHAP 分布」「SHAP 依存: 変数名」を切り替えます。</li></ol><p>分布図は平均|SHAP|の大きい順です。依存図は横軸が入力値、縦軸がSHAP値、色が自分以外の重要な変数です。外部のfigureウィンドウは作りません。</p>
 ${shot('05-shap','SHAP解析：モデル・入力・任意の実測値列を設定')}
 ${shot('21-shap-chart','SHAP分布もアプリ内部のグラフタブで表示','SHAPを計算した画像ではありません。合成入力の0.1倍を描画用の値として設定した表示試験です。')}
-<h3>10-C　ノイズ除去用SHAP</h3><p>方式を「ノイズ除去用SHAP」にして、SIN_TH、SIN_RN、NSG_TH、RESIST_THを割り当てます。結果の shap_resist はRESIST_THの寄与であり、測定値やノイズ除去済み測定値そのものではありません。背景データ数の引数を追加しない原仕様を維持します。</p>
+<h3>10-C　ノイズ除去用SHAP</h3><p>方式を「ノイズ除去用SHAP」にして、読込モデルのPredictorNamesに合わせて列を割り当てます。最後の説明変数はRESIST_THで、膜厚1列のモデルにも対応します。従来の4列モデルはSIN_TH、SIN_RN、NSG_TH、RESIST_THの順です。結果の shap_resist はRESIST_THの寄与であり、測定値やノイズ除去済み測定値そのものではありません。背景データ数の引数を追加しない原仕様を維持します。</p>
 ${shot('18-denoise','ノイズ除去用SHAP：4番目の説明変数の寄与を取得')}
-<h3>10-D　Swing Curve近似・極値膜厚・バルク効果の傾き</h3>
+<h3>10-D　Pro版：Swing Curve近似・極値膜厚・山間／谷間の傾き</h3><p>このカーブ評価と近似残差診断はPro版限定です。通常版はSHAP分布・依存図まで利用できます。APC学習画面にはPro版でもSwing Curve評価を表示しません。</p>
 <p>レジスト膜厚のSHAP依存図を、<code>c + m(t−t₀) + A sin(2π(t−t₀)/T + φ)</code> で近似します。tは膜厚、Tは周期、Aは片振幅、mは直線トレンドです。表示するR²・RMSEは<strong>SHAP散布点への近似</strong>の評価であり、画面上部のGPRモデルの評価とは別です。</p>
-<ol><li>新規学習から進める場合は「2 Swing Curve学習」で「学習後にSHAP・Swing Curve近似を計算」をオンにして実行し、MAT保存と検証を完了します。既定ではオフです。学習後のSHAP対象は先頭最大1000件で、GPR評価は全行です。</li><li>保存済みモデルなら「6 SHAP 解析」でMATと入力を開き、「SHAP依存確認」または「ノイズ除去用SHAP」を実行します。グラフ表示をオンにします。</li><li>右の「グラフ」→「SHAP 依存: RESIST_TH」を開きます。RESIST_THという説明変数名を持つモデルが対象です。</li><li>「膜厚下限・上限」で近似・プロットする範囲を指定します。読込データ内の範囲を指定し、異なる膜厚を8点以上含めます。</li><li>周期下限・上限を両方0にすると自動探索します。膜厚点の間隔と範囲から初期探索範囲を決めます。周期が既知なら両方に正の値を入力して探索を絞ります。</li><li>バルク効果の傾きを見る場合は「直線トレンドを含む」をオンにし、「近似を更新」を押します。設定変更時は古い近似・表を消します。</li></ol>
+<ol><li>新規学習から進める場合は「2 Swing Curve学習」で「MAT保存・検証の成功後にSHAPを自動計算」をオンにして実行し、MAT保存と検証を完了します。既定ではオフです。学習後のSHAP対象は先頭最大1000件で、GPR評価は全行です。</li><li>保存済みモデルなら「6 SHAP 解析」でMATと入力を開き、「SHAP依存確認」または「ノイズ除去用SHAP」を実行します。グラフ表示をオンにします。</li><li>右の「グラフ」→「SHAP 依存: RESIST_TH」を開きます。RESIST_THという説明変数名を持つモデルが対象です。</li><li>「膜厚下限・上限」で近似・プロットする範囲を指定します。読込データ内の範囲を指定し、異なる膜厚を8点以上含めます。</li><li>周期下限・上限を両方0にすると露光波長÷屈折率の75〜125%を探索します。初期値は248nm÷1.77です。周期が既知なら両方に正の値を入力して探索を絞ります。</li><li>バルク効果の傾きを見る場合は「直線トレンドを含む」をオンにし、「近似を更新」を押します。設定変更時は古い近似・表を消します。</li></ol>
 <p>近似曲線はオレンジ、極大は紫、極小は青緑で表示します。極値の膜厚を点の近くへ表示し、同じ色の破線で隣接する山同士・谷同士を結びます。凡例のmが傾きです。表示範囲内の極値が24個を超える場合は文字の重なりを避け、膜厚の数値は表で確認します。</p>
 ${shot('22-swing-fit','SHAP Swing Curve近似：周期・振幅・適合度、山・谷を結ぶ傾きを表示','R2022b / 合成SHAP値の補助確認。入力は膜厚850〜1250、周期80、片振幅2.5、直線傾き0.01。GP学習・実SHAP計算の結果ではありません。')}
+<p>「近似方式」をスプライン補間に切り替えると、同じ膜厚のSHAP値を平均して通るnot-a-knotの3次補間になります。異なる膜厚は4点以上必要です。周期・一定振幅・一定傾きは定義せず、極値は補間曲線の微分から求め、山間・谷間の傾きは区間ごとに表示します。表示範囲は採用した補間点の端へ合わせ、外挿しません。近似残差は元の各観測行で計算します。補間点では残差がほぼ0となり、正規性検定は判定対象外になることがあります。膜厚の目盛・注記は指数表示を使いません。</p>
+${shot('36-pro-spline','Pro版：近似方式をスプライン補間へ切り替え、極値と区間ごとの傾きを確認','表示専用コピーに合成SHAP波形を設定した補助確認です。GP学習・実SHAP計算はしていません。膜厚範囲の入力欄と極値注記は通常の小数表記です。グラフ全体と下の表は、この依存図の内側を下へスクロールして確認します。')}
 <p>内容が収まらない場合は、この依存図の内側を下へスクロールします。下の表は「近似指標」「極値の膜厚」「隣接する山・谷の傾き」を切り替えます。「極値の膜厚」は極大・極小ごとの膜厚とSHAP値、「隣接する山・谷の傾き」は両端の膜厚・SHAP値と差分の傾きです。目的の表を選び、画面下の「表示中の表を保存」でCSV / Excelへ出力します。グラフのPNGには近似曲線・極値・破線・凡例を含めます。</p>
 ${shot('23-swing-extrema','プロット範囲内の極大・極小となる膜厚を表でも確認','同じ合成データを用いた補助確認。極値は直線トレンドも含めた近似式全体の微分から算出しています。')}
-${note('傾きと極値の読み方','一定振幅の正弦波＋直線モデルなので、隣接する山間・谷間の傾きは同じ一定値mになります。区間ごとに異なる傾きや振幅の変化を推定するモデルではありません。傾きはSHAP値の差÷膜厚の差で、単位は入力のままです。SHAP値や傾きだけで物理的なバルク効果を証明することはできません。')}
+${note('傾きと極値の読み方','三角関数近似は一定振幅の正弦波＋直線モデルなので、隣接する山間・谷間の傾きは同じ一定値mになります。スプライン補間では形状に応じて区間ごとの傾きが異なります。傾きはSHAP値の差÷膜厚の差で、単位は入力のままです。SHAP値や傾きだけで物理的なバルク効果を証明することはできません。')}
 <p>膜厚範囲を変更すると、その範囲の点だけで近似し直します。ズームだけでは近似対象・表を変更しないため、対象を変えるときは膜厚欄を変更して更新してください。曲線が単調で極値を持たない場合は極値なし、同種の極値が2個なければ隣接傾きなしと表示します。定数・直線だけのデータでは周期を表示しません。近似が弱い場合や周期が探索範囲の端にある場合は、説明文を確認して範囲を見直します。</p>
 
-<h3 id="swing-residuals">10-E　近似残差の正規性・歪度・尖度を確認する</h3>
+<h3 id="swing-residuals">10-E　Pro版：近似残差の正規性・歪度・尖度を確認する</h3>
 <p>ここでの残差は<strong>SHAP値−Swing Curve近似値</strong>です。GPRのモデル評価にある実測値−予測値の残差とは別です。近似に使った膜厚範囲の全観測行を使い、同じ膜厚の繰返しも各1行として診断します。</p>
 <ol><li>10-Dの手順で「近似を更新」します。</li><li>近似カーブの横の「残差分布」を選びます。ヒストグラムと、残差の平均・標準偏差から描いた正規分布の曲線を比較します。縦軸は件数ではなく確率密度です。</li><li>図の上にあるLilliefors検定の判定、p値、有意水準α=0.05、歪度・尖度・超過尖度を確認します。</li><li>「正規Q–Q」へ切り替え、点が斜めの基準線から曲がっていないか、両端が大きくずれていないか確認します。</li><li>「残差対膜厚」で、0の線を中心に残差が散らばるか、周期性や膜厚によるばらつきの変化が残っていないか確認します。</li><li>依存図の内側を下へスクロールし、「残差の正規性」または「残差データ」を選んで「表示中の表を保存」を押します。CSV / Excelへ出力できます。各図は「グラフを PNG に保存」の一覧から選びます。</li></ol>
 ${shot('24-swing-residual-histogram','近似残差のヒストグラム・正規密度と、正規性検定・歪度・尖度','R2022bの補助確認。周期80の合成SHAP波形へ標準偏差0.15の正規乱数ノイズを加えて再近似した例です。実SHAP計算やR2025bの実行結果ではありません。')}
@@ -196,11 +200,19 @@ ${shot('26-swing-residual-thickness','残差対膜厚：周期性や膜厚によ
 ${note('検定結果の適用範囲','曲線の係数・周期を同じ点から推定しているため、残差は独立な標本とは限りません。検定p値は再近似による補正をしていない参考診断です。少数標本では非正規性を検出しにくく、多数の点では小さなずれでも棄却される場合があります。正規性・独立性・等分散性・曲線の妥当性はそれぞれ確認してください。')}
 <p>膜厚範囲・周期範囲・トレンドの設定を変えると、古い残差図と表も消去します。「近似を更新」で新しい対象点に対する診断を計算してください。ヒストグラムの見え方はビン分けに依存しますが、検定と歪度・尖度は生の残差から計算します。関数の説明は <a href="https://www.mathworks.com/help/stats/lillietest.html">lillietest</a>、<a href="https://www.mathworks.com/help/stats/skewness.html">skewness</a>、<a href="https://www.mathworks.com/help/stats/kurtosis.html">kurtosis</a> にあります。</p>
 
+<h3 id="save-free-shap">10-F　MATを保存せず、モデルを選んでSHAPを実行する</h3>
+<ol><li>モデルを単独学習またはカーネル比較します。MAT保存をキャンセルしても候補は画面内に保持されます。既存のMATは「学習済みMATを開く」で読み込みます。</li><li>左の「MAT保存なしのSHAP実行画面を開く」または右側の「SHAP実行」を開き、番号付きのモデル一覧から対象を選びます。学習機能・カーネル名またはMAT名を確認します。</li><li>学習画面では選択モデルの学習データの先頭最大1000行を使います。結果のModelRowはモデル内の行です。SHAP解析画面では入力ファイルを開き、選択モデルの列順を確認してから実行します。こちらのSourceRowは元ファイル行です。</li><li>「保存せず、選択したモデルでSHAPを計算」を押します。モデル一覧はアプリを終了すると消えるため、再利用するモデルは別途MATへ保存してください。</li></ol>
+<p>通常の学習操作では、MAT保存・保存後検証が成功してから自動SHAPを実行します。画面にもこの順序を表示しています。分布図は計算したshapleyオブジェクトを標準のswarmchart(ax, explainer)へ直接渡して描画します。相対的な入力値の色と平均|SHAP|の順位は標準関数の表示に従います。</p>
+${shot('37-model-shap','保存なしSHAP：画面内のモデルと読込済みMATを同じ一覧から選ぶ','合成モデルと読込済みMATを模した値による表示試験です。実際のMAT読込・保存やSHAP計算はしていません。対象番号とモデル名を確認してから、保存なしの計算ボタンを押します。')}
+
 `);
 
 add('statistics','評価の読み方・炉内補間・実験計画・設定・Help','USER · INTEGRATED FEATURES',`
+<h3>予実・残差の散布図の色を指定する</h3><p>グラフ内の「色を指定する列」から入力ファイルの任意列を選びます。数値列は連続色、文字列はカテゴリ色です。予実と残差で同じ列を共有し、カーネル比較・炉内補間でも指定できます。色指定で学習行や評価値は変更しません。</p>
+${shot('35-scatter-color','予実・残差の色指定と、説明変数1列のSwing Curve画面','合成実測・合成予測による表示試験です。入力ファイルのTH列を色として指定しています。GP学習・実SHAP計算の結果ではありません。左の10機能の文字は左寄せで表示します。')}
+<h3>通常版とPro版</h3><p>通常版はモデリング、周期カーネル、SHAP分布・依存図、炉内補間、実験計画、評価・出力を使えます。レジスト膜厚SHAPへの三角関数／スプライン近似、極値・山間／谷間の傾き、近似残差診断はPro版限定です。版はコンパイル時に分け、通常版の同梱対象からProの実装7ファイルを除外します。実行時の設定で版を変更する機能はありません。</p>
 <h3>11-A　各モデル画面で評価・要約をまとめて確認</h3><p>独立していた「7 評価指標」「8 列の要約統計量」のタブは削除しました。学習や実測値付きの推定・SHAPを実行すると、同じ画面の右側に自動で集計します。</p>
-${table(['指標','意味・未定義となる条件'],[['R²','1−SSE/SST。1が完全一致、負値もあり。実測が一定なら未定義。'],['RMSE / MAE','元の実測値と同じ単位。小さいほど差が小さい。'],['RMSPE (%)','相対誤差。実測に0が含まれると未定義。'],['Pearson r / Correlation_squared','相関とその2乗。R²と別の指標。一定の偏りを見逃す場合があります。'],['KL_nats / Mutual_information_bits','実測分布から予測分布へのKLと、実測・予測のMI。ビン数に依存します。']])}
+${table(['指標','意味・未定義となる条件'],[['R²','1−SSE/SST。1が完全一致、負値もあり。実測が一定なら未定義。'],['RMSE / MAE','元の実測値と同じ単位。小さいほど差が小さい。'],['RMSPE (%)','相対誤差。実測に0が含まれると未定義。'],['Pearson r / Correlation_squared','相関とその2乗。R²と別の指標。一定の偏りを見逃す場合があります。'],['KLダイバージェンス / 相互情報量','実測分布から予測分布へのKLと、実測・予測のMI。ビン数に依存します。']])}
 <p>未定義の指標はNaNと理由を表示し、他の指標は残します。要約は各列について件数・欠損数・平均・中央値・最大・最小・範囲・IQR・Q1・Q3・不偏標準偏差の11項目です。炉内補間の計測列を除き、モデル入力に欠損があれば計算前に停止します。</p>
 ${shot('10-model-evaluation','モデル評価：従来7指標に通常の決定係数R²を加えて一括計算','合成実測・合成予測ベクトルからR2022bで計算した補助確認です。GPの予測結果ではありません。')}
 ${shot('11-column-summary','列の要約：入力・実測・予測・残差を自動で集計')}
@@ -318,12 +330,12 @@ add('troubleshooting','困ったとき','TROUBLESHOOTING',`
 add('references','参考資料と、この資料の確認範囲','SOURCES AND SCOPE',`
 <h3>プロジェクト内の正本</h3><ul class="source-list"><li><a href="../../README.md">README.md</a><small>構成、入力と保存仕様、起動方法。</small></li><li><a href="../windows-build.md">Windows ビルド手順（Markdown）</a></li><li><a href="../specification.md">原仕様</a><small>MR-01〜MR-09、T-01〜T-10、Q-01〜Q-11 の正本。</small></li><li><a href="../../verification.md">検証記録</a> / <a href="../../issues.md">残課題</a></li></ul>
 <h3>MathWorks 公式資料</h3><ul class="source-list"><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-startup-function.html">startupFcn の追加と起動時の処理</a><small>アプリノードの Callbacks メニュー、StartupFcn コールバック。</small></li><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-code-generation.html">App Designer Code View のコード管理</a><small>プロパティ・コールバックの追加。最新ページには R2026b の新仕様もあるため、R2025b の .mlapp 手順を使用。</small></li><li><a href="https://www.mathworks.com/help/compiler/compiler.build.standalonewindowsapplication.html">compiler.build.standaloneWindowsApplication</a><small>Windows での .mlapp ビルド、出力ファイル、Runtime を含まないこと。</small></li><li><a href="https://www.mathworks.com/help/compiler/standalone-application-target.html">スタンドアローンアプリの配布</a><small>ビルドと配布先の OS、配布するファイル。</small></li><li><a href="https://www.mathworks.com/products/compiler/matlab-runtime.html">MATLAB Runtime の入手</a></li><li><a href="https://www.mathworks.com/help/matlab/ref/exportapp.html">exportapp</a><small>参考 UI 画像の書出しに使用。</small></li></ul>
-<h3>画像と文書の確認範囲</h3><p>画面画像には撮影当時の旧タイトルが含まれます。現在のアプリ名はProcess Insight Toolです。アプリ画面は <code>app/AnalysisController.m</code> の一時的な表示専用コピーで撮影しました。合成データと説明用の列対応を設定し、評価・実験計画・ワードクラウド等を補助確認しています。GP学習・モデル保存・実SHAPの計算は行っていません。製品ソースのリリース確認と学習・保存処理は変更していません。評価指標・要約統計・実験計画・単語件数・ワードクラウドの補助計算は R2022b です。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
-<p>App Designer の2画像は MathWorks 公式資料から取得し、操作位置の説明に使用しています。原画像の出典と掲載ページのリリースは各画像に記載しています。自端末で撮影した画像ではなく、当プロジェクトのビルド成功を示す画像でもありません。</p><p class="privacy-note">この資料の更新日：2026-10-31（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
+<h3>画像と文書の確認範囲</h3><p>画面画像には撮影当時の旧タイトルが含まれます。現在のアプリ名はProcess Insight Toolです。アプリ画面は <code>app/AnalysisController.m</code> の一時的な表示専用コピーで撮影しました。合成データと説明用の列対応を設定し、評価・実験計画・ワードクラウド等を補助確認しています。GP学習・モデル保存・実SHAPの計算は行っていません。表示用の一時コピーでは起動のリリース確認だけを置き換え、製品本体のR2025b制約は維持しています。評価指標・要約統計・実験計画・単語件数・ワードクラウドの補助計算は R2022b です。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
+<p>App Designer の2画像は MathWorks 公式資料から取得し、操作位置の説明に使用しています。原画像の出典と掲載ページのリリースは各画像に記載しています。自端末で撮影した画像ではなく、当プロジェクトのビルド成功を示す画像でもありません。</p><p class="privacy-note">この資料の更新日：2026-11-04（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
 `);
 
-const nav = `<aside id="sidebar" class="sidebar" aria-label="目次"><div class="sidebar-header"><p class="eyebrow">PROCESS INSIGHT TOOL</p><p class="sidebar-title">ビルド・利用手順書</p><p class="sidebar-subtitle">Windows 64bit · R2025b</p></div><nav><ol class="toc-list">${sections.map((s,i)=>`${[0,3,6,12].includes(i)?`<li class="toc-group">${i===0?'はじめに':i===3?'作成・配布担当者':i===6?'アプリ利用者':'確認と対処'}</li>`:''}<li><a href="#${s.id}">${i+1}. ${s.title}</a></li>`).join('')}</ol></nav><div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>更新 2026-10-31 · PC閲覧用</div></aside>`;
-const main = `<main id="main-content" class="main-content"><header class="hero"><div class="hero-content"><p class="eyebrow">BUILD &amp; OPERATING GUIDE</p><h1>Process Insight Tool<br><span>ビルド・利用手順書</span></h1><p class="hero-lead">App Designer の入口作成から、Windows 配布、8機能と設定・Helpの操作、出力確認まで。</p><div class="hero-badges"><span>対象：Windows 64bit / R2025b</span><span>画像：R2022b の参考撮影</span><span>更新：2026-10-31</span></div></div></header><p class="guide-status"><strong>現在の到達点：</strong>ソース作成済み。.mlapp 作成・R2025b 全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。</p>${sections.map((s,i)=>`<section id="${s.id}" class="content-section"><div class="section-heading"><span class="section-number">${String(i+1).padStart(2,'0')}</span><div><p class="section-kicker">${s.kicker}</p><h2>${s.title}</h2></div></div>${s.body}</section>`).join('\n')}<footer class="page-footer"><p>Process Insight Tool · ビルド・利用手順書</p><p>2026-10-31 · 画像は参考プレビュー / 対象環境での確認は未完了</p></footer></main>`;
+const nav = `<aside id="sidebar" class="sidebar" aria-label="目次"><div class="sidebar-header"><p class="eyebrow">PROCESS INSIGHT TOOL</p><p class="sidebar-title">ビルド・利用手順書</p><p class="sidebar-subtitle">Windows 64bit · R2025b</p></div><nav><ol class="toc-list">${sections.map((s,i)=>`${[0,3,6,12].includes(i)?`<li class="toc-group">${i===0?'はじめに':i===3?'作成・配布担当者':i===6?'アプリ利用者':'確認と対処'}</li>`:''}<li><a href="#${s.id}">${i+1}. ${s.title}</a></li>`).join('')}</ol></nav><div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>更新 2026-11-04 · PC閲覧用</div></aside>`;
+const main = `<main id="main-content" class="main-content"><header class="hero"><div class="hero-content"><p class="eyebrow">BUILD &amp; OPERATING GUIDE</p><h1>Process Insight Tool<br><span>ビルド・利用手順書</span></h1><p class="hero-lead">App Designer の入口作成から、Windows 配布、8機能と設定・Helpの操作、出力確認まで。</p><div class="hero-badges"><span>対象：Windows 64bit / R2025b</span><span>画像：R2022b の参考撮影</span><span>更新：2026-11-04</span></div></div></header><p class="guide-status"><strong>現在の到達点：</strong>ソース作成済み。.mlapp 作成・R2025b 全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。</p>${sections.map((s,i)=>`<section id="${s.id}" class="content-section"><div class="section-heading"><span class="section-number">${String(i+1).padStart(2,'0')}</span><div><p class="section-kicker">${s.kicker}</p><h2>${s.title}</h2></div></div>${s.body}</section>`).join('\n')}<footer class="page-footer"><p>Process Insight Tool · ビルド・利用手順書</p><p>2026-11-04 · 画像は参考プレビュー / 対象環境での確認は未完了</p></footer></main>`;
 let skeleton = `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Process Insight Toolの操作手順書"><title>Process Insight Toolの手順書</title>
