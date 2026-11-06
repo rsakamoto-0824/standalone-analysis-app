@@ -1,5 +1,19 @@
 # 検証記録
 
+## 2026-11-06 保存前の評価・比較、複数目的変数、炉内モデル保存
+
+- APC・Swing Curve・汎用GPRを「入力 → 条件設定 → モデリング・SHAP → 比較 → 選択モデル保存」へ変更。目的変数ごとのモデルと元入力を保持し、条件・入力・設定変更後も履歴を選べる。Swing Curveの下地なし1列／下地あり複数列、DOE2〜5水準・初期25件・設定専用seed、設定専用RBF幅/正則化を実装した。
+- この作業で選択した補助テストは計51件成功。TestModelingBatch 9、TestSampleWorkbook 4、TestFurnaceSave 3、TestIntegratedFeatures 11、TestFurnaceInterpolation 16、TestProductEnhancements 8。以前の94件全体を再実行したという意味ではない。R2022bでは実GPRの学習・保存、実SHAPの計算をしていない。
+- 新規の一括評価試験は目的変数と条件の分離、検証対象行の学習除外、SHAP失敗時のモデル保持、学習失敗時の続行、中止、入力漏洩/重複拒否、旧設定の補完、2〜5水準の全2因子組合せの均等性、D/I格子と固定点の保持を確認した。学習・SHAPには代替関数を注入した。
+- 炉内保存は非GPRのスプライン/RBF/poly3でMAT往復を実行。保存時に再学習せず、Furnace_Model単独、Run・目的変数・元行・モデル一致、計測Slot/中点/追加37点の予測一致、別MAT形式の拒否を確認した。GPRのMAT保存検証はR2025b専用TestFurnaceModelへ追加し、この端末では未実行。
+- run_batch_modeling_ui_smokeが成功。APC2目的変数、2カーネル共通分割、過去モデル選択、入力変更後の履歴保持、保存前にダイアログなし・選択保存時のみダイアログ（スタブでキャンセル）、Swing両モード各2目的変数、設定専用seed/RBF、単一ウィンドウを確認した。実モデル保存・実SHAPではない。新しい比較表/全指標タブも表示し、参考画像38/39を撮影した。最終の再確認では、他画面の不正なSwing周期範囲がAPCの学習・保存済み評価の再表示へ影響しないことも確認した。変更した画面/ビルド/対象テスト8ファイルの静的解析は指摘0件。
+- run_furnace_ui_smokeが成功。スプライン/RBF/poly3のRun別2目的変数、表/プロファイル/CSV/PNG、モデル保存ボタンの有効化/解除、ロック復元、設定、幅900/1366で上下/左右配置、単一ウィンドウを確認した。
+- 原仕様の学習4種類・保存の正本5ブロックは一致。静的解析で新しい製品ソースの構文エラーはない。既存の改善提案とテスト用抑制コメントの注意は残る。
+- samples/ProcessInsight_Samples.xlsxをartifact-toolで作成。合成データ9シート・881数式・エラー0件・外部リンク/VBAなし。9シートを画像で確認し、数式結果を独立計算とも照合。MacのMicrosoft Excelで再計算・保存・再オープンを確認した。作者情報とローカル絶対パスを除去後の最終ファイルもExcelで再確認した。Officeの一時ファイルはGit対象外とし、ビルド同梱サンプルは指定した3ファイルだけをコピーする。
+- R2025b専用TestFlexibleSwingModelへ複数目的変数の実学習・実SHAP・選択保存の試験を追加した。Windows手順・Help・README・HTML・残課題を更新。HTMLの47ローカル参照・全アンカー・重複IDなし、PC幅1366/1600での横はみ出しなし、本文14px、新画像の拡大表示、ブラウザのエラーログ0件を確認した。
+
+残る確認はWindows R2025bでの全テスト、実GPR/実SHAPと選択MAT保存、GPR炉内MAT往復、通常版/Pro版ビルドとRuntimeでの動作、旧モデル互換性である。ソース作成・補助試験と対象環境での完成を区別する。
+
 ## 2026-11-04：通常版／Pro版、保存なしSHAP、Swing Curveと表示の更新
 
 - 数値補助テストは94件成功。既存86件（PureFunctions 20、IntegratedFeatures 11、SwingCurve 9、SwingResiduals 10、PeriodicKernel 11、KernelComparison 9、FurnaceInterpolation 16）にProductEnhancements 8件を追加した。追加分は光学条件と明示範囲、尤度探索の範囲制約、1/2/6列のカーネルの対称性・半正定値性、表示名と指標値の保存、スプライン・重複膜厚・極値・区間傾き、版ごとの隔離ソースを確認した。

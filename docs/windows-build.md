@@ -73,7 +73,7 @@ standard = build_windows('standard'); % 通常版
 pro = build_windows('pro');           % Pro版
 ```
 
-実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/standard/ProcessInsightTool.exe` または `build/windows/pro/ProcessInsightToolPro.exe` と付随ファイルを生成します。画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。`core/`、`app/` とHTML手順書のフォルダを同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
+実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/standard/ProcessInsightTool.exe` または `build/windows/pro/ProcessInsightToolPro.exe` と付随ファイルを生成します。画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。`core/`、`app/`、HTML手順書と`samples/`を同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
 
 配布用の Runtime は [MathWorks の MATLAB Runtime 配布ページ](https://www.mathworks.com/products/compiler/matlab-runtime.html)から R2025b / Windows 64bit を取得します。会社の許可済み手順で、ビルド環境と対応する更新版をオフライン配布してください。アプリ自身がネットから Runtime を取得する処理はありません。
 
@@ -92,14 +92,14 @@ MATLAB Runtime R2025b だけを入れた Windows 64bit 端末で、以下を実�
 - [ ] 列対応の確認前は学習できず、変更後は再確認が必要。
 - [ ] APC の24行で停止、25〜149行で警告、150行以上で警告なし。
 - [ ] 3種類の学習で `Train_Model` だけが保存され、画面の全検証が成功する。
-- [ ] APC・Swing Curve・汎用GPRで複数カーネルの一括比較を行う。同一分割の検証8指標・分割別RMSE・検証予測・要約・アプリ内グラフ、採用候補切替、CSV / Excel / PNG、選択した全データモデルのMAT保存・検証・後続SHAPを確認する。一部失敗・全失敗・中止・保存キャンセル・設定変更時の消去・処理中の入力ロックも確認する。周期カーネルは各分割内で周期を再探索し、各分割のPeriodも確認する。
-- [ ] 保存キャンセル後も評価結果が残り、後続 SHAP が実行されない。
+- [ ] APC・Swing Curve・汎用GPRで複数カーネルの一括比較を行う。同一分割の検証8指標・分割別RMSE・検証予測・要約・アプリ内グラフ、採用候補切替、CSV / Excel / PNG、SHAP計算後に選択した全データモデルのMAT保存・検証を確認する。一部失敗・全失敗・中止・保存キャンセル・設定変更後の学習履歴保持・処理中の入力ロックも確認する。周期カーネルは各分割内で周期を再探索し、各分割のPeriodも確認する。
+- [ ] モデリングとSHAPは保存前に完了し、保存操作だけで再計算しない。保存キャンセル後もモデル・評価・SHAPが残る。
 - [ ] SHAP とノイズ除去用 SHAP が Runtime でも動き、グラフを PNG に保存できる。
-- [ ] Swing Curve学習の任意SHAP、RESIST_THの正弦波＋直線近似、膜厚・周期範囲の更新、極値・隣接傾きの表、CSV / Excel / PNG出力を確認する。
+- [ ] Swing Curve学習のSHAP、RESIST_THの正弦波＋直線近似、膜厚・周期範囲の更新、極値・隣接傾きの表、CSV / Excel / PNG出力を確認する。
 - [ ] 近似残差の分布・正規Q–Q・残差対膜厚、Lilliefors検定とp値境界、歪度・尖度・超過尖度、判定対象外の表示、範囲変更時の診断消去と再計算、CSV / Excel / PNG出力を確認する。
-- [ ] swingperiodicで周期自動探索、exact / sd / sr / fic、進捗・中止、周期と尤度の表示・履歴保存を確認する。MATの変数はTrain_Modelのみ、周期・7カーネル量・予測の保存前後一致、SHAP、制御側の新規MATLABセッションでアプリのソースをパスへ追加せずにpredict、RuntimeでのMAT読込みと予測も確認する。
+- [ ] swingperiodicで周期自動探索、exact / sd / sr / fic、進捗・中止、周期と尤度の表示・履歴保存を確認する。MATの変数はTrain_Modelのみ、周期・説明変数数＋3個のカーネル量・予測の保存前後一致、SHAP、制御側の新規MATLABセッションでアプリのソースをパスへ追加せずにpredict、RuntimeでのMAT読込みと予測も確認する。
 - [ ] 推定対象の外挿行が表で分かり、警告が画面にも残る。
-- [ ] D/I最適、2/3水準の直交表、固定点を保つ拡張計画、交絡図と係数表、ワードクラウドが動く。
+- [ ] D/I最適、2〜5水準の直交表、固定点を保つ拡張計画、交絡図と係数表、ワードクラウドが動く。
 - [ ] 設定の保存・再起動後の反映、ライト/ダーク、Helpの用語・公式リンク・同梱HTMLが使える。
 - [ ] 幅900/1320/1600pxで入力・結果を操作でき、図が外部ウィンドウへ出ない。
 - [ ] 8指標の一括評価、未定義指標の理由、入力・実測・予測・残差の要約と CSV / Excel 出力を確認する。
@@ -114,6 +114,22 @@ MATLAB Runtime R2025b だけを入れた Windows 64bit 端末で、以下を実�
 - [ ] 通常版でSHAP分布・依存図を使え、レジスト膜厚のフィッティング／カーブ評価は利用できない。
 - [ ] Pro版で三角関数・スプラインを切り替え、極値・区間ごとの山間／谷間の傾き・残差診断を表示できる。APC学習にはSwing Curve評価が付かない。
 - [ ] Swing CurveがRESIST_THの1列で学習でき、248nm÷1.77を基準に周期探索する。任意範囲指定とカーネル比較でも同じ指定を使う。
-- [ ] MAT保存をキャンセル後、モデル一覧と読込済みMATから対象を選んでSHAPを計算できる。
-- [ ] SwingCurve_Model / GenericGPR_Modelの保存名と、MAT内のTrain_Model、再読込み時の予測一致を確認する。
+- [ ] MATを保存せずともモデル一覧と読込済みMATから対象を選び、SHAPを再計算できる。
+- [ ] SwingCurve_Model_CD_X / GenericGPR_Model_Y1など目的変数付きの保存名と、MAT内のTrain_Model、再読込み時の予測一致を確認する。
 - [ ] 数値列・文字列・欠損を含む色指定で、元ファイル行の対応・点数・評価値を変えずに表示できる。
+
+## 2026-11-06の追加確認
+
+評価用の合成Excelは`samples/ProcessInsight_Samples.xlsx`です。列指定は`samples/README.md`とブックの「使い方」を参照します。データシートはすべてヘッダー行1で読み込みます。
+
+- [ ] APC・Swing CurveでCD_X / CD_Yを複数選択し、各目的変数を別モデルで一括学習・SHAP評価する。学習時に保存ダイアログが出ない。
+- [ ] Swing Curveの下地なしは膜厚1列、下地ありは選択した複数の追加説明変数＋膜厚となる。目的変数の混入・重複列を拒否する。
+- [ ] 「条件比較・モデル保存」で複数kernel×fit_methodを評価する。入力・条件・設定変更後も以前のモデルと元入力を保持し、選択したモデルの予測・SHAP・全指標を表示できる。
+- [ ] SHAP失敗時はモデルを保持し、失敗理由と再計算手順を確認する。学習失敗候補は保存対象にならない。
+- [ ] 最後に選択した1モデルだけを再学習・SHAP再計算せずMAT保存し、全検証が成功する。
+- [ ] 炉内補間でBatchを指定し、膜厚と屈折率を一括比較する。選択したRun・目的変数・方式だけをMAT保存し、Furnace_Model単独・保存前後の予測/区間一致を確認する。スプライン・RBF・poly3・3 GPRすべてを確認する。
+- [ ] `load_furnace_model`と`predict_furnace_model`で保存モデルを学習範囲内で再利用する。Train_Model形式の読込画面とは別である。
+- [ ] 実験計画の水準数が2〜5、初期実験数が25。実験計画のseed、RBF幅・正則化は設定画面だけで編集でき、保存・再起動後にも反映する。
+- [ ] 9シートのサンプルを読み込み、各機能の表・図・選択モデル保存を確認する。
+
+手元では純粋な数値と代替学習器による補助確認を行っています。R2025b限定のTestFlexibleSwingModelには複数目的変数・実SHAP・選択保存、TestFurnaceModelには3 GPRの保存前後の予測と区間一致の検証を追加しています。これらの実モデル試験はR2025bで実行してください。

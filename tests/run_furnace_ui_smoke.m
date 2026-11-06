@@ -22,6 +22,7 @@ report = interpolate_furnace_batches(data, (1:100)', {'spline', 'rbf', 'poly3'},
 view.showReport(report);
 assert(height(view.Tables.Comparison.Data) == 12); assert(height(view.Tables.Predictions.Data) == 1200);
 assert(height(view.Tables.Metrics.Data) == 192); assert(strcmp(view.Selection.Enable, 'on'));
+assert(strcmp(view.SaveModel.Enable,'on'));
 assert(numel(view.Charts{1}.Children) >= 4);
 view.Selection.Value = 7; view.Selection.ValueChangedFcn(view.Selection, []);
 assert(contains(view.Headline.Text, 'Run-B'));
@@ -49,7 +50,8 @@ png = [tempname, '.png']; png_cleanup = onCleanup(@() delete(png)); exportgraphi
 if ~isempty(image_folder), exportapp(app.Window, fullfile(image_folder, '32-furnace-profiles.png')); end
 lock = app.lockControls(view); assert(strcmp(view.Run.Enable, 'off')); clear lock; %#ok<NASGU>
 assert(strcmp(view.Run.Enable, 'on') && strcmp(view.Selection.Enable, 'on'));
-view.RBFWidth.ValueChangedFcn(view.RBFWidth, []); assert(isempty(view.Report) && ~view.Confirmed);
+view.Step.ValueChangedFcn(view.Step, []); assert(isempty(view.Report) && ~view.Confirmed);
+assert(strcmp(view.SaveModel.Enable,'off'));
 view.showReport(report); app.SettingsUI.Theme.Value = 'ダーク'; app.saveSettings();
 assert(isempty(view.Report) && ~view.Confirmed); assert(~isprop(view, 'Bins')); assert(view.evaluationOptions().Bins == app.SettingsUI.Bins.Value);
 app.Window.Position(3:4) = [900, 780]; app.Window.SizeChangedFcn(app.Window, []); drawnow;

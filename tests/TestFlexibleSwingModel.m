@@ -1,10 +1,31 @@
 classdef TestFlexibleSwingModel < matlab.unittest.TestCase
     methods (TestClassSetup)
         function environment(testCase)
+            root=fileparts(fileparts(mfilename('fullpath')));
+            testCase.applyFixture(matlab.unittest.fixtures.PathFixture(root));
             setup_paths(); require_r2025b();
         end
     end
     methods (Test)
+        function multipleResponsesEvaluateShapBeforeSavingSelectedModel(testCase)
+            x = linspace(800,1250,24)'; responses = [sin(x/25), cos(x/30)];
+            condition = struct('Kernel','squaredexponential','FitMethod','exact');
+            services = struct('Trainer',@(a,b,c,callback)train_modeling_candidate('swing',a,b,{'RESIST_TH'},c,struct(),callback), ...
+                'Predictor',@(model,a)predict(model,format_model_input(model,a)), 'Shap',@calc_shap_dependence);
+            options = struct('Folds',0,'Seed',0,'Bins',0);
+            records = evaluate_modeling_batch(x,responses,{'RESIST_TH'},{'CD_X','CD_Y'},condition,options,services);
+            for index = 1:2
+                testCase.verifyEqual(records{index}.Status,'成功');
+                testCase.verifyEqual(records{index}.ShapStatus,'成功',records{index}.Note);
+                testCase.verifyEqual(records{index}.Model.Y,responses(:,index));
+                testCase.verifySize(records{index}.Shap.Values,[24,1]);
+            end
+            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            file = fullfile(fixture.Folder,default_model_filename('swing',records{2}.Target));
+            save_train_model(records{2}.Model,file);
+            verification = verify_saved_model(file,records{2}.Model,'swing');
+            testCase.verifyTrue(verification.Success);
+        end
         function singlePredictorSavesAndPredicts(testCase)
             x = linspace(800, 1250, 30)'; y = 2*sin(2*pi*x/140)+0.01*x;
             [model, ~] = train_swing_gpr_model(x,y,{'RESIST_TH'},'squaredexponential','exact');

@@ -10,4 +10,5 @@ output/
 .playwright-cli/
 .DS_Store
 *.mat
+~$*
 !tests/fixtures/.gitkeep

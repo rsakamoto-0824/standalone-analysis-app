@@ -19,6 +19,16 @@ classdef TestFurnaceModel < matlab.unittest.TestCase
                 selected = report.Series{index}; model = fit_furnace_model(x, y, methods{index});
                 testCase.verifyClass(model.Fit, 'RegressionGP'); testCase.verifyEqual(model.Fit.NumObservations, 7);
                 testCase.verifyEqual(predict_furnace_model(model, (1:60)'), selected.Prediction, 'AbsTol', 1e-9);
+                fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+                file = fullfile(fixture.Folder, 'furnace.mat');
+                selected.Batch = "Run-A"; selected.SourceRows = selected.SourceIndex + 1;
+                verification = save_furnace_model(selected, struct(), file);
+                testCase.verifyTrue(verification.Success);
+                loaded = load_furnace_model(file);
+                [prediction, deviation, interval] = predict_furnace_model(loaded.Model, (1:60)');
+                testCase.verifyEqual(prediction, selected.Prediction);
+                testCase.verifyEqual(deviation, selected.Deviation);
+                testCase.verifyEqual(interval, selected.Interval);
             end
             constant = fit_furnace_model(x, 1.46*ones(size(x)), 'gpr_matern52');
             [prediction, deviation, interval] = predict_furnace_model(constant, (1:60)');
