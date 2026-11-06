@@ -23,7 +23,12 @@ cd(staging); addpath(fullfile(staging, 'core'), fullfile(staging, 'app'), '-begi
 clear app_edition plot_shap_figures;
 executable = 'ProcessInsightTool';
 if strcmp(edition, 'pro'), executable = [executable 'Pro']; end
-additional = {fullfile(staging, 'core'), fullfile(staging, 'app'), fullfile(project_root, 'docs'), ...
+sample_folder=fullfile(staging,'samples'); mkdir(sample_folder);
+sample_files={'ProcessInsight_Samples.xlsx','README.md','sample_wordcloud.txt'};
+for index=1:numel(sample_files)
+    copyfile(fullfile(project_root,'samples',sample_files{index}),sample_folder);
+end
+additional = {fullfile(staging, 'core'), fullfile(staging, 'app'), fullfile(project_root, 'docs'), sample_folder, ...
     fullfile(project_root, 'README.md'), fullfile(project_root, 'verification.md'), fullfile(project_root, 'issues.md')};
 result = compiler.build.standaloneWindowsApplication(fullfile(staging, 'app', 'AnalysisApp.mlapp'), ...
     'ExecutableName', executable, 'OutputDir', output, 'AdditionalFiles', additional, 'Verbose', 'on');

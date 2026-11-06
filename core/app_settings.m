@@ -2,7 +2,8 @@ function settings = app_settings(action, path, proposed)
 constants = model_constants();
 defaults = struct('SaveFolder', pwd, 'Theme', 'ライト', ...
     'Kernel', constants.DEFAULT_KERNEL, 'SwingKernel', constants.DEFAULT_KERNEL, 'FitMethod', constants.DEFAULT_FIT_METHOD, ...
-    'ShowPlots', true, 'InputCount', 4, 'Bins', 0, 'Factors', 3, 'Runs', 20, 'Seed', 42);
+    'ShowPlots', true, 'InputCount', 4, 'Bins', 0, 'Factors', 3, 'Runs', 25, 'Seed', 42, ...
+    'RBFWidth', 0, 'RBFRidge', 1e-8);
 settings = defaults;
 if strcmp(action, 'defaults'), return; end
 if strcmp(action, 'load')
@@ -33,6 +34,9 @@ if settings.Bins == 1, error('settings:bins', 'ビン数は0（自動）また�
 validateattributes(settings.Factors, {'numeric'}, {'scalar', 'integer', '>=', 1, '<=', 8});
 validateattributes(settings.Runs, {'numeric'}, {'scalar', 'integer', '>=', 1, '<=', 300});
 validateattributes(settings.Seed, {'numeric'}, {'scalar', 'integer', '>=', 0, '<=', 2^32 - 1});
+limits = furnace_constants();
+validateattributes(settings.RBFWidth, {'numeric'}, {'scalar', 'real', 'finite', '>=', 0});
+validateattributes(settings.RBFRidge, {'numeric'}, {'scalar', 'real', 'finite', '>=', limits.MinimumRBFRidge, '<=', limits.MaximumRBFRidge});
 if strcmp(action, 'save')
     folder = fileparts(path);
     if ~isfolder(folder), mkdir(folder); end

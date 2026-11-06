@@ -12,8 +12,7 @@ classdef FurnaceInterpolationView < handle
         Minimum
         Maximum
         Step
-        RBFWidth
-        RBFRidge
+        RBFInfo
         Extrapolate
         Confirm
         Run
@@ -25,6 +24,7 @@ classdef FurnaceInterpolationView < handle
         PlotTabs
         Charts
         CopyFigure
+        SaveModel
         ColorColumn
         Report = []
         Data = []
@@ -42,8 +42,8 @@ classdef FurnaceInterpolationView < handle
         function view = FurnaceInterpolationView(parent, window, settings, lock_callback, log_folder)
             view.Window = window; view.Settings = settings; view.Constants = furnace_constants(); view.Lock = lock_callback; view.LogFolder = log_folder;
             view.Layout = uigridlayout(parent, [1, 2]); view.Layout.ColumnWidth = {380, '1x'};
-            view.Controls = uigridlayout(view.Layout, [17, 1], 'Scrollable', 'on');
-            view.Controls.RowHeight = {56, 32, 44, 32, 32, 32, 120, 146, 32, 32, 32, 32, 32, 26, 32, 34, 100};
+            view.Controls = uigridlayout(view.Layout, [16, 1], 'Scrollable', 'on');
+            view.Controls.RowHeight = {56, 32, 44, 32, 32, 32, 120, 146, 32, 32, 32, 48, 26, 32, 34, 100};
             uilabel(view.Controls, 'Text', 'WaferId・BoatSlot・計測列を指定。バッチがあればRunごとに分けます。計測列の空欄は未計測として扱います。', 'WordWrap', 'on');
             uibutton(view.Controls, 'Text', 'Excel / CSV を開く', 'ButtonPushedFcn', @(~, ~) view.load());
             view.Source = uilabel(view.Controls, 'Text', '入力ファイル未選択', 'WordWrap', 'on');
@@ -56,13 +56,12 @@ classdef FurnaceInterpolationView < handle
             view.Minimum = view.numberRow('予測Slotの下限', 1, [1, view.Constants.MaximumSlot], true);
             view.Maximum = view.numberRow('予測Slotの上限', 1, [1, view.Constants.MaximumSlot], true);
             view.Step = view.numberRow('Slotの間隔', 1, [1, view.Constants.MaximumSlot], true);
-            view.RBFWidth = view.numberRow('RBF幅（0=自動）', view.Constants.DefaultRBFWidth, [0, Inf], false);
-            view.RBFRidge = view.numberRow('RBF正則化', view.Constants.DefaultRBFRidge, [view.Constants.MinimumRBFRidge, view.Constants.MaximumRBFRidge], false);
+            view.RBFInfo = uilabel(view.Controls,'Text',sprintf('RBF幅: %.6g / 正則化: %.6g\n変更は「9 設定」で行います。',settings.RBFWidth,settings.RBFRidge),'WordWrap','on');
             view.Extrapolate = uicheckbox(view.Controls, 'Text', '計測範囲外も予測する（外挿）', 'Value', false);
             view.Confirm = uibutton(view.Controls, 'Text', '列・バッチ区分・予測範囲を確認', 'ButtonPushedFcn', @(~, ~) view.confirm());
             view.Run = uibutton(view.Controls, 'Text', 'バッチごとに比較・補間', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) view.run());
             view.Messages = uitextarea(view.Controls, 'Editable', 'off', 'Value', {'実行待ち'});
-            parameters = {view.Wafer, view.Slot, view.Batch, view.Targets, view.Methods, view.Minimum, view.Maximum, view.Step, view.RBFWidth, view.RBFRidge, view.Extrapolate};
+            parameters = {view.Wafer, view.Slot, view.Batch, view.Targets, view.Methods, view.Minimum, view.Maximum, view.Step, view.Extrapolate};
             for index = 1:numel(parameters), parameters{index}.ValueChangedFcn = @(~, ~) view.changed(); end
             view.Slot.ValueChangedFcn = @(~, ~) view.slotChanged();
             view.Right = uigridlayout(view.Layout, [4, 1]); view.Right.RowHeight = {62, 34, 32, '1x', 34};
@@ -81,10 +80,11 @@ classdef FurnaceInterpolationView < handle
             for index = 1:3
                 tab = uitab(view.PlotTabs, 'Title', view.ChartNames{index}); grid = uigridlayout(tab, [1, 1]); view.Charts{index} = uiaxes(grid);
             end
-            exports = uigridlayout(view.Right, [1, 3]); exports.Padding = [0, 0, 0, 0];
+            exports = uigridlayout(view.Right, [1, 4]); exports.Padding = [0, 0, 0, 0];
             uibutton(exports, 'Text', '表示中の表を保存', 'ButtonPushedFcn', @(~, ~) view.exportTable());
             uibutton(exports, 'Text', 'グラフをPNGに保存', 'ButtonPushedFcn', @(~, ~) view.exportFigure());
             view.CopyFigure = uibutton(exports, 'Text', 'グラフをコピー', 'ButtonPushedFcn', @(~, ~) view.copyFigure());
+            view.SaveModel = uibutton(exports,'Text','選択モデルをMAT保存','Enable','off','ButtonPushedFcn',@(~,~)view.saveSelectedModel());
             view.resize(window.Position(3));
         end
         function importSource(view, source)
@@ -118,6 +118,7 @@ classdef FurnaceInterpolationView < handle
         end
         function clear(view)
             view.Report = [];
+            view.SaveModel.Enable='off';
             for name = {'Predictions', 'Comparison', 'Metrics', 'Validation', 'Summary'}, view.Tables.(name{1}).Data = table(); end
             for index = 1:numel(view.Charts), colorbar(view.Charts{index}, 'off'); cla(view.Charts{index}, 'reset'); end
             set(view.Selection, 'Items', {'比較を実行してください'}, 'ItemsData', [], 'Enable', 'off'); view.Headline.Text = '内部Slotの検証RMSE: —    R²: —';
@@ -168,13 +169,14 @@ classdef FurnaceInterpolationView < handle
                 first = report.Series{valid(1)};
                 best = find(report.Comparison.Batch == first.Batch & report.Comparison.Target == first.Target & report.Comparison.Rank == 1, 1);
                 set(view.Selection, 'Items', labels, 'ItemsData', valid', 'Value', best, 'Enable', 'on'); view.select();
+                view.SaveModel.Enable='on';
             else
                 view.Headline.Text = '成功したモデルがありません。「モデル比較」のNoteを確認してください。';
             end
             view.Messages.Value = {sprintf('成功 %d / %d。評価の順位はバッチ・目的変数ごとです。', numel(valid), height(report.Comparison)); ...
                 '両端の計測Slotを残し、内部Slotを1点ずつ外して検証しました。'; ...
                 '外挿は別表示。GPRの95%区間は応答の予測区間です。採用前に別の実測でも確認してください。'; ...
-                '生成したSlotに入力のWaferIdがない場合、WaferIdは空欄です。予測表・評価表・PNGを保存できます。'};
+                '生成したSlotに入力のWaferIdがない場合、WaferIdは空欄です。比較後に選択した1モデルをMAT保存できます。'};
             apply_app_theme(view.Layout, view.Settings.Theme);
         end
         function select(view)
@@ -236,14 +238,30 @@ classdef FurnaceInterpolationView < handle
         end
         function applySettings(view, settings)
             view.Settings = settings; view.changed(); apply_app_theme(view.Layout, settings.Theme);
+            view.RBFInfo.Text=sprintf('RBF幅: %.6g / 正則化: %.6g\n変更は「9 設定」で行います。',settings.RBFWidth,settings.RBFRidge);
         end
         function options = evaluationOptions(view)
-            options = struct('RBFWidth', view.RBFWidth.Value, 'RBFRidge', view.RBFRidge.Value, ...
+            options = struct('RBFWidth', view.Settings.RBFWidth, 'RBFRidge', view.Settings.RBFRidge, ...
                 'AllowExtrapolation', view.Extrapolate.Value, 'Bins', view.Settings.Bins);
         end
         function setBusy(view, busy)
             view.Run.Enable = matlab.lang.OnOffSwitchState(~busy);
             view.Selection.Enable = matlab.lang.OnOffSwitchState(~busy && ~isempty(view.Report) && any(~cellfun(@isempty, view.Report.Series)));
+            view.SaveModel.Enable=view.Selection.Enable;
+        end
+        function saveSelectedModel(view)
+            try
+                if isempty(view.Report) || strcmp(view.Selection.Enable,'off'), error('furnace:noModel','比較後に保存対象を選択してください。'); end
+                item=view.Report.Series{view.Selection.Value};
+                target=char(item.Batch+"_"+item.Target+"_"+item.Method);
+                [name,folder]=uiputfile('*.mat','選択した炉内補間モデルを保存',fullfile(view.Settings.SaveFolder,default_model_filename('furnace',target)));
+                if isequal(name,0), return; end
+                cleanup=view.Lock(); %#ok<NASGU>
+                report=save_furnace_model(item,view.Report.Options,fullfile(folder,name));
+                if report.Success, view.Messages.Value=[status_lines(view.Messages.Value);{['保存・予測一致の検証に成功しました: ' name]}]; end
+            catch err
+                view.showError(err);
+            end
         end
     end
     methods (Access = private)

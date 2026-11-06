@@ -4,7 +4,7 @@ if nargin < 7, existing = zeros(0, factors); end
 validateattributes(factors, {'numeric'}, {'scalar', 'integer', '>=', 1, '<=', 8});
 validateattributes(runs, {'numeric'}, {'scalar', 'integer', '>=', 1, '<=', 300});
 validateattributes(seed, {'numeric'}, {'scalar', 'integer', '>=', 0, '<=', 2^32 - 1});
-validateattributes(levels, {'numeric'}, {'scalar', 'integer', '>=', 2, '<=', 3});
+validateattributes(levels, {'numeric'}, {'scalar', 'integer', '>=', 2, '<=', 5});
 validateattributes(existing, {'numeric'}, {'2d', 'real', 'finite', '>=', -1, '<=', 1});
 if size(existing, 2) ~= factors, error('doe:columns', '既存計画の列数を因子数と一致させてください。'); end
 if ~any(strcmp(method, {'D', 'I', 'orthogonal'})), error('doe:method', '計画方式が不正です。'); end
@@ -29,12 +29,12 @@ for row = 1:term_count
     combined = powers(row, :) + powers;
     moments(row, :) = (prod(1 ./ (combined + 1), 2) .* all(mod(combined, 2) == 0, 2))';
 end
-candidate_levels = [-1, 0, 1];
+candidate_levels = linspace(-1, 1, levels);
 best_score = Inf; design = [];
 STARTS = 4; MAX_PASSES = 12; IMPROVEMENT_TOLERANCE = 1e-9;
 for start = 1:STARTS
     for attempt = 1:200
-        sampled = reshape(candidate_levels(randi(3, runs, factors)), runs, factors);
+        sampled = reshape(candidate_levels(randi(levels, runs, factors)), runs, factors);
         candidate = [existing; sampled];
         matrix = doe_model_matrix(candidate, model);
         if rank(matrix) == term_count, break; end
@@ -80,7 +80,7 @@ end
 end
 
 function design = orthogonalArray(factors, levels)
-% 素数水準の射影空間から強さ2の直交表を作る。2水準L4/L8/L16、3水準L9/L27。
+% 射影空間から強さ2の直交表を作る。4水準は整数mod4でなく有限体GF(4)を使う。
 dimensions = 2;
 while (levels^dimensions - 1) / (levels - 1) < factors, dimensions = dimensions + 1; end
 points = dec2base(0:levels^dimensions - 1, levels, dimensions) - '0';
@@ -91,6 +91,17 @@ for row = 1:size(generators, 1)
     keep(row) = generators(row, first) == 1;
 end
 generators = generators(keep, :);
-design = mod(points * generators(1:factors, :)', levels);
+if levels == 4
+    multiplication = [0,0,0,0;0,1,2,3;0,2,3,1;0,3,1,2];
+    design = zeros(size(points, 1), factors);
+    for factor = 1:factors
+        for dimension = 1:dimensions
+            term = multiplication(sub2ind([4,4], points(:, dimension)+1, repmat(generators(factor, dimension)+1, size(points, 1), 1)));
+            design(:, factor) = bitxor(design(:, factor), term);
+        end
+    end
+else
+    design = mod(points * generators(1:factors, :)', levels);
+end
 design = 2 * design / (levels - 1) - 1;
 end

@@ -76,7 +76,7 @@ for target = 1:numel(target_names)
             index = (target - 1)*numel(methods) + candidate;
             series{index} = struct('Target', target_names(target), 'Method', string(method), 'Slots', x, 'Actual', y, ...
                 'SourceIndex', source_index, 'ValidationPrediction', cv_prediction, 'TrainingPrediction', training_prediction, ...
-                'Query', query, 'Prediction', predicted, 'Deviation', deviation, 'Interval', interval, 'Outside', outside);
+                'Query', query, 'Prediction', predicted, 'Deviation', deviation, 'Interval', interval, 'Outside', outside, 'Model', model);
         catch err
             if strcmp(err.identifier, 'AnalysisApp:cancelled'), rethrow(err); end
             notes(candidate) = string(err.identifier) + ": " + string(err.message);
