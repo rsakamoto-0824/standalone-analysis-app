@@ -1,5 +1,6 @@
-function report = compare_gpr_kernels(kind, X, y, kernels, fit_method, folds, seed, bins, progress)
+function report = compare_gpr_kernels(kind, X, y, kernels, fit_method, folds, seed, bins, progress, context)
 if nargin < 9, progress = []; end
+if nargin < 10, context = struct(); end
 constants = model_constants();
 if ~any(strcmp(kind, {'apc', 'swing', 'generic'}))
     error('compare_gpr_kernels:kind', 'APC・Swing Curve・汎用GPRの学習だけが比較対象です。');
@@ -15,8 +16,8 @@ validateattributes(folds, {'numeric'}, {'scalar', 'integer', '>=', 2, '<=', min(
 if strcmp(kind, 'apc') && size(X, 1) - ceil(size(X, 1) / folds) < constants.MIN_TRAIN_ROWS
     error('compare_gpr_kernels:apcRows', 'APCは各分割の学習に25行以上必要です。行数を増やすか、分割数を増やしてください。');
 end
-if any(strcmp(kind, {'apc', 'swing'})) && size(X, 2) ~= 4
-    error('compare_gpr_kernels:columns', 'APC・Swing Curveの説明変数は指定順の4列が必要です。');
+if strcmp(kind, 'apc') && size(X, 2) ~= 4
+    error('compare_gpr_kernels:columns', 'APCの説明変数は指定順の4列が必要です。');
 end
 require_r2025b();
 report = evaluate_kernel_candidates(X, y, kernels, folds, seed, bins, @train, @predictNumeric, progress);
@@ -28,7 +29,10 @@ report.Summary.FitMethod = repmat(string(fit_method), height(report.Summary), 1)
         switch kind
             case 'apc', [model, warnings] = train_apc_model(inputs, response, false, kernel, fit_method);
             case 'swing'
-                [model, warnings, details] = train_swing_curve_model(inputs(:, 1:3), inputs(:, 4), response, kernel, fit_method, periodic_progress);
+                names = constants.PREDICTOR_NAMES; options = swing_period_options();
+                if isfield(context, 'PredictorNames'), names = context.PredictorNames; end
+                if isfield(context, 'PeriodOptions'), options = context.PeriodOptions; end
+                [model, warnings, details] = train_swing_gpr_model(inputs, response, names, kernel, fit_method, periodic_progress, options);
             case 'generic', [model, warnings] = train_generic_gpr_model(inputs, response, kernel, fit_method);
         end
     end

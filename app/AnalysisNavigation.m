@@ -38,7 +38,7 @@ classdef AnalysisNavigation < handle
                 'Visible', 'off', 'FontWeight', 'bold');
             page.Layout.Row = 1; page.Layout.Column = 1;
             button = uibutton(navigation.Menu, 'state', 'Text', title_text, 'FontSize', 14, ...
-                'Tooltip', title_text, 'ValueChangedFcn', @(~, ~) navigation.select(page));
+                'HorizontalAlignment', 'left', 'Tooltip', title_text, 'ValueChangedFcn', @(~, ~) navigation.select(page));
             button.Layout.Row = numel(navigation.Pages) + 1; button.Layout.Column = 1;
             navigation.Pages{end + 1} = page; navigation.Buttons{end + 1} = button;
             if isempty(navigation.ActivePage), navigation.SelectedTab = page; end

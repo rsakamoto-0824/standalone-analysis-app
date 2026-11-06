@@ -27,11 +27,19 @@ view.Selection.Value = 7; view.Selection.ValueChangedFcn(view.Selection, []);
 assert(contains(view.Headline.Text, 'Run-B'));
 view.Selection.Value = 3; view.Selection.ValueChangedFcn(view.Selection, []);
 assert(contains(view.Headline.Text, 'poly3'));
+view.ColorColumn.Value = 'BoatSlot'; view.ColorColumn.ValueChangedFcn(view.ColorColumn, []);
+points = findobj(view.Charts{3}, 'Type', 'scatter');
+assert(size(points.CData, 1) == numel(points.XData));
+view.ColorColumn.Value = 'WaferId'; view.ColorColumn.ValueChangedFcn(view.ColorColumn, []);
+points = findobj(view.Charts{3}, 'Type', 'scatter');
+assert(numel(unique(points.CData)) == numel(points.XData));
+view.ColorColumn.Value = '(単色)'; view.ColorColumn.ValueChangedFcn(view.ColorColumn, []);
+assert(any(view.Tables.Metrics.Data.Metric == "KLダイバージェンス"));
 view.Source.Text = '合成データ / 2バッチ / GPR未学習';
 view.Messages.Value = {'R2022bの表示・操作の補助確認'; 'スプライン/RBF/3次多項式のみ補助計算。GPRは未学習。'; 'WaferIdは架空のDEMO識別子。実測データではありません。'};
 view.Tabs.SelectedTab = view.Tables.Comparison.Parent.Parent;
 assert(height(view.currentTable()) == 12);
-file = [tempname, '.csv']; file_cleanup = onCleanup(@() delete(file)); writetable(view.currentTable(), file); loaded = readtable(file); assert(height(loaded) == 12);
+file = [tempname, '.csv']; file_cleanup = onCleanup(@() delete(file)); writetable(view.currentTable(), file); loaded = readtable(file, 'VariableNamingRule', 'preserve'); assert(height(loaded) == 12);
 if ~isempty(image_folder)
     drawnow; exportapp(app.Window, fullfile(image_folder, '31-furnace-comparison.png'));
 end

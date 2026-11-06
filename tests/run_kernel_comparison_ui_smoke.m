@@ -7,9 +7,10 @@ app.Window.Position = [40, 40, 1600, 1000];
 main = app.MainTabs;
 x = (1:40)'; inputs = [sin(x/4), cos(x/5), sin(x/7), 850 + 10*x]; actual = 50 + 2*sin(x/4);
 source_rows = x + 1; names = {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'};
+color_source = struct('Headers', {[names, {'Batch'}]}, 'Cells', {[num2cell(inputs), cellstr("Batch-" + string(mod(x, 2)))]});
 for panel = 1:3
     app.openComparison(panel); state = app.Panels{panel}; view = state.Comparison;
-    app.openComparison(panel); assert(numel(state.Views.Children) == 7);
+    app.openComparison(panel); assert(sum(strcmp({state.Views.Children.Title}, 'カーネル比較')) == 1);
     assert(strcmp(view.Kernels.Multiselect, 'on'));
     assert(view.Folds.Layout.Row == 1 && view.Seed.Layout.Row == 2);
     assert(any(strcmp(view.Kernels.Items, 'swingperiodic')) == (panel == 2));
@@ -18,19 +19,27 @@ for panel = 1:3
     view.Kernels.Value = kernels;
     report = evaluate_kernel_candidates(inputs, actual, kernels, 5, 0, 0, @syntheticModel, @syntheticPrediction);
     report.Kind = state.Kind; report.FitMethod = '表示見本（GPR未学習）';
-    view.showReport(report, inputs, actual, source_rows, names);
+    view.showReport(report, inputs, actual, source_rows, names, color_source);
     app.openComparison(panel); main.SelectedTab = state.Layout.Parent;
     state.Source.Text = '合成データ／GPR未学習'; state.Headline.Text = '合成データと代替学習器の表示見本（実GPRの比較結果ではありません）';
     assert(height(view.Summary.Data) == 3); assert(height(view.Metrics.Data) == 48);
     assert(view.selectedIndex() == 2); assert(strcmp(view.Save.Enable, 'on'));
+    if panel == 1
+        view.ColorColumn.Value = 'Batch'; view.ColorColumn.ValueChangedFcn(view.ColorColumn, []);
+        points = findobj(view.Charts{2}, 'Type', 'scatter'); assert(numel(unique(points.CData)) == 2);
+        view.ColorColumn.Value = 'RESIST_TH'; view.ColorColumn.ValueChangedFcn(view.ColorColumn, []);
+        points = findobj(view.Charts{3}, 'Type', 'scatter'); assert(size(points.CData, 1) == numel(x));
+        view.ColorColumn.Value = '(単色)'; view.ColorColumn.ValueChangedFcn(view.ColorColumn, []);
+    end
     view.Selection.Value = 1; view.Selection.ValueChangedFcn(view.Selection, []);
     assert(isequal(view.Predictions.Data.ValidationPredicted, report.OOFPredictions(:, 1)));
     assert(isequal(view.Predictions.Data.SourceRow, source_rows));
     assert(height(view.ColumnSummary.Data) == 99);
     csv_file = [tempname, '.csv']; csv_cleanup = onCleanup(@() delete(csv_file));
     view.Tabs.SelectedTab = view.Summary.Parent.Parent;
-    writetable(view.currentTable(), csv_file); loaded = readtable(csv_file);
+    writetable(view.currentTable(), csv_file); loaded = readtable(csv_file, 'VariableNamingRule', 'preserve');
     assert(height(loaded) == 3 && any(strcmp(loaded.Properties.VariableNames, 'RMSE')));
+    assert(any(strcmp(loaded.Properties.VariableNames, 'KLダイバージェンス')));
     lock = app.lockControls(view); assert(strcmp(view.Start.Enable, 'off')); clear lock; %#ok<NASGU>
     assert(strcmp(view.Start.Enable, 'on') && strcmp(view.Save.Enable, 'on'));
     if panel == 1 && ~isempty(image_folder)
@@ -47,8 +56,10 @@ failed = evaluate_kernel_candidates(inputs, actual, {'matern32', 'matern52'}, 5,
 view.showReport(failed, inputs, actual, source_rows, names); assert(strcmp(view.Save.Enable, 'off'));
 assert(height(view.Summary.Data) == 2);
 view.Kernels.ValueChangedFcn(view.Kernels, []); assert(isempty(view.Report));
-app.Window.Position(3:4) = [900, 780]; drawnow; assert(state.Right.Layout.Row == 2);
-app.Window.Position(3:4) = [1366, 900]; drawnow; assert(state.Right.Layout.Column == 2);
+app.Window.Position(3:4) = [900, 780]; drawnow; pause(0.5); drawnow;
+app.Window.SizeChangedFcn(app.Window, []); drawnow; assert(state.Right.Layout.Row == 2);
+app.Window.Position(3:4) = [1366, 900]; drawnow; pause(0.5); drawnow;
+app.Window.SizeChangedFcn(app.Window, []); drawnow; assert(state.Right.Layout.Column == 2);
 apply_app_theme(app.Window, 'ダーク'); apply_app_theme(app.Window, 'ライト');
 assert(numel(findall(groot, 'Type', 'figure')) == 1);
 fprintf('Kernel comparison UI: all 3 functions, selection, metrics, CSV, lock/unlock, stale results, failure, resize, single window: PASS\n');

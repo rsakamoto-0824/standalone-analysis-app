@@ -69,14 +69,17 @@ comparison = compare_models('old.mat', 'new.mat', Xcheck);
 ## 5. Windows 実行ファイルを作成する
 
 ```matlab
-result = build_windows;
+standard = build_windows('standard'); % 通常版
+pro = build_windows('pro');           % Pro版
 ```
 
-実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/ProcessInsightTool.exe` と付随ファイルを生成します。画面タイトルは「Process Insight Tool」です。`core/`、`app/` とHTML手順書のフォルダを同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
+実行環境・必要製品・`.mlapp` の存在を確認し、全テスト成功後に `build/windows/standard/ProcessInsightTool.exe` または `build/windows/pro/ProcessInsightToolPro.exe` と付随ファイルを生成します。画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。`core/`、`app/` とHTML手順書のフォルダを同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
 
 配布用の Runtime は [MathWorks の MATLAB Runtime 配布ページ](https://www.mathworks.com/products/compiler/matlab-runtime.html)から R2025b / Windows 64bit を取得します。会社の許可済み手順で、ビルド環境と対応する更新版をオフライン配布してください。アプリ自身がネットから Runtime を取得する処理はありません。
 
 `build/windows/` 内の exe だけを抜き出さず、生成された付随ファイルもまとめて配布します。出力の readme に追加の配布指示があれば従ってください。
+
+通常版はPro専用のSHAPカーブ近似・残差診断7ファイルを隔離ソースから除外してコンパイルします。Pro版にはそれらを含めます。ビルド後の `edition-manifest.json` でEditionとファイル一覧を確認してください。実行時の設定や引数で版を変更する機能はありません。MATLABソースの開発確認は `launch_analysis_app('standard')` / `launch_analysis_app('pro')` で切り替えます。
 
 ## 6. MATLAB 本体のない端末で確認する
 
@@ -105,3 +108,12 @@ MATLAB Runtime R2025b だけを入れた Windows 64bit 端末で、以下を実�
 - [ ] 旧・新モデルの `compare_models` を開発用 R2025b 上で実行し、結果を確認済み。
 
 実行した OS、MATLAB / Runtime の更新版、成功・失敗件数、結果を `verification.md` に追記してください。ここまで確認するまでは配布検証完了として扱いません。
+
+## 版ごとの追加確認
+
+- [ ] 通常版でSHAP分布・依存図を使え、レジスト膜厚のフィッティング／カーブ評価は利用できない。
+- [ ] Pro版で三角関数・スプラインを切り替え、極値・区間ごとの山間／谷間の傾き・残差診断を表示できる。APC学習にはSwing Curve評価が付かない。
+- [ ] Swing CurveがRESIST_THの1列で学習でき、248nm÷1.77を基準に周期探索する。任意範囲指定とカーネル比較でも同じ指定を使う。
+- [ ] MAT保存をキャンセル後、モデル一覧と読込済みMATから対象を選んでSHAPを計算できる。
+- [ ] SwingCurve_Model / GenericGPR_Modelの保存名と、MAT内のTrain_Model、再読込み時の予測一致を確認する。
+- [ ] 数値列・文字列・欠損を含む色指定で、元ファイル行の対応・点数・評価値を変えずに表示できる。

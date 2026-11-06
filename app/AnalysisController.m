@@ -4,6 +4,8 @@ classdef AnalysisController < handle
         Panels = cell(1, 7)
         LogFolder
         Furnace = []
+        Edition
+        ModelRegistry = struct('Label', {}, 'Model', {}, 'Kind', {})
     end
     properties (Access = private)
         Constants
@@ -14,10 +16,15 @@ classdef AnalysisController < handle
         FurnaceTab
     end
     methods
-        function app = AnalysisController(window)
+        function app = AnalysisController(window, edition)
             project_root = fileparts(fileparts(mfilename('fullpath')));
             addpath(fullfile(project_root, 'core'));
             require_r2025b();
+            if nargin < 2, edition = app_edition(); end
+            if ~any(strcmp(edition, {'standard', 'pro'})) || (isdeployed && ~strcmp(edition, app_edition()))
+                error('AnalysisApp:edition', 'この実行ファイルの版は変更できません。');
+            end
+            app.Edition = edition;
             app.Constants = model_constants();
             app.SettingsPath = fullfile(prefdir, 'StandaloneAnalysisApp', 'settings.json');
             settings_warning = '';
@@ -28,6 +35,7 @@ classdef AnalysisController < handle
             end
             app.Window = window;
             window.Name = 'Process Insight Tool';
+            if strcmp(app.Edition, 'pro'), window.Name = [window.Name ' Pro']; end
             window.Position(3:4) = [1320, 860]; window.Resize = 'on'; window.AutoResizeChildren = 'off';
             app.LogFolder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
             tabs = AnalysisNavigation(window); app.MainTabs = tabs;
@@ -41,7 +49,7 @@ classdef AnalysisController < handle
             end
             tabs.SelectionChangedFcn = @(~, event) app.openFurnace(event.NewValue);
             app.createSettings(tabs.addPage('9 設定'));
-            create_app_help(tabs.addPage('10 Help'), project_root);
+            create_app_help(tabs.addPage('10 Help'), project_root, app.Edition);
             window.SizeChangedFcn = @(~, ~) app.resizePanels();
             app.resizePanels(); app.applyTheme();
             if ~isempty(settings_warning), app.message(1, ['設定を読めないため初期値を使用: ' settings_warning]); end
@@ -61,7 +69,7 @@ classdef AnalysisController < handle
             state.LoadModel = uibutton(controls, 'Text', '学習済み MAT を開く', 'ButtonPushedFcn', @(~, ~) app.loadModel(index));
             state.ModelInfo = uitextarea(controls, 'Editable', 'off', 'Value', {'BasisFunction: constant（固定）'});
             state.Mode = uidropdown(controls, 'Items', {'通常'}, 'ValueChangedFcn', @(~, ~) app.updateMapping(index));
-            options = uigridlayout(controls, [2, 2]); options.Padding = [0, 0, 0, 0]; options.RowHeight = {30, 30};
+            options = uigridlayout(controls, [2, 2]); options.Padding = [0, 0, 0, 0]; options.RowHeight = {30, 30}; options.RowSpacing = 4;
             kernels = app.Constants.KERNELS; default_kernel = app.Settings.Kernel;
             if strcmp(kind, 'swing'), kernels = app.Constants.SWING_KERNELS; default_kernel = app.Settings.SwingKernel; end
             state.Kernel = uidropdown(options, 'Items', kernels, 'Value', default_kernel, 'Tooltip', 'kernel。swingperiodicはRESIST_THの周期を内部で最適化します。');
@@ -85,7 +93,11 @@ classdef AnalysisController < handle
             chart_tab = uitab(state.Views, 'Title', 'グラフ'); chart_grid = uigridlayout(chart_tab, [1, 1]);
             state.ChartTabs = uitabgroup(chart_grid); state.Verification = app.tableTab(state.Views, '保存後検証');
             if any(strcmp(kind, {'apc', 'swing', 'generic'}))
-                controls.RowHeight{7} = 66;
+                controls.RowHeight{7} = 100;
+                options.RowHeight = {30, 30, 30};
+                state.ShapOpen = uibutton(options, 'Text', 'MAT保存なしのSHAP実行画面を開く', ...
+                    'ButtonPushedFcn', @(~, ~) app.openShapSelection(index));
+                state.ShapOpen.Layout.Row = 3; state.ShapOpen.Layout.Column = [1, 2];
             end
             state.BaseTabs = state.Views.Children;
             export_bar = uigridlayout(state.Right, [1, 3]); export_bar.Padding = [0, 0, 0, 0];
@@ -99,15 +111,16 @@ classdef AnalysisController < handle
                 state.Actual.Parent.Visible = 'off'; controls.RowHeight{9} = 0;
             end
             state.Mode.Visible = 'off'; controls.RowHeight{6} = 0;
-            if ~any(strcmp(kind, {'apc', 'swing', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{11} = 0; end
+            if ~any(strcmp(kind, {'apc', 'swing', 'generic', 'shap'})), state.IsPlot.Visible = 'off'; controls.RowHeight{11} = 0; end
             if strcmp(kind, 'swing')
                 controls.RowHeight{5} = 100;
-                state.IsPlot.Text = '学習後にSHAP・Swing Curve近似を計算'; state.IsPlot.Value = false;
+                state.IsPlot.Text = 'MAT保存・検証の成功後にSHAPを自動計算'; state.IsPlot.Value = false;
                 state.IsPlot.Tooltip = '保存・検証後に先頭最大1000行でSHAPを計算します。処理時間が増えます。';
             end
-            if strcmp(kind, 'generic')
+            if any(strcmp(kind, {'generic', 'swing'}))
                 delete(state.Mode); controls.RowHeight{6} = 32;
-                state.InputCount = app.numberRow(controls, '説明変数の数', app.Settings.InputCount, [1, 100]);
+                count = app.Settings.InputCount; if strcmp(kind, 'swing'), count = 1; end
+                state.InputCount = app.numberRow(controls, '説明変数の数（最低1）', count, [1, 100]);
                 state.InputCount.Parent.Layout.Row = 6;
                 state.InputCount.ValueChangedFcn = @(~, ~) app.updateMapping(index);
             elseif strcmp(kind, 'predict')
@@ -153,7 +166,133 @@ classdef AnalysisController < handle
                 state.Headline.Text = '結果とグラフをこの画面内に表示します。';
             end
             app.Panels{index} = state;
-            if strcmp(kind, 'swing'), app.describeSwingKernel(index); end
+            if strcmp(kind, 'swing'), app.createSwingOptions(index); app.describeSwingKernel(index); end
+            if any(strcmp(kind, {'apc', 'swing', 'generic', 'shap'})), app.createShapSelection(index); end
+        end
+
+        function createSwingOptions(app, index)
+            state = app.Panels{index}; options = swing_period_options(); tab = uitab(state.Views, 'Title', 'Swing Curve設定');
+            layout = uigridlayout(tab, [8, 2]); layout.ColumnWidth = {'1.2x', '1x'}; layout.RowHeight = {50, 32, 32, 38, 32, 32, 32, 60};
+            hint = uilabel(layout, 'Text', '説明変数は最低1列。最後の説明変数RESIST_THに、レジスト膜厚（nm）の列を割り当てます。', 'WordWrap', 'on'); hint.Layout.Column = [1, 2];
+            uilabel(layout, 'Text', '露光波長（nm）'); state.Wavelength = uieditfield(layout, 'numeric', 'Value', options.Wavelength, 'Limits', [eps, Inf]);
+            uilabel(layout, 'Text', 'レジスト屈折率'); state.RefractiveIndex = uieditfield(layout, 'numeric', 'Value', options.RefractiveIndex, 'Limits', [eps, Inf]);
+            state.PeriodReference = uilabel(layout, 'Text', '', 'WordWrap', 'on'); state.PeriodReference.Layout.Column = [1, 2];
+            state.CustomPeriod = uicheckbox(layout, 'Text', '周期の評価範囲を指定', 'Value', false); state.CustomPeriod.Layout.Column = [1, 2];
+            uilabel(layout, 'Text', '周期下限（nm）'); state.PeriodLower = uieditfield(layout, 'numeric', 'Value', options.PeriodBounds(1), 'Limits', [eps, Inf]);
+            uilabel(layout, 'Text', '周期上限（nm）'); state.PeriodUpper = uieditfield(layout, 'numeric', 'Value', options.PeriodBounds(2), 'Limits', [eps, Inf]);
+            hint = uilabel(layout, 'Text', '未指定時は波長÷屈折率の75〜125%を探索します。周期はGPRの学習パラメータに含めず、周辺尤度で内部探索します。', 'WordWrap', 'on'); hint.Layout.Column = [1, 2];
+            state.BaseTabs = [state.BaseTabs(:); tab]; app.Panels{index} = state;
+            fields = {'Wavelength', 'RefractiveIndex', 'CustomPeriod', 'PeriodLower', 'PeriodUpper'};
+            for item = 1:numel(fields), state.(fields{item}).ValueChangedFcn = @(~, ~) app.swingOptionsChanged(index); end
+            app.swingOptionsChanged(index);
+        end
+        function swingOptionsChanged(app, index)
+            state = app.Panels{index}; reference = state.Wavelength.Value / state.RefractiveIndex.Value;
+            state.PeriodReference.Text = sprintf('基準周期 = 波長÷屈折率 = %.6f nm', reference);
+            enabled = matlab.lang.OnOffSwitchState(state.CustomPeriod.Value);
+            state.PeriodLower.Enable = enabled; state.PeriodUpper.Enable = enabled;
+            app.invalidate(index);
+        end
+        function options = periodOptions(app, index)
+            state = app.Panels{index}; bounds = [];
+            if state.CustomPeriod.Value, bounds = [state.PeriodLower.Value, state.PeriodUpper.Value]; end
+            options = swing_period_options(state.Wavelength.Value, state.RefractiveIndex.Value, bounds);
+        end
+        function context = comparisonContext(app, index)
+            context = struct(); state = app.Panels{index};
+            if strcmp(state.Kind, 'swing')
+                context.PredictorNames = state.Mapping.Data(1:end-1, 2)'; context.PeriodOptions = app.periodOptions(index);
+            end
+        end
+        function openShapSelection(app, index)
+            state = app.Panels{index}; state.Views.SelectedTab = state.ShapRun.Parent.Parent;
+        end
+        function createShapSelection(app, index)
+            state = app.Panels{index}; tab = uitab(state.Views, 'Title', 'SHAP実行');
+            layout = uigridlayout(tab, [5, 1]); layout.RowHeight = {70, 34, 36, 80, '1x'};
+            message = '通常の学習：モデル学習 → MAT保存 → 保存後検証 → SHAP自動計算。保存をキャンセルしても、下の対象からSHAPだけを計算できます。';
+            if strcmp(state.Kind, 'generic'), message = 'モデルを学習してから、下の対象でSHAPを計算できます。MAT保存は必須ではありません。'; end
+            if strcmp(state.Kind, 'shap'), message = 'MATを読み込むか、画面内で学習・比較したモデルを選びます。入力列の確認後、MATを保存せずSHAPを計算できます。'; end
+            uilabel(layout, 'Text', message, 'WordWrap', 'on');
+            state.ShapModel = uidropdown(layout, 'Items', {'対象モデルなし'}, 'ItemsData', 0, 'Value', 0, 'Enable', 'off', ...
+                'ValueChangedFcn', @(~, ~) app.selectShapModel(index));
+            state.ShapRun = uibutton(layout, 'Text', '保存せず、選択したモデルでSHAPを計算', 'Enable', 'off', 'ButtonPushedFcn', @(~, ~) app.runSelectedShap(index));
+            uilabel(layout, 'Text', '学習画面では選択モデルの学習データ（先頭最大1000行）を使用します。SHAP解析画面では確認した入力ファイルを使用します。通常版は分布・依存図まで、Pro版はレジスト膜厚の近似・カーブ評価も利用できます。APC学習画面にはSwing Curve評価を付けません。', 'WordWrap', 'on');
+            state.BaseTabs = [state.BaseTabs(:); tab]; app.Panels{index} = state;
+            if any(strcmp(state.Kind, {'apc', 'swing'}))
+                state.IsPlot.Text = 'MAT保存・検証の成功後にSHAPを自動計算';
+                if strcmp(state.Kind, 'apc'), state.IsPlot.Text = 'MAT保存・検証後のSHAPグラフを表示'; end
+            end
+            if any(strcmp(state.Kind, {'apc', 'swing', 'generic'})), state.Run.Text = '学習してMAT保存へ'; end
+        end
+        function identifier = registerModel(app, model, label, kind, target)
+            if nargin < 5, target = 0; end
+            identifier = numel(app.ModelRegistry) + 1;
+            label = sprintf('%d: %s', identifier, label);
+            app.ModelRegistry(end+1) = struct('Label', label, 'Model', model, 'Kind', kind);
+            for panel = 1:numel(app.Panels)
+                state = app.Panels{panel};
+                if isempty(state) || ~isfield(state, 'ShapModel'), continue; end
+                previous = state.ShapModel.Value; if previous == 0 || panel == target, previous = identifier; end
+                set(state.ShapModel, 'Items', {app.ModelRegistry.Label}, 'ItemsData', 1:numel(app.ModelRegistry), 'Value', previous, 'Enable', 'on');
+                state.ShapRun.Enable = 'on';
+                if strcmp(state.Kind, 'shap'), app.selectShapModel(panel); end
+            end
+        end
+        function registerComparisonModels(app, index, report)
+            identifiers = zeros(numel(report.Models), 1);
+            for candidate = 1:numel(report.Models)
+                if report.Summary.Status(candidate) == "成功"
+                    identifiers(candidate) = app.registerModel(report.Models{candidate}, [app.Panels{index}.Kind ': 比較 ' char(report.Summary.Kernel(candidate))], app.Panels{index}.Kind);
+                end
+            end
+            best = find(report.Summary.Rank == 1, 1);
+            if ~isempty(best), app.Panels{index}.ShapModel.Value = identifiers(best); end
+        end
+        function selectShapModel(app, index)
+            state = app.Panels{index};
+            if ~strcmp(state.Kind, 'shap') || state.ShapModel.Value == 0, return; end
+            selected = app.ModelRegistry(state.ShapModel.Value); state.Model = selected.Model;
+            state.SelectedModelKind = selected.Kind; state.ModelPath = '';
+            state.ModelInfo.Value = {selected.Label; ['PredictorNames: ' strjoin(selected.Model.PredictorNames, ', ')]; '画面内のモデルを使用（MAT保存は不要）'};
+            app.Panels{index} = state; app.updateMapping(index);
+        end
+        function runSelectedShap(app, index)
+            try
+                state = app.Panels{index}; selected = app.ModelRegistry(state.ShapModel.Value);
+                state.SelectedModelKind = selected.Kind; app.Panels{index} = state;
+                if strcmp(state.Kind, 'shap')
+                    if ~state.Confirmed, error('AnalysisApp:unconfirmed', '選択モデルに合わせて入力列を確認してください。'); end
+                    matrix = app.mappedInput(state); training = false; rows = state.Data.RowNumbers; row_label = 'SourceRow';
+                else
+                    matrix = selected.Model.X; if istable(matrix), matrix = table2array(matrix); end
+                    training = true; rows = (1:size(matrix, 1))'; row_label = 'ModelRow';
+                end
+                cleanup = app.lockControls([]); %#ok<NASGU>
+                app.MainTabs.SelectedTab = state.Layout.Parent;
+                show_plot = state.IsPlot.Value || strcmp(state.Kind, 'swing');
+                app.runShap(index, selected.Model, matrix, training, rows, row_label, show_plot);
+                if show_plot
+                    state.Views.SelectedTab = state.ChartTabs.Parent.Parent;
+                elseif training
+                    state.Views.SelectedTab = state.Views.Children(strcmp({state.Views.Children.Title}, 'SHAP 値'));
+                else
+                    state.Views.SelectedTab = state.Results.Parent.Parent;
+                end
+                state.Headline.Text = ['SHAP対象: ' selected.Label newline '「モデル評価」の表には、直前の学習・推定結果を保持しています。'];
+                app.applyTheme();
+                app.message(index, ['MAT保存なしでSHAPを計算しました: ' selected.Label]);
+            catch err
+                app.showError(index, err);
+            end
+        end
+        function source = scatterSource(app, index, inputs, actual)
+            state = app.Panels{index};
+            if ~isempty(state.Data) && size(state.Data.Cells, 1) == numel(actual)
+                source = state.Data;
+            else
+                source = struct('Headers', {cellstr("入力" + string(1:size(inputs, 2)))}, 'Cells', {num2cell(inputs)});
+            end
         end
 
         function view = tableTab(~, parent, title_text)
@@ -233,7 +372,9 @@ classdef AnalysisController < handle
                     state.ModelInfo.Value = [state.ModelInfo.Value; {sprintf('swingperiodic / 周期 %.8g（入力の膜厚単位）', periodic.Period)}];
                     state.Controls.RowHeight{5} = 100;
                 end
-                app.Panels{index} = state; app.updateMapping(index);
+                app.Panels{index} = state; app.registerModel(state.Model, ['MAT: ' name], 'loaded');
+                if isfield(state, 'ShapModel'), state.ShapModel.Value = numel(app.ModelRegistry); end
+                state.SelectedModelKind = 'loaded'; app.Panels{index} = state; app.updateMapping(index);
             catch err
                 app.showError(index, err);
             end
@@ -241,14 +382,19 @@ classdef AnalysisController < handle
         function updateMapping(app, index)
             state = app.Panels{index}; roles = {}; positional = false;
             switch state.Kind
-                case {'apc', 'swing'}, roles = [app.Constants.PREDICTOR_NAMES, {'y'}];
+                case 'apc', roles = [app.Constants.PREDICTOR_NAMES, {'y'}];
+                case 'swing'
+                    count = state.InputCount.Value;
+                    if count == 4, roles = [app.Constants.PREDICTOR_NAMES, {'y'}];
+                    else, roles = [cellstr("入力" + string(1:count-1)), {'RESIST_TH', 'y'}]; end
+                    positional = true;
                 case 'generic', roles = [cellstr("入力" + string(1:state.InputCount.Value)), {'y'}]; positional = true;
                 case 'doe', roles = cellstr("F" + string(1:state.Factors.Value)); positional = true;
                 case {'predict', 'shap'}
                     if ~isempty(state.Model)
                         roles = state.Model.PredictorNames;
                         if startsWith(state.Mode.Value, '面内推定'), roles = {'X', 'Y'}; end
-                        if strcmp(state.Mode.Value, 'ノイズ除去用SHAP'), roles = app.Constants.PREDICTOR_NAMES; end
+                        if strcmp(state.Mode.Value, 'ノイズ除去用SHAP'), roles = state.Model.PredictorNames; end
                     end
             end
             if ~isempty(state.Data)
@@ -364,11 +510,13 @@ classdef AnalysisController < handle
                         end
                         progress_cleanup = onCleanup(@() app.closeProgress(progress));
                         callback = @(count, maximum, period) app.periodProgress(progress, count, maximum, period);
-                        [model, warnings, periodic_details] = train_swing_curve_model(X(:, 1:3), X(:, 4), y, kernel, fit_method, callback);
+                        [model, warnings, periodic_details] = train_swing_gpr_model(X, y, state.Mapping.Data(1:end-1, 2), kernel, fit_method, callback, app.periodOptions(index));
                         clear progress_cleanup;
                     case 'generic', [model, warnings] = train_generic_gpr_model(X, y, kernel, fit_method);
                 end
                 entry.PredictorNames = model.PredictorNames; entry.ResponseName = model.ResponseName; app.showWarnings(index, warnings);
+                app.registerModel(model, [state.Kind ': ' char(kernel) ' / ' name extension], state.Kind, index);
+                current = app.Panels{index}; current.SelectedModelKind = state.Kind; app.Panels{index} = current;
                 prediction = predict(model, format_model_input(model, X));
                 app.displayEvaluation(index, X, y, prediction, '学習データへの当てはまり（汎化性能ではありません）');
                 if ~isempty(periodic_details), app.displayPeriodicTraining(index, periodic_details); end
@@ -376,7 +524,7 @@ classdef AnalysisController < handle
                 [entry.SavePath, report] = app.saveModel(index, model, kernel, fit_method, size(X, 1));
                 if isempty(entry.SavePath)
                     entry.Status = 'save_cancelled'; entry.ElapsedSeconds = toc(started); app.logTraining(index, entry);
-                    app.message(index, '保存をキャンセルしました。評価結果は表示します。後続 SHAP は行いません。'); return;
+                    app.message(index, '保存をキャンセルしました。モデルは画面内に保持しています。SHAP対象を選んで保存せずに計算できます。'); return;
                 end
                 entry.Verification = table2struct(report.Checks);
                 if ~report.Success, error('AnalysisApp:verificationFailed', '%s', app.Constants.INVALID_MODEL_MESSAGE); end
@@ -391,7 +539,7 @@ classdef AnalysisController < handle
         end
         function [path, report] = saveModel(app, index, model, kernel, fit_method, rows)
             path = ''; report = [];
-            [name, folder] = uiputfile('*.mat', ['学習済みモデルを保存: ' char(kernel)], fullfile(app.Settings.SaveFolder, 'Train_Model.mat'));
+            [name, folder] = uiputfile('*.mat', ['学習済みモデルを保存: ' char(kernel)], fullfile(app.Settings.SaveFolder, default_model_filename(app.Panels{index}.Kind)));
             if isequal(name, 0), return; end
             path = fullfile(folder, name); save_train_model(model, path);
             expected = struct('KernelFunction', char(kernel), 'FitMethod', fit_method, 'BasisFunction', 'constant', 'NumObservations', rows);
@@ -421,10 +569,11 @@ classdef AnalysisController < handle
                 progress = uiprogressdlg(app.Window, 'Title', 'カーネルの一括比較', 'Message', '共通の検証分割を作成中', 'Indeterminate', 'on', 'Cancelable', 'on');
                 progress_cleanup = onCleanup(@() app.closeProgress(progress));
                 report = compare_gpr_kernels(state.Kind, X, y, view.Kernels.Value, state.FitMethod.Value, ...
-                    view.Folds.Value, view.Seed.Value, app.Settings.Bins, @(event) app.comparisonProgress(progress, event));
+                    view.Folds.Value, view.Seed.Value, app.Settings.Bins, @(event) app.comparisonProgress(progress, event), app.comparisonContext(index));
                 clear progress_cleanup;
-                view.showReport(report, X, y, state.Data.RowNumbers, state.Mapping.Data(1:end - 1, 2));
+                view.showReport(report, X, y, state.Data.RowNumbers, state.Mapping.Data(1:end - 1, 2), state.Data);
                 app.registerCharts(index, view.Charts, view.ChartNames);
+                app.registerComparisonModels(index, report);
                 success = report.Summary.Status == "成功";
                 if any(success)
                     best = find(report.Summary.Rank == 1, 1);
@@ -476,7 +625,10 @@ classdef AnalysisController < handle
                 else
                     entry.Verification = table2struct(verification.Checks);
                     if ~verification.Success, error('AnalysisApp:verificationFailed', '%s', app.Constants.INVALID_MODEL_MESSAGE); end
-                    if strcmp(state.Kind, 'apc') || (strcmp(state.Kind, 'swing') && state.IsPlot.Value), app.runShap(index, model, X, true); end
+                    if strcmp(state.Kind, 'apc') || (strcmp(state.Kind, 'swing') && state.IsPlot.Value)
+                        current = app.Panels{index}; current.SelectedModelKind = state.Kind; app.Panels{index} = current;
+                        app.runShap(index, model, X, true);
+                    end
                     state.Views.SelectedTab = state.Verification.Parent.Parent;
                     entry.Status = 'completed'; app.message(index, ['比較で選択したモデルを保存しました: ' char(kernel)]);
                 end
@@ -495,7 +647,7 @@ classdef AnalysisController < handle
             for item = 1:numel(controls)
                 if isvalid(controls(item)), controls(item).Enable = enabled{item}; end
             end
-            view.setBusy(false);
+            if ~isempty(view), view.setBusy(false); end
         end
         function closeProgress(~, progress)
             if ~isempty(progress) && isvalid(progress), close(progress); end
@@ -510,7 +662,7 @@ classdef AnalysisController < handle
             state = app.Panels{index};
             if strcmpi(state.Kernel.Value, 'swingperiodic')
                 state.ModelInfo.Value = {'swingperiodic：RESIST_THの周期カーネル'; ...
-                    '周期は入力不要。周辺尤度で内部最適化します。'; '候補ごとに再学習するため時間が増えます。'; '周期はGPRのKernelParametersには含めません。'};
+                    '周期の基準は露光波長÷屈折率。範囲を画面で変更できます。'; '候補ごとに再学習するため時間が増えます。'; '周期はGPRのKernelParametersには含めません。'};
             else
                 state.ModelInfo.Value = {'BasisFunction: constant（固定）'};
             end
@@ -546,32 +698,35 @@ classdef AnalysisController < handle
         function displayEvaluation(app, index, inputs, actual, predicted, scope)
             state = app.Panels{index};
             if numel(actual) < 2, state.Headline.Text = '評価には実測値が2件以上必要です。'; return; end
-            metrics = evaluate_predictions(actual, predicted, app.Settings.Bins); state.Metrics.Data = metrics;
+            metrics = evaluate_predictions(actual, predicted, app.Settings.Bins); state.Metrics.Data = display_metric_names(metrics);
             state.Headline.Text = sprintf('RMSE: %.6g    R²: %.6g    n = %d\n%s', metrics.Value(2), metrics.Value(1), numel(actual), scope);
             names = [string(state.Mapping.Data(1:size(inputs, 2), 2))', "Actual", "Predicted", "Residual"];
             state.Summary.Data = summarize_model_columns([inputs, actual, predicted, actual - predicted], names);
-            tab = uitab(state.ChartTabs, 'Title', '実測値と予測値'); layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout);
-            scatter(ax, actual, predicted, 20, 'filled'); hold(ax, 'on'); limits = [min([actual; predicted]), max([actual; predicted])];
-            plot(ax, limits, limits, '--'); xlabel(ax, 'Actual'); ylabel(ax, 'Predicted'); title(ax, '実測値と予測値');
-            tab = uitab(state.ChartTabs, 'Title', '残差'); layout = uigridlayout(tab, [1, 1]); residual_ax = uiaxes(layout);
-            scatter(residual_ax, predicted, actual - predicted, 20, 'filled'); yline(residual_ax, 0, '--');
-            xlabel(residual_ax, 'Predicted'); ylabel(residual_ax, 'Actual - Predicted'); title(residual_ax, '残差');
-            app.registerCharts(index, {ax, residual_ax}, {'実測値と予測値', '残差'});
+            source = app.scatterSource(index, inputs, actual);
+            view = EvaluationScatterView(state.ChartTabs, actual, predicted, source);
+            app.registerCharts(index, view.Axes, view.Names);
         end
-        function runShap(app, index, model, matrix, is_training)
+        function runShap(app, index, model, matrix, is_training, source_rows, row_label, show_plot)
             state = app.Panels{index};
+            if nargin < 6, source_rows = state.Data.RowNumbers; end
+            if nargin < 7, row_label = 'SourceRow'; end
+            if nargin < 8, show_plot = state.IsPlot.Value; end
             if is_training && size(matrix, 1) > app.Constants.MAX_SHAP_POINTS
                 app.message(index, 'SHAP は先頭1000件まで計算します。評価指標は全件で計算しています。'); matrix = matrix(1:app.Constants.MAX_SHAP_POINTS, :);
             end
+            if ~isempty(state.ChartTabs.Children)
+                old_tabs = state.ChartTabs.Children(startsWith(string({state.ChartTabs.Children.Title}), 'SHAP')); delete(old_tabs);
+            end
+            old_values = state.Views.Children(strcmp({state.Views.Children.Title}, 'SHAP 値')); delete(old_values);
             progress = uiprogressdlg(app.Window, 'Title', 'SHAP 解析', 'Message', 'SHAP 値を計算中', 'Indeterminate', 'on');
             cleanup = onCleanup(@() close(progress)); drawnow;
             if ~is_training && strcmp(state.Mode.Value, 'ノイズ除去用SHAP')
-                [resist, ~, shap_all] = denoise_for_swing_curve(model, matrix(:, 1:3), matrix(:, 4));
-                output = table(state.Data.RowNumbers, resist, 'VariableNames', {'SourceRow', 'shap_resist'});
+                [resist, explainer, shap_all] = denoise_for_swing_curve(model, matrix(:, 1:end-1), matrix(:, end));
+                output = table(source_rows(1:numel(resist)), resist, 'VariableNames', {row_label, 'shap_resist'});
             else
-                [~, shap_all] = calc_shap_dependence(model, matrix);
+                [explainer, shap_all] = calc_shap_dependence(model, matrix);
                 output = array2table(shap_all, 'VariableNames', model.PredictorNames);
-                output = addvars(output, state.Data.RowNumbers(1:size(shap_all, 1)), 'Before', 1, 'NewVariableNames', 'SourceRow');
+                output = addvars(output, source_rows(1:size(shap_all, 1)), 'Before', 1, 'NewVariableNames', row_label);
             end
             if is_training
                 view = app.tableTab(state.Views, 'SHAP 値'); view.Data = output;
@@ -579,8 +734,11 @@ classdef AnalysisController < handle
                 app.result(index, output);
             end
             clear cleanup;
-            if state.IsPlot.Value
-                [charts, names] = plot_shap_figures(state.ChartTabs, shap_all, matrix, model.PredictorNames); app.registerCharts(index, charts, names);
+            if show_plot
+                options = struct('Edition', app.Edition, 'AllowSwingFit', ~strcmp(state.Kind, 'apc'), 'PeriodOptions', app.periodOptions(2));
+                options.Explainer = explainer;
+                if isfield(state, 'SelectedModelKind') && strcmp(state.SelectedModelKind, 'apc'), options.AllowSwingFit = false; end
+                [charts, names] = plot_shap_figures(state.ChartTabs, shap_all, matrix, model.PredictorNames, options); app.registerCharts(index, charts, names);
             end
         end
         function runDesign(app, index)
@@ -744,7 +902,7 @@ classdef AnalysisController < handle
                         state.Kernel.Value = app.Settings.Kernel; state.FitMethod.Value = app.Settings.FitMethod;
                         if strcmp(state.Kind, 'swing'), state.Kernel.Value = app.Settings.SwingKernel; end
                     end
-                    if any(strcmp(state.Kind, {'apc', 'shap'})), state.IsPlot.Value = app.Settings.ShowPlots; end
+                    if any(strcmp(state.Kind, {'apc', 'generic', 'shap'})), state.IsPlot.Value = app.Settings.ShowPlots; end
                     if strcmp(state.Kind, 'generic'), state.InputCount.Value = app.Settings.InputCount; end
                     if strcmp(state.Kind, 'doe'), state.Factors.Value = app.Settings.Factors; state.Runs.Value = app.Settings.Runs; state.Seed.Value = app.Settings.Seed; end
                     if ~strcmp(state.Kind, 'words'), app.updateMapping(index); end

@@ -1,14 +1,14 @@
 function run_swing_ui_smoke(image_folder)
 % 合成SHAP値で表示と数値の受渡しを確認。GP学習・実SHAP計算はしない。
 if nargin < 1, image_folder = ''; end
-[app, cleanup] = create_display_preview(); %#ok<ASGLU>
+[app, cleanup] = create_display_preview('pro'); %#ok<ASGLU>
 app.Window.Position = [40, 40, 1320, 780];
 state = app.Panels{5};
 thickness = linspace(850, 1250, 241)'; x = thickness - 1050;
 inputs = [sin(x/50), cos(x/60), sin(x/70), thickness];
 shap = [0.1*sin(x/50), 0.2*cos(x/60), 0.1*sin(x/70), 0.01*x + 2.5*sin(2*pi*x/80 + 0.4)];
 names = {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'};
-[charts, labels] = plot_shap_figures(state.ChartTabs, shap, inputs, names);
+[charts, labels] = plot_shap_figures(state.ChartTabs, shap, inputs, names, struct('Edition', 'pro', 'AllowSwingFit', true, 'PeriodOptions', swing_period_options(160, 2)));
 app.registerCharts(5, charts, labels);
 tab = state.ChartTabs.Children(strcmp({state.ChartTabs.Children.Title}, 'SHAP 依存: RESIST_TH'));
 view = tab.UserData;
@@ -48,7 +48,7 @@ end
 % 分布の診断はノイズを加えた別の合成SHAP値で確認する。
 delete(state.ChartTabs.Children);
 stream = RandStream('mt19937ar', 'Seed', 42); shap(:, 4) = shap(:, 4) + 0.15*randn(stream, size(x));
-[charts, labels] = plot_shap_figures(state.ChartTabs, shap, inputs, names); app.registerCharts(5, charts, labels);
+[charts, labels] = plot_shap_figures(state.ChartTabs, shap, inputs, names, struct('Edition', 'pro', 'AllowSwingFit', true, 'PeriodOptions', swing_period_options(160, 2))); app.registerCharts(5, charts, labels);
 tab = state.ChartTabs.Children(strcmp({state.ChartTabs.Children.Title}, 'SHAP 依存: RESIST_TH')); view = tab.UserData;
 state.ChartTabs.SelectedTab = tab;
 assert(view.Diagnostics.Tested); assert(numel(charts) == 8);

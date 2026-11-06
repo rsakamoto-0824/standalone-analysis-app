@@ -1,4 +1,7 @@
 function [extrema, segments] = swing_curve_extrema(fit, limits)
+if isfield(fit, 'Method') && strcmp(fit.Method, 'spline')
+    [extrema, segments] = swing_spline_extrema(fit, limits); return;
+end
 validateattributes(limits, {'numeric'}, {'vector', 'numel', 2, 'real', 'finite'});
 if limits(1) >= limits(2), error('swing_curve_extrema:range', '膜厚範囲の下限は上限より小さくしてください。'); end
 extrema = table(strings(0, 1), zeros(0, 1), zeros(0, 1), 'VariableNames', {'Type', 'Thickness', 'SHAP'});
