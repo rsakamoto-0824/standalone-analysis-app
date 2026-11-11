@@ -49,7 +49,7 @@ glossary = uitable(layout, 'Data', terms, 'ColumnName', {'用語', '説明（選
 description = uitextarea(layout, 'Editable', 'off', 'Value', {'用語表の行を選択すると、ここに説明の全文を表示します。'});
 glossary.CellSelectionCallback = @(~, event) showTerm(event, terms, description);
 uitextarea(layout, 'Editable', 'off', 'Value', {
-    '操作：入力を開く → モデリング条件で目的変数を複数選択 → 列対応を確認 → モデリング・SHAP評価 → 条件比較 → 選択モデルをMAT保存。';
+    '操作：入力を開く → 左の入力欄で目的変数を複数選択（Ctrl / Command） → 列対応を確認 → モデリング・SHAP評価 → 条件比較 → 選択モデルをMAT保存。';
     '炉内補間：「4 炉内補間」でWaferId、BoatSlot、計測列、任意のバッチ列を選択。範囲と方式を確認して一括実行します。設定は「9 設定」、用語は「10 Help」です。';
     '複数比較：「条件比較・モデル保存」でkernelとfit_methodを複数選択。2組以上なら共通分割で交差検証します。以前の条件も一覧に残り、目的変数・単位・評価範囲ごとに比較できます。';
     '比較は候補ごとに順に計算。各候補で分割数＋1回の学習を行い、周期カーネルはその都度周期探索します。成功候補の完全モデルをメモリーに保持するため時間・メモリーが増えます。APCの分割内学習は25行以上必要です。';

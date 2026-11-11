@@ -94,8 +94,8 @@ classdef FurnaceInterpolationView < handle
             view.Wafer.Value = view.matchColumn({'WaferId', 'WaferID', 'Wafer_Id'}, '(未選択)');
             view.Slot.Value = view.matchColumn({'BoatSlot', 'Boat_Slot'}, '(未選択)');
             view.Batch.Value = view.matchColumn({'バッチ', 'Batch', 'BatchId', 'RunId'}, '(バッチ列なし：1Run)');
-            view.Targets.Items = source.Headers;
-            view.Targets.Value = source.Headers(~cellfun(@isempty, regexpi(source.Headers, '膜厚|屈折率|thickness|refractive')));
+            selected=source.Headers(~cellfun(@isempty, regexpi(source.Headers, '膜厚|屈折率|thickness|refractive')));
+            set(view.Targets,'Items',source.Headers,'Value',selected,'Enable','on');
             preview = source.Cells(1:min(100, size(source.Cells, 1)), :);
             for index = 1:numel(preview)
                 value = preview{index};

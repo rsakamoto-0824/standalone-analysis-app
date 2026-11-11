@@ -11,7 +11,7 @@ t=(1:60)'; x=[sin(t/3),cos(t/5),sin(t/7),800+7*t]; y=[2+x*[1;2;3;0.01],5+x*[2;-1
 source=struct('FileName','合成データ・GPR未学習.xlsx','Headers',{{'SIN_TH','SIN_RN','NSG_TH','RESIST_TH','CD','CD2','Batch'}}, ...
     'Cells',{[num2cell([x,y]),cellstr("B"+string(mod(t,2)))]},'RowNumbers',t+1);
 state=app.Panels{1}; state.Data=source; app.Panels{1}=state; app.initializeTrainingColumns(1); app.updateMapping(1);
-state.Targets.Value={'CD','CD2'}; app.confirmMapping(1); assert(app.Panels{1}.Confirmed);
+state.Targets.Value={'CD','CD2'}; state.Targets.ValueChangedFcn(state.Targets,[]); app.confirmMapping(1); assert(app.Panels{1}.Confirmed);
 period=app.Panels{2}; period.CustomPeriod.Value=true; period.PeriodLower.Value=180; period.PeriodUpper.Value=100;
 services=service(state.Mapping.Data(:,2)'); app.runModeling(1,false,services);
 assert(numel(app.ModelingRecords)==2 && numel(app.ModelRegistry)==2);
@@ -29,12 +29,12 @@ app.saveSelectedModel(1); assert(isfile(marker)); assert(isempty(dir(fullfile(fo
 app.MainTabs.SelectedTab=state.Layout.Parent; state.Views.SelectedTab=state.Study.Tab; drawnow;
 if ~isempty(image_folder), exportapp(app.Window,fullfile(image_folder,'38-modeling-first.png')); end
 swing=app.Panels{2}; swing.Data=source; app.Panels{2}=swing; app.initializeTrainingColumns(2); app.updateMapping(2);
-swing.Targets.Value={'CD','CD2'}; assert(size(swing.Mapping.Data,1)==1); app.confirmMapping(2);
+swing.Targets.Value={'CD','CD2'}; swing.Targets.ValueChangedFcn(swing.Targets,[]); assert(size(swing.Mapping.Data,1)==1); app.confirmMapping(2);
 app.runModeling(2,false,service(swing.Mapping.Data(:,2)')); assert(numel(app.ModelingRecords)==8);
 swing.Mode.Value='下地あり'; swing.Underlayers.Value={'SIN_TH','SIN_RN'}; app.updateMapping(2);
 assert(size(swing.Mapping.Data,1)==3 && strcmp(swing.Mapping.Data{end,2},'RESIST_TH')); app.confirmMapping(2);
 app.runModeling(2,false,service(swing.Mapping.Data(:,2)')); assert(numel(app.ModelingRecords)==10);
-app.MainTabs.SelectedTab=swing.Layout.Parent; swing.Views.SelectedTab=swing.Targets.Parent.Parent; drawnow;
+app.MainTabs.SelectedTab=swing.Layout.Parent; swing.Views.SelectedTab=swing.ModelingTab; drawnow;
 if ~isempty(image_folder), exportapp(app.Window,fullfile(image_folder,'39-swing-modes-targets.png')); end
 assert(~isfield(app.Panels{6},'Seed')); assert(isequal(app.Panels{6}.Levels.Items,{'2','3','4','5'}));
 assert(app.SettingsUI.Runs.Value==25);
