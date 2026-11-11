@@ -80,7 +80,7 @@ classdef AnalysisController < handle
             compare_button.Layout.Row = 2; compare_button.Layout.Column = [1, 2];
             state.Mapping = uitable(controls, 'Data', cell(0, 3), 'ColumnName', {'順序', '変数', '入力列'}, ...
                 'ColumnEditable', [false, false, true], 'ColumnWidth', {42, 110, 'auto'}, 'CellEditCallback', @(~, ~) app.invalidate(index));
-            state.Actual = app.choiceRow(controls, '評価用の実測列（任意）', {'(実測値なし)'});
+            state.Actual = app.choiceRow(controls, '評価用の目的変数・実測列（任意）', {'(実測値なし)'});
             state.Actual.ValueChangedFcn = @(~, ~) app.invalidate(index);
             state.Confirm = uibutton(controls, 'Text', '上表の列対応・順序を確認', 'ButtonPushedFcn', @(~, ~) app.confirmMapping(index));
             state.IsPlot = uicheckbox(controls, 'Text', 'SHAP グラフをアプリ内に表示', 'Value', app.Settings.ShowPlots);
@@ -233,9 +233,18 @@ classdef AnalysisController < handle
         end
         function createModelingSelection(app,index)
             state=app.Panels{index}; tab=uitab(state.Views,'Title','モデリング条件');
+            state.ModelingTab=tab;
+            row_heights=state.Controls.RowHeight;
+            target_grid=uigridlayout(state.Controls,[2,1]); target_grid.Layout.Row=4; target_grid.Layout.Column=1;
+            target_grid.Padding=[0,0,0,0]; target_grid.RowHeight={24,'1x'};
+            row_heights{4}=136; state.Controls.RowHeight=row_heights;
+            uilabel(target_grid,'Text','目的変数（複数選択可・Ctrl / Command）');
+            state.Targets=uilistbox(target_grid,'Items',{'入力待ち'},'Value',{},'Multiselect','on','Enable','off', ...
+                'Tooltip','入力ファイルの目的変数を選択します。複数列はCtrl（MacはCommand）を押しながら選択します。', ...
+                'ValueChangedFcn',@(~,~)app.targetsChanged(index));
             grid=uigridlayout(tab,[6,2]); grid.ColumnWidth={'1x','1x'}; grid.RowHeight={28,80,40,36,28,150};
-            label=uilabel(grid,'Text','目的変数を複数選択：各列を別モデルで学習・SHAP評価します。','WordWrap','on'); label.Layout.Column=[1,2];
-            state.Targets=uilistbox(grid,'Items',{'入力待ち'},'Value',{},'Multiselect','on','ValueChangedFcn',@(~,~)app.invalidate(index)); state.Targets.Layout.Row=[2,3]; state.Targets.Layout.Column=[1,2];
+            label=uilabel(grid,'Text','目的変数は左の入力欄で選択します。各列を別モデルで学習・SHAP評価します。','WordWrap','on'); label.Layout.Column=[1,2];
+            state.TargetSummary=uilabel(grid,'Text','目的変数：未選択','WordWrap','on'); state.TargetSummary.Layout.Row=[2,3]; state.TargetSummary.Layout.Column=[1,2];
             if strcmp(state.Kind,'swing')
                 state.Mapping.ColumnEditable=[false,false,false];
                 label=uilabel(grid,'Text','レジスト膜厚の入力列'); label.Layout.Row=4; label.Layout.Column=1;
@@ -249,19 +258,27 @@ classdef AnalysisController < handle
             state.Study=ModelingStudyView(state.Views,state.Kernel.Items,state.Kernel.Value,state.FitMethod.Value,@()app.runModeling(index,true),@()app.displaySelectedModel(index),@()app.saveSelectedModel(index));
             state.BaseTabs=[state.BaseTabs(:);state.Study.Tab]; app.Panels{index}=state;
         end
+        function targetsChanged(app,index)
+            app.updateTargetSummary(index); app.invalidate(index);
+        end
+        function updateTargetSummary(app,index)
+            state=app.Panels{index}; selected=cellstr(string(state.Targets.Value));
+            if isempty(selected), state.TargetSummary.Text='目的変数：未選択';
+            else, state.TargetSummary.Text=['目的変数：' strjoin(selected,', ')]; end
+        end
         function initializeTrainingColumns(app,index)
             state=app.Panels{index}; headers=state.Data.Headers;
             if ~isfield(state,'Targets'), return; end
             defaults=headers(ismember(lower(string(headers)),["cd","y","膜厚","屈折率"]));
-            if isempty(defaults), defaults=headers(end); end
-            set(state.Targets,'Items',headers,'Value',defaults(1));
+            if ~isempty(defaults), defaults=defaults(1); end
+            set(state.Targets,'Items',headers,'Value',defaults,'Enable','on');
             if strcmp(state.Kind,'swing')
                 resist=find(strcmpi(headers,'RESIST_TH'),1); if isempty(resist), resist=1; end
                 set(state.ResistColumn,'Items',headers,'Value',headers{resist});
                 layers=headers(ismember(headers,app.Constants.PREDICTOR_NAMES(1:3)));
                 set(state.Underlayers,'Items',headers,'Value',layers);
             end
-            app.Panels{index}=state;
+            app.Panels{index}=state; app.updateTargetSummary(index);
         end
         function identifier = registerModel(app, model, label, kind, target, record)
             if nargin < 5, target = 0; end
@@ -396,9 +413,13 @@ classdef AnalysisController < handle
                 end
                 state.Preview.Data = preview; state.Preview.ColumnName = data.Headers;
                 if any(strcmp(state.Kind, {'predict', 'shap'}))
-                    state.Actual.Items = [{'(実測値なし)'}, data.Headers]; state.Actual.Value = '(実測値なし)';
+                    set(state.Actual,'Items',[{'(実測値なし)'}, data.Headers],'Value','(実測値なし)','Enable','on');
                 end
                 app.Panels{index} = state; app.initializeTrainingColumns(index); app.updateMapping(index);
+                state.Views.SelectedTab=state.Preview.Parent.Parent;
+                if isfield(state,'Targets')
+                    app.message(index,'入力を読み込みました。左の「目的変数」で対象列を選び、説明変数との列対応を確認してください。');
+                end
             catch err
                 app.showError(index, err);
             end
