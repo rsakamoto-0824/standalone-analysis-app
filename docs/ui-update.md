@@ -203,3 +203,17 @@ R2022bでは純粋な数値処理・代替学習器/合成SHAPの表示試験と
 - 読込みボタンから候補を更新して選択可能にし、入力プレビューを開く。目的変数名を判別できないとき、最終列を選ぶ処理を廃止する。サンプルAPCのLot列を目的変数にしない。既存のCD/y/膜厚/屈折率の一致による初期候補は維持する。
 - 保存モデル推定・SHAPは「評価用の目的変数・実測列（任意）」と明記。これらと炉内補間も読込み時に選択欄を有効化する。複数選択はCtrl（MacはCommand）を使用する。
 - 読込みダイアログだけを置換し、実サンプルExcel/CSVを本番の読込みボタン・コールバックへ渡す回帰確認を追加。モデル学習・SHAPやファイル保存の契約は変更しない。
+
+
+## 2026-11-15：Swing Curveの列対応と汎用回帰
+
+この節をFit methodと汎用学習の最新仕様とする。以前のkernel×fit_method比較、炉内のexact学習固定、全学習モデルがTrain_Modelという記述は、以下に置き換える。
+
+- Swing Curveの下地あり選択でモデリング条件を開き、下地リストを有効化する。左の対応表も編集可能にし、下地・膜厚の列変更を右の選択へ同期する。入力列名から有効かつ一意なモデル変数名を作り、RESIST_THを最後に置く。目的変数との重複と入力列の再使用は確認時に拒否する。列対応は設定適用時にも保持し、別ファイルの読込み時は解除する。
+- Fit methodは設定画面だけで編集する全GPR共通値。APC・Swing Curve・汎用の単独／比較、炉内GPRへ適用する。各画面には参照用の文字だけを表示し、複数Fit methodを同時に選ぶ欄を除去する。保存済みモデルと履歴は学習時の条件を保持する。炉内GPRのPredictMethodはexact固定を維持する。
+- 3番を汎用回帰学習へ変更し、GPR・切片付き重回帰・PLSを選べる。PLS成分数は初期2（1入力なら1）で、単独方式または比較方式にPLSを含む場合に編集可能。X/yは各学習内の行だけで標準化し、plsregressのSIMPLSで係数を求め、元の単位へ戻す。成分数が学習内のランクを超える場合と、重回帰の係数が一意に決まらない場合は理由を表示する。
+- 比較では選択GPRカーネルごとの候補に重回帰・PLSを各1候補追加する。PLS成分数を変えた実行は別履歴として保持する。2条件以上では共通分割で検証し、学習時の標準化に検証行を混ぜない。複数目的変数は既存どおり独立したモデルで処理する。
+- 重回帰・PLSはProcessRegressionModel型のRegression_Model単独で保存し、初期名GenericRegression_Model_目的変数.matとする。GPRのTrain_Modelと炉内のFurnace_Model形式は維持する。load_analysis_modelがGPRと重回帰・PLSを振り分け、保存モデル推定・SHAPで利用する。MATLABから使う場合はcoreへのパスが必要。旧GPR専用制御側へは渡さない。
+- 重回帰・PLSのSHAPは予測関数と学習データをshapleyへ渡し、標準swarmchartで描画する。R2025b専用の実SHAP試験を追加し、この端末では実行しない。
+
+参照：[plsregress](https://www.mathworks.com/help/stats/plsregress.html)、[shapleyの関数ハンドル対応](https://www.mathworks.com/help/stats/shapley.html)、[fitrgpのFitMethod](https://www.mathworks.com/help/stats/fitrgp.html)。2026-11-15参照。補助確認と対象環境の確認範囲はverification.mdに記録する。

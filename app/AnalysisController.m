@@ -41,7 +41,7 @@ classdef AnalysisController < handle
             window.Position(3:4) = [1320, 860]; window.Resize = 'on'; window.AutoResizeChildren = 'off';
             app.LogFolder = fullfile(prefdir, 'StandaloneAnalysisApp', 'logs');
             tabs = AnalysisNavigation(window); app.MainTabs = tabs;
-            titles = {'APC 学習', 'Swing Curve学習', '汎用 GPR 学習', '保存モデルで推定', 'SHAP 解析', '実験計画作成', 'ワードクラウド'};
+            titles = {'APC 学習', 'Swing Curve学習', '汎用回帰学習', '保存モデルで推定', 'SHAP 解析', '実験計画作成', 'ワードクラウド'};
             kinds = {'apc', 'swing', 'generic', 'predict', 'shap', 'doe', 'words'};
             for index = 1:numel(titles)
                 display_number = index + double(index >= 4);
@@ -75,11 +75,11 @@ classdef AnalysisController < handle
             kernels = app.Constants.KERNELS; default_kernel = app.Settings.Kernel;
             if strcmp(kind, 'swing'), kernels = app.Constants.SWING_KERNELS; default_kernel = app.Settings.SwingKernel; end
             state.Kernel = uidropdown(options, 'Items', kernels, 'Value', default_kernel, 'Tooltip', 'kernel。swingperiodicはRESIST_THの周期を内部で最適化します。');
-            state.FitMethod = uidropdown(options, 'Items', app.Constants.FIT_METHODS, 'Value', app.Settings.FitMethod, 'Tooltip', 'fit_method');
+            state.FitInfo = uilabel(options, 'Text',['GPR Fit method: ' app.Settings.FitMethod '（設定で変更）'],'WordWrap','on');
             compare_button = uibutton(options, 'Text', '条件比較・モデル保存を開く', 'ButtonPushedFcn', @(~, ~) app.openComparison(index));
             compare_button.Layout.Row = 2; compare_button.Layout.Column = [1, 2];
             state.Mapping = uitable(controls, 'Data', cell(0, 3), 'ColumnName', {'順序', '変数', '入力列'}, ...
-                'ColumnEditable', [false, false, true], 'ColumnWidth', {42, 110, 'auto'}, 'CellEditCallback', @(~, ~) app.invalidate(index));
+                'ColumnEditable', [false, false, true], 'ColumnWidth', {42, 110, 'auto'}, 'CellEditCallback', @(~, event) app.mappingChanged(index,event));
             state.Actual = app.choiceRow(controls, '評価用の目的変数・実測列（任意）', {'(実測値なし)'});
             state.Actual.ValueChangedFcn = @(~, ~) app.invalidate(index);
             state.Confirm = uibutton(controls, 'Text', '上表の列対応・順序を確認', 'ButtonPushedFcn', @(~, ~) app.confirmMapping(index));
@@ -120,15 +120,21 @@ classdef AnalysisController < handle
                 state.IsPlot.Tooltip = '各目的変数・条件のモデルで先頭最大1000行のSHAPを計算します。';
             end
             if strcmp(kind, 'generic')
-                delete(state.Mode); controls.RowHeight{6} = 32;
-                count = app.Settings.InputCount; if strcmp(kind, 'swing'), count = 1; end
-                state.InputCount = app.numberRow(controls, '説明変数の数（最低1）', count, [1, 100]);
-                state.InputCount.Parent.Layout.Row = 6;
-                state.InputCount.ValueChangedFcn = @(~, ~) app.updateMapping(index);
+                state.ModelInfo.Visible='off'; heights=controls.RowHeight;
+                counts=uigridlayout(controls,[2,1]); counts.Padding=[0,0,0,0]; counts.RowHeight={32,32}; counts.Layout.Row=5;
+                controls.RowHeight=heights;
+                state.InputCount=app.numberRow(counts,'説明変数の数',app.Settings.InputCount,[1,100]);
+                state.PLSComponents=app.numberRow(counts,'PLS成分数',min(2,app.Settings.InputCount),[1,100]);
+                state.InputCount.ValueChangedFcn=@(~,~)app.genericInputsChanged(index);
+                state.PLSComponents.ValueChangedFcn=@(~,~)app.invalidate(index);
+                state.Mode.Visible='on'; controls.RowHeight{6}=32;
+                set(state.Mode,'Items',{'ガウス過程回帰','重回帰','PLS回帰'},'ItemsData',{'gpr','linear','pls'},'Value','gpr', ...
+                    'Tooltip','回帰方式','ValueChangedFcn',@(~,~)app.genericMethodChanged(index));
+                state.PLSComponents.Enable='off';
             elseif strcmp(kind, 'swing')
                 state.Mode.Visible = 'on'; controls.RowHeight{6} = 32;
                 state.Mode.Items = {'下地なし（膜厚のみ）', '下地あり'};
-                state.Mode.ValueChangedFcn = @(~, ~) app.updateMapping(index);
+                state.Mode.ValueChangedFcn = @(~, ~) app.swingModeChanged(index);
             elseif strcmp(kind, 'predict')
                 state.Mode.Visible = 'on'; controls.RowHeight{6} = 30; state.Mode.Items = {'汎用推定', '面内推定（既存モデル）'};
             elseif strcmp(kind, 'shap')
@@ -138,7 +144,6 @@ classdef AnalysisController < handle
                 options.Visible = 'off'; controls.RowHeight{7} = 0;
             else
                 state.Kernel.ValueChangedFcn = @(~, ~) app.invalidate(index);
-                state.FitMethod.ValueChangedFcn = @(~, ~) app.invalidate(index);
             end
             if any(strcmp(kind, {'doe', 'words'}))
                 delete(controls.Children);
@@ -242,11 +247,11 @@ classdef AnalysisController < handle
             state.Targets=uilistbox(target_grid,'Items',{'入力待ち'},'Value',{},'Multiselect','on','Enable','off', ...
                 'Tooltip','入力ファイルの目的変数を選択します。複数列はCtrl（MacはCommand）を押しながら選択します。', ...
                 'ValueChangedFcn',@(~,~)app.targetsChanged(index));
-            grid=uigridlayout(tab,[6,2]); grid.ColumnWidth={'1x','1x'}; grid.RowHeight={28,80,40,36,28,150};
+            grid=uigridlayout(tab,[6,2],'Scrollable','on'); grid.ColumnWidth={'1x','1x'}; grid.RowHeight={28,80,40,36,28,150};
             label=uilabel(grid,'Text','目的変数は左の入力欄で選択します。各列を別モデルで学習・SHAP評価します。','WordWrap','on'); label.Layout.Column=[1,2];
             state.TargetSummary=uilabel(grid,'Text','目的変数：未選択','WordWrap','on'); state.TargetSummary.Layout.Row=[2,3]; state.TargetSummary.Layout.Column=[1,2];
             if strcmp(state.Kind,'swing')
-                state.Mapping.ColumnEditable=[false,false,false];
+                state.Mapping.ColumnEditable=[false,false,true];
                 label=uilabel(grid,'Text','レジスト膜厚の入力列'); label.Layout.Row=4; label.Layout.Column=1;
                 state.ResistColumn=uidropdown(grid,'Items',{'入力待ち'},'ValueChangedFcn',@(~,~)app.updateMapping(index)); state.ResistColumn.Layout.Row=4; state.ResistColumn.Layout.Column=2;
                 label=uilabel(grid,'Text','下地ありで追加する説明変数（複数選択）'); label.Layout.Row=5; label.Layout.Column=[1,2];
@@ -255,7 +260,8 @@ classdef AnalysisController < handle
                 label=uilabel(grid,'Text','左の対応表は説明変数だけです。目的変数と同じ列を説明変数に割り当てないでください。','WordWrap','on'); label.Layout.Row=4; label.Layout.Column=[1,2];
             end
             state.BaseTabs=[state.BaseTabs(:);tab];
-            state.Study=ModelingStudyView(state.Views,state.Kernel.Items,state.Kernel.Value,state.FitMethod.Value,@()app.runModeling(index,true),@()app.displaySelectedModel(index),@()app.saveSelectedModel(index));
+            state.Study=ModelingStudyView(state.Views,state.Kernel.Items,state.Kernel.Value,app.Settings.FitMethod,@()app.runModeling(index,true),@()app.displaySelectedModel(index),@()app.saveSelectedModel(index),strcmp(state.Kind,'generic'));
+            if strcmp(state.Kind,'generic'), state.Study.Regressors.ValueChangedFcn=@(~,~)app.genericMethodChanged(index); end
             state.BaseTabs=[state.BaseTabs(:);state.Study.Tab]; app.Panels{index}=state;
         end
         function targetsChanged(app,index)
@@ -276,7 +282,7 @@ classdef AnalysisController < handle
                 resist=find(strcmpi(headers,'RESIST_TH'),1); if isempty(resist), resist=1; end
                 set(state.ResistColumn,'Items',headers,'Value',headers{resist});
                 layers=headers(ismember(headers,app.Constants.PREDICTOR_NAMES(1:3)));
-                set(state.Underlayers,'Items',headers,'Value',layers);
+                set(state.Underlayers,'Items',headers,'Value',layers,'Enable',matlab.lang.OnOffSwitchState(strcmp(state.Mode.Value,'下地あり')));
             end
             app.Panels{index}=state; app.updateTargetSummary(index);
         end
@@ -403,7 +409,7 @@ classdef AnalysisController < handle
                     sheet = char(sheets(choice));
                 end
                 answer = inputdlg('ヘッダーの行番号', '入力設定', 1, {'1'}); if isempty(answer), return; end
-                data = read_input_data(path, sheet, str2double(answer{1})); state = app.Panels{index}; state.Data = data;
+                data = read_input_data(path, sheet, str2double(answer{1})); state = app.Panels{index}; state.Data = data; state.Mapping.Data=cell(0,3);
                 state.Source.Text = sprintf('%s / %d 件', name, size(data.Cells, 1));
                 preview = data.Cells(1:min(100, size(data.Cells, 1)), :);
                 for item = 1:numel(preview)
@@ -428,7 +434,7 @@ classdef AnalysisController < handle
             try
                 [name, folder] = uigetfile({'*.mat', '学習済みモデル'}, 'モデルを選択', app.Settings.SaveFolder);
                 if isequal(name, 0), return; end
-                state = app.Panels{index}; state.Model = load_train_model(fullfile(folder, name)); state.ModelPath = fullfile(folder, name);
+                state = app.Panels{index}; state.Model = load_analysis_model(fullfile(folder, name)); state.ModelPath = fullfile(folder, name);
                 state.ModelInfo.Value = {['PredictorNames: ' strjoin(state.Model.PredictorNames, ', ')]; ...
                     ['ResponseName: ' state.Model.ResponseName]; ['MAT: ' name]};
                 periodic = swing_kernel_info(state.Model.KernelFunction);
@@ -443,16 +449,43 @@ classdef AnalysisController < handle
                 app.showError(index, err);
             end
         end
+        function swingModeChanged(app,index)
+            app.updateMapping(index); state=app.Panels{index};
+            if strcmp(state.Mode.Value,'下地あり'), state.Views.SelectedTab=state.ModelingTab; end
+        end
+        function genericInputsChanged(app,index)
+            state=app.Panels{index}; state.PLSComponents.Value=min(state.PLSComponents.Value,state.InputCount.Value);
+            app.updateMapping(index);
+        end
+        function genericMethodChanged(app,index)
+            state=app.Panels{index};
+            state.Kernel.Enable=matlab.lang.OnOffSwitchState(strcmp(state.Mode.Value,'gpr'));
+            use_pls=strcmp(state.Mode.Value,'pls') || ismember('pls',state.Study.Regressors.Value);
+            state.PLSComponents.Enable=matlab.lang.OnOffSwitchState(use_pls);
+            app.invalidate(index);
+        end
+        function mappingChanged(app,index,~)
+            state=app.Panels{index};
+            if strcmp(state.Kind,'swing') && ~isempty(state.Mapping.Data)
+                selected=state.Mapping.Data(:,3); valid=ismember(selected,state.Data.Headers);
+                if valid(end), state.ResistColumn.Value=selected{end}; end
+                layers=selected(1:end-1); layers=layers(ismember(layers,state.Data.Headers));
+                layers(strcmp(layers,state.ResistColumn.Value))=[];
+                state.Underlayers.Value=unique(layers,'stable');
+            end
+            app.invalidate(index);
+        end
         function updateMapping(app, index)
             state = app.Panels{index}; roles = {}; positional = false;
             switch state.Kind
                 case 'apc', roles = app.Constants.PREDICTOR_NAMES;
                 case 'swing'
                     roles = {'RESIST_TH'}; selected_inputs = {state.ResistColumn.Value};
-                    state.Underlayers.Enable = matlab.lang.OnOffSwitchState(strcmp(state.Mode.Value,'下地あり'));
+                    state.Underlayers.Enable = matlab.lang.OnOffSwitchState(~isempty(state.Data) && strcmp(state.Mode.Value,'下地あり'));
                     if strcmp(state.Mode.Value,'下地あり')
                         layers = cellstr(string(state.Underlayers.Value)); layers(strcmp(layers,state.ResistColumn.Value)) = [];
-                        roles = [layers(:)',roles]; selected_inputs = [layers(:)',selected_inputs];
+                        layer_names=matlab.lang.makeUniqueStrings(matlab.lang.makeValidName(layers),{'RESIST_TH'});
+                        roles = [layer_names(:)',roles]; selected_inputs = [layers(:)',selected_inputs];
                     end
                 case 'generic', roles = cellstr("入力" + string(1:state.InputCount.Value)); positional = true;
                 case 'doe', roles = cellstr("F" + string(1:state.Factors.Value)); positional = true;
@@ -464,6 +497,7 @@ classdef AnalysisController < handle
                     end
             end
             if ~isempty(state.Data)
+                previous=state.Mapping.Data;
                 mapping = cell(numel(roles), 3);
                 for row = 1:numel(roles)
                     selected = '(未選択)';
@@ -473,6 +507,10 @@ classdef AnalysisController < handle
                         selected = roles{row};
                     elseif positional && row <= numel(state.Data.Headers)
                         selected = state.Data.Headers{row};
+                    end
+                    if ~strcmp(state.Kind,'swing') && ~isempty(previous)
+                        old=find(strcmp(previous(:,2),roles{row}),1);
+                        if ~isempty(old) && ismember(previous{old,3},state.Data.Headers), selected=previous{old,3}; end
                     end
                     mapping(row, :) = {row, roles{row}, selected};
                 end
@@ -574,12 +612,13 @@ classdef AnalysisController < handle
             try
                 if ~state.Confirmed, error('AnalysisApp:unconfirmed','説明変数と目的変数の対応を確認してください。'); end
                 [inputs,responses,names,targets]=modeling_input_data(state.Data,state.Mapping.Data,state.Targets.Value);
-                kernels={state.Kernel.Value}; methods={state.FitMethod.Value}; folds=0; seed=0;
-                if compare, kernels=cellstr(string(state.Study.Kernels.Value)); methods=cellstr(string(state.Study.FitMethods.Value)); folds=state.Study.Folds.Value; seed=state.Study.Seed.Value; end
-                conditions=struct('Kernel',{},'FitMethod',{});
-                for kernel=1:numel(kernels)
-                    for method=1:numel(methods), conditions(end+1)=struct('Kernel',kernels{kernel},'FitMethod',methods{method}); end %#ok<AGROW>
+                kernels={state.Kernel.Value}; regressors={'gpr'}; components=2; folds=0; seed=0;
+                if strcmp(state.Kind,'generic'), regressors={state.Mode.Value}; components=state.PLSComponents.Value; end
+                if compare
+                    kernels=cellstr(string(state.Study.Kernels.Value)); folds=state.Study.Folds.Value; seed=state.Study.Seed.Value;
+                    if strcmp(state.Kind,'generic'), regressors=cellstr(string(state.Study.Regressors.Value)); end
                 end
+                conditions=modeling_conditions(kernels,regressors,app.Settings.FitMethod,components);
                 period_options=swing_period_options();
                 if strcmp(state.Kind,'swing'), period_options=app.periodOptions(index); end
                 if nargin<4
@@ -599,7 +638,7 @@ classdef AnalysisController < handle
                     if strcmp(state.Kind,'swing'), r.Mode=state.Mode.Value; end
                     if ~isempty(r.Model)
                         r.Id=numel(app.ModelRegistry)+1;
-                        label=sprintf('%s / %s / %s / %s / 条件%d',state.Kind,r.Target,r.Condition.Kernel,r.Condition.FitMethod,r.Run);
+                        label=sprintf('%s / %s / %s / %s / 条件%d',state.Kind,r.Target,modeling_condition_label(r.Condition),r.Condition.FitMethod,r.Run);
                         app.registerModel(r.Model,label,state.Kind,index,r);
                     end
                     app.ModelingRecords{end+1}=r;
@@ -626,7 +665,7 @@ classdef AnalysisController < handle
                 if isempty(r), error('modeling:noRecord','学習・評価したモデルを選択してください。'); end
                 app.clearModelOutput(index); state=app.Panels{index}; state.SelectedModelKind=r.Kind; app.Panels{index}=state;
                 context=struct('Names',{r.InputNames},'Source',r.Source,'Bins',r.Bins);
-                app.displayEvaluation(index,r.Inputs,r.Actual,r.Prediction,[r.Target ' / ' r.Scope ' / ' r.Condition.Kernel ' / ' r.Condition.FitMethod],context);
+                app.displayEvaluation(index,r.Inputs,r.Actual,r.Prediction,[r.Target ' / ' r.Scope ' / ' modeling_condition_label(r.Condition) ' / ' r.Condition.FitMethod],context);
                 app.result(index,table(r.SourceRows,r.Actual,r.Prediction,r.Actual-r.Prediction,r.TrainingPrediction, ...
                     'VariableNames',{'SourceRow','Actual','Predicted','Residual','TrainingPredicted'}));
                 if ~isempty(r.FoldId)
@@ -663,9 +702,14 @@ classdef AnalysisController < handle
         function [path,report]=saveModel(app,index,model,kernel,fit_method,rows,target)
             if nargin<7, target=''; end
             path=''; report=[]; state=app.Panels{index};
-            [name,folder]=uiputfile('*.mat',['選択モデルを保存: ' char(target)],fullfile(app.Settings.SaveFolder,default_model_filename(state.Kind,target)));
+            kind=state.Kind; if isa(model,'ProcessRegressionModel'), kind='regression'; end
+            [name,folder]=uiputfile('*.mat',['選択モデルを保存: ' char(target)],fullfile(app.Settings.SaveFolder,default_model_filename(kind,target)));
             if isequal(name,0), return; end
-            path=fullfile(folder,name); save_train_model(model,path);
+            path=fullfile(folder,name);
+            if isa(model,'ProcessRegressionModel')
+                report=save_regression_model(model,path); state.Verification.Data=report.Checks; app.message(index,report.Message); return;
+            end
+            save_train_model(model,path);
             expected=struct('KernelFunction',char(kernel),'FitMethod',fit_method,'BasisFunction','constant','NumObservations',rows);
             report=verify_saved_model(path,model,state.Kind,expected); state.Verification.Data=report.Checks; app.message(index,report.Message);
         end
@@ -914,8 +958,8 @@ classdef AnalysisController < handle
             app.SettingsUI.Theme = app.choiceRow(layout, 'カラーテーマ', {'ライト', 'ダーク'});
             app.SettingsUI.Kernel = app.choiceRow(layout, '既定 kernel', app.Constants.KERNELS);
             app.SettingsUI.SwingKernel = app.choiceRow(layout, 'Swing Curve専用 kernel', app.Constants.SWING_KERNELS);
-            app.SettingsUI.FitMethod = app.choiceRow(layout, '既定 fit_method', app.Constants.FIT_METHODS);
-            app.SettingsUI.InputCount = app.numberRow(layout, '汎用 GPR の説明変数数', app.Settings.InputCount, [1, 100]);
+            app.SettingsUI.FitMethod = app.choiceRow(layout, '全GPR共通 Fit method', app.Constants.FIT_METHODS);
+            app.SettingsUI.InputCount = app.numberRow(layout, '汎用回帰の説明変数数', app.Settings.InputCount, [1, 100]);
             app.SettingsUI.Bins = app.numberRow(layout, '全画面共通 KL / MI ビン数（0=自動）', app.Settings.Bins, [0, 1000]);
             app.SettingsUI.Factors = app.numberRow(layout, '実験計画の因子数', app.Settings.Factors, [1, 8]);
             app.SettingsUI.Runs = app.numberRow(layout, '実験数 / 追加数', app.Settings.Runs, [1, 300]);
@@ -944,11 +988,15 @@ classdef AnalysisController < handle
                 for index = 1:numel(app.Panels)
                     state = app.Panels{index};
                     if any(strcmp(state.Kind, {'apc', 'swing', 'generic'}))
-                        state.Kernel.Value = app.Settings.Kernel; state.FitMethod.Value = app.Settings.FitMethod;
+                        state.Kernel.Value = app.Settings.Kernel;
+                        state.FitInfo.Text=['GPR Fit method: ' app.Settings.FitMethod '（設定で変更）'];
+                        state.Study.setFitMethod(app.Settings.FitMethod);
                         if strcmp(state.Kind, 'swing'), state.Kernel.Value = app.Settings.SwingKernel; end
                     end
                     if any(strcmp(state.Kind, {'apc', 'generic', 'shap'})), state.IsPlot.Value = app.Settings.ShowPlots; end
-                    if strcmp(state.Kind, 'generic'), state.InputCount.Value = app.Settings.InputCount; end
+                    if strcmp(state.Kind, 'generic')
+                        state.InputCount.Value=app.Settings.InputCount; state.PLSComponents.Value=min(state.PLSComponents.Value,state.InputCount.Value);
+                    end
                     if strcmp(state.Kind, 'doe'), state.Factors.Value = app.Settings.Factors; state.Runs.Value = app.Settings.Runs; end
                     if ~strcmp(state.Kind, 'words'), app.updateMapping(index); end
                 end

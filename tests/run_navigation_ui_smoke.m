@@ -3,7 +3,7 @@ function run_navigation_ui_smoke(image_folder)
 if nargin < 1, image_folder = ''; end
 [app, cleanup] = create_display_preview(); %#ok<ASGLU>
 main = app.MainTabs;
-expected = {'1 APC 学習', '2 Swing Curve学習', '3 汎用 GPR 学習', '4 炉内補間', ...
+expected = {'1 APC 学習', '2 Swing Curve学習', '3 汎用回帰学習', '4 炉内補間', ...
     '5 保存モデルで推定', '6 SHAP 解析', '7 実験計画作成', '8 ワードクラウド', '9 設定', '10 Help'};
 assert(isequal({main.Children.Title}, expected));
 for index = 1:numel(main.Buttons)

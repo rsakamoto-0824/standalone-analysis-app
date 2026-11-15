@@ -28,7 +28,7 @@ for target = 1:numel(targets)
                 record.Scope = sprintf('%d分割交差検証', options.Folds);
                 record.FoldId = report.FoldId;
                 record.FoldMetrics = report.FoldMetrics(report.FoldMetrics.Kernel==labels{candidate},:);
-                record.FoldMetrics.Kernel(:) = string(conditions(candidate).Kernel);
+                record.FoldMetrics.Kernel(:) = string(modeling_condition_label(conditions(candidate)));
                 record.Note = char(report.Summary.Note(candidate));
             else
                 [record.Model, warnings, record.Details] = services.Trainer(inputs, actual, conditions(candidate), []);

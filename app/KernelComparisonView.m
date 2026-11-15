@@ -45,7 +45,7 @@ classdef KernelComparisonView < handle
             view.Seed.Layout.Row = 2; view.Seed.Layout.Column = 3;
             view.Start = uibutton(controls, 'Text', '選択したカーネルを一括比較', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) run_callback());
             view.Start.Layout.Row = 3; view.Start.Layout.Column = [2, 3];
-            label = uilabel(controls, 'Text', 'Ctrl / Command で複数選択。fit_methodは左欄を共通使用。', 'WordWrap', 'on');
+            label = uilabel(controls, 'Text', 'Ctrl / Command で複数選択。Fit methodは「9 設定」の共通値を使用。', 'WordWrap', 'on');
             label.Layout.Row = 4; label.Layout.Column = [2, 3];
             selection_row = uigridlayout(layout, [1, 5]); selection_row.Padding = [0, 0, 0, 0]; selection_row.ColumnWidth = {60, '1x', 150, 50, '1x'};
             uilabel(selection_row, 'Text', '採用候補');

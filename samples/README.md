@@ -7,7 +7,7 @@
 | APC | APC | 120 | 説明変数 SIN_TH / SIN_RN / NSG_TH / RESIST_TH、目的変数 CD_X / CD_Y |
 | Swing Curve 下地あり | Swing_Base | 80 | 膜厚 RESIST_TH、下地 SIN_TH / SIN_RN / NSG_TH、目的変数 CD_X / CD_Y |
 | Swing Curve 下地なし | Swing_NoBase | 80 | 膜厚 RESIST_THのみ、目的変数 CD_X / CD_Y |
-| 汎用GPR | Generic | 80 | 入力数3、X1 / X2 / X3、目的変数 Y1 / Y2 |
+| 汎用回帰 | Generic | 80 | 入力数3、X1 / X2 / X3、目的変数 Y1 / Y2 |
 | 保存モデル推定・SHAP | Predict_SHAP | 40 | APCで保存したモデルと同じ4説明変数。評価用実測列に保存した目的変数を選択 |
 | 炉内補間 | Furnace | 40 | WaferId / BoatSlot / Batch、目的変数 膜厚_nm / 屈折率 |
 | 実験計画の拡張 | DOE_Existing | 10 | F1 / F2 / F3（−1〜1の符号化値） |
@@ -22,3 +22,5 @@ APCの120行は学習可能ですが、従来の150行未満の注意が表示�
 9シートを画像で確認し、881個の数式、エラー0件、外部リンク・VBAなしを確認しました。MacのMicrosoft Excelで再計算・保存・再オープンを確認しています。アプリのR2025b実GPR／実SHAP、Windowsでのビルド・実行は別途確認が必要です。
 
 炉内補間ではBatch・目的変数・方式を比較後、「選択モデルをMAT保存」で1モデルを保存します。専用のFurnace_Model形式で、APC等のTrain_Modelとは別形式です。再利用関数はHTML手順書を参照してください。
+
+Genericシートは重回帰・PLSにも共通で使えます。説明変数X1/X2/X3、目的変数Y1/Y2を選択し、回帰方式とPLS成分数を指定してください。ブック内の「汎用GPR」は以前の機能名です。

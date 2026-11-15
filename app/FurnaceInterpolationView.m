@@ -56,7 +56,7 @@ classdef FurnaceInterpolationView < handle
             view.Minimum = view.numberRow('予測Slotの下限', 1, [1, view.Constants.MaximumSlot], true);
             view.Maximum = view.numberRow('予測Slotの上限', 1, [1, view.Constants.MaximumSlot], true);
             view.Step = view.numberRow('Slotの間隔', 1, [1, view.Constants.MaximumSlot], true);
-            view.RBFInfo = uilabel(view.Controls,'Text',sprintf('RBF幅: %.6g / 正則化: %.6g\n変更は「9 設定」で行います。',settings.RBFWidth,settings.RBFRidge),'WordWrap','on');
+            view.RBFInfo = uilabel(view.Controls,'Text',sprintf('RBF幅: %.6g / 正則化: %.6g\nGPR Fit method: %s\n変更は「9 設定」で行います。',settings.RBFWidth,settings.RBFRidge,settings.FitMethod),'WordWrap','on');
             view.Extrapolate = uicheckbox(view.Controls, 'Text', '計測範囲外も予測する（外挿）', 'Value', false);
             view.Confirm = uibutton(view.Controls, 'Text', '列・バッチ区分・予測範囲を確認', 'ButtonPushedFcn', @(~, ~) view.confirm());
             view.Run = uibutton(view.Controls, 'Text', 'バッチごとに比較・補間', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) view.run());
@@ -238,10 +238,10 @@ classdef FurnaceInterpolationView < handle
         end
         function applySettings(view, settings)
             view.Settings = settings; view.changed(); apply_app_theme(view.Layout, settings.Theme);
-            view.RBFInfo.Text=sprintf('RBF幅: %.6g / 正則化: %.6g\n変更は「9 設定」で行います。',settings.RBFWidth,settings.RBFRidge);
+            view.RBFInfo.Text=sprintf('RBF幅: %.6g / 正則化: %.6g\nGPR Fit method: %s\n変更は「9 設定」で行います。',settings.RBFWidth,settings.RBFRidge,settings.FitMethod);
         end
         function options = evaluationOptions(view)
-            options = struct('RBFWidth', view.Settings.RBFWidth, 'RBFRidge', view.Settings.RBFRidge, ...
+            options = struct('RBFWidth', view.Settings.RBFWidth, 'RBFRidge', view.Settings.RBFRidge, 'FitMethod',view.Settings.FitMethod, ...
                 'AllowExtrapolation', view.Extrapolate.Value, 'Bins', view.Settings.Bins);
         end
         function setBusy(view, busy)

@@ -1,6 +1,6 @@
 function [app, cleanup, folder] = create_display_preview(edition)
 if nargin < 1, edition = 'standard'; end
-% 表示専用の一時コピー。GP学習・モデル保存・SHAP計算をここから呼ばない。
+% 表示専用の一時コピー。GP学習・GPモデル保存・実SHAP計算をここから呼ばない。
 % R2022b でも UI 部分だけ補助確認するため、製品のリリース制約は変更しない。
 root = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(root, 'core'), fullfile(root, 'app'));
@@ -10,7 +10,7 @@ source = fileread(fullfile(root, 'app', 'AnalysisController.m'));
 assert(count(string(source), 'require_r2025b();') == 1);
 source = strrep(source, 'classdef AnalysisController < handle', ['classdef ' class_name ' < handle']);
 source = strrep(source, 'function app = AnalysisController(window, edition)', ['function app = ' class_name '(window, edition)']);
-source = strrep(source, 'require_r2025b();', '% 表示専用コピー。GP学習・モデル保存・SHAP計算は禁止。');
+source = strrep(source, 'require_r2025b();', '% 表示専用コピー。GP学習・GPモデル保存・実SHAP計算は禁止。');
 source = strrep(source, 'methods (Access = private)', 'methods');
 source = strrep(source, 'properties (Access = private)', 'properties');
 source = strrep(source, 'properties (SetAccess = private)', 'properties');

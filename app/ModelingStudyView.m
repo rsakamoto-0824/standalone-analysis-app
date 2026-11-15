@@ -2,7 +2,8 @@ classdef ModelingStudyView < handle
     properties (SetAccess = private)
         Tab
         Kernels
-        FitMethods
+        FitInfo
+        Regressors = []
         Folds
         Seed
         Start
@@ -14,18 +15,25 @@ classdef ModelingStudyView < handle
         Tabs
     end
     methods
-        function view = ModelingStudyView(parent, kernels, default_kernel, default_fit, run_callback, show_callback, save_callback)
+        function view = ModelingStudyView(parent, kernels, default_kernel, default_fit, run_callback, show_callback, save_callback, generic)
+            if nargin<8, generic=false; end
             view.Tab = uitab(parent,'Title','条件比較・モデル保存');
-            grid = uigridlayout(view.Tab,[4,1]); grid.RowHeight={154,36,52,'1x'};
-            controls=uigridlayout(grid,[4,4]); controls.Padding=[0,0,0,0]; controls.ColumnWidth={'1.4x','1x',90,100}; controls.RowHeight={24,30,30,38};
-            uilabel(controls,'Text','カーネル（複数選択）'); uilabel(controls,'Text','fit_method（複数選択）');
+            grid = uigridlayout(view.Tab,[4,1]); grid.RowHeight={182,36,52,'1x'};
+            controls=uigridlayout(grid,[5,4]); controls.Padding=[0,0,0,0]; controls.ColumnWidth={'1.4x','1x',90,100}; controls.RowHeight={24,30,30,38,28};
+            uilabel(controls,'Text','GPRカーネル（複数選択）');
+            heading='Fit methodは設定画面で指定'; if generic, heading='回帰方式（複数選択）'; end
+            uilabel(controls,'Text',heading);
             label=uilabel(controls,'Text','分割数'); label.Layout.Row=2; label.Layout.Column=3;
             view.Folds=uieditfield(controls,'numeric','Value',5,'Limits',[2,10],'RoundFractionalValues','on'); view.Folds.Layout.Row=2; view.Folds.Layout.Column=4;
             view.Kernels=uilistbox(controls,'Items',kernels,'Value',{default_kernel},'Multiselect','on'); view.Kernels.Layout.Row=[2,4]; view.Kernels.Layout.Column=1;
-            view.FitMethods=uilistbox(controls,'Items',{'exact','sd','sr','fic'},'Value',{default_fit},'Multiselect','on'); view.FitMethods.Layout.Row=[2,4]; view.FitMethods.Layout.Column=2;
+            if generic
+                view.Regressors=uilistbox(controls,'Items',{'ガウス過程回帰','重回帰','PLS回帰'},'ItemsData',{'gpr','linear','pls'},'Value',{'gpr'},'Multiselect','on');
+                view.Regressors.Layout.Row=[2,4]; view.Regressors.Layout.Column=2;
+            end
             label=uilabel(controls,'Text','比較seed'); label.Layout.Row=3; label.Layout.Column=3;
             view.Seed=uieditfield(controls,'numeric','Value',0,'Limits',[0,2^32-1],'RoundFractionalValues','on'); view.Seed.Layout.Row=3; view.Seed.Layout.Column=4;
             view.Start=uibutton(controls,'Text','条件を一括評価','ButtonPushedFcn',@(~,~)run_callback()); view.Start.Layout.Row=4; view.Start.Layout.Column=[3,4];
+            view.FitInfo=uilabel(controls,'WordWrap','on'); view.FitInfo.Layout.Row=5; view.FitInfo.Layout.Column=[1,4]; view.setFitMethod(default_fit);
             row=uigridlayout(grid,[1,4]); row.Padding=[0,0,0,0]; row.ColumnWidth={50,'1x',130,140};
             uilabel(row,'Text','モデル'); view.Selection=uidropdown(row,'Items',{'評価待ち'},'ItemsData',0,'Enable','off','ValueChangedFcn',@(~,~)show_callback());
             view.Show=uibutton(row,'Text','評価・SHAPを表示','Enable','off','ButtonPushedFcn',@(~,~)show_callback());
@@ -41,7 +49,8 @@ classdef ModelingStudyView < handle
                 r=records{index}; if ~strcmp(r.Kind,kind), continue; end
                 r2=NaN; rmse=NaN; if ~isempty(r.Metrics), r2=r.Metrics.Value(1); rmse=r.Metrics.Value(2); end
                 [~,file,extension]=fileparts(r.Source.FileName);
-                rows(end+1,:)={r.Id,r.Run,r.Target,r.Condition.Kernel,r.Condition.FitMethod,r2,rmse,r.Scope,r.ShapStatus,r.Status,r.Mode,strjoin(r.InputNames,', '),[file extension],r.Note}; %#ok<AGROW>
+                model_label=modeling_condition_label(r.Condition);
+                rows(end+1,:)={r.Id,r.Run,r.Target,model_label,r.Condition.FitMethod,r2,rmse,r.Scope,r.ShapStatus,r.Status,r.Mode,strjoin(r.InputNames,', '),[file extension],r.Note}; %#ok<AGROW>
                 if ~isempty(r.Metrics)
                     for scope=1:2
                         if scope==2 && strcmp(r.Scope,'学習データ'), continue; end
@@ -52,9 +61,9 @@ classdef ModelingStudyView < handle
                         all_metrics=[all_metrics;values]; %#ok<AGROW>
                     end
                 end
-                if r.Id>0, ids(end+1)=r.Id; labels{end+1}=sprintf('%d: %s / %s / %s / %s',r.Id,r.Target,r.Condition.Kernel,r.Condition.FitMethod,r.Mode); end %#ok<AGROW>
+                if r.Id>0, ids(end+1)=r.Id; labels{end+1}=sprintf('%d: %s / %s / %s / %s',r.Id,r.Target,model_label,r.Condition.FitMethod,r.Mode); end %#ok<AGROW>
             end
-            view.Summary.Data=cell2table(rows,'VariableNames',{'ModelId','Run','Target','Kernel','FitMethod','R2','RMSE','Scope','SHAP','Status','Mode','Inputs','InputFile','Note'});
+            view.Summary.Data=cell2table(rows,'VariableNames',{'ModelId','Run','Target','Model','FitMethod','R2','RMSE','Scope','SHAP','Status','Mode','Inputs','InputFile','Note'});
             view.Summary.ColumnWidth={58,40,60,145,72,75,85,110,65,60,110,180,150,'auto'};
             view.Metrics.Data=display_metric_names(all_metrics);
             if isempty(ids), return; end
@@ -71,8 +80,12 @@ classdef ModelingStudyView < handle
         end
         function setBusy(view,busy)
             enabled=matlab.lang.OnOffSwitchState(~busy);
-            view.Start.Enable=enabled; view.Kernels.Enable=enabled; view.FitMethods.Enable=enabled; view.Folds.Enable=enabled; view.Seed.Enable=enabled;
+            view.Start.Enable=enabled; view.Kernels.Enable=enabled; view.Folds.Enable=enabled; view.Seed.Enable=enabled;
+            if ~isempty(view.Regressors), view.Regressors.Enable=enabled; end
             if view.Selection.Value>0, view.Selection.Enable=enabled; view.Show.Enable=enabled; view.Save.Enable=enabled; end
+        end
+        function setFitMethod(view,value)
+            view.FitInfo.Text=['GPR Fit method: ' value '（変更は「9 設定」のみ）'];
         end
     end
 end

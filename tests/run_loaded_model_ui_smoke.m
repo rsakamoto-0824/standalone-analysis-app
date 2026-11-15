@@ -4,13 +4,13 @@ function run_loaded_model_ui_smoke()
 writeStub(fullfile(folder, 'uigetfile.m'), ...
     "function [name, folder] = uigetfile(varargin)" + newline + ...
     "name = 'synthetic.mat'; folder = tempdir;" + newline + "end" + newline);
-writeStub(fullfile(folder, 'load_train_model.m'), ...
-    "function model = load_train_model(varargin)" + newline + ...
+writeStub(fullfile(folder, 'load_analysis_model.m'), ...
+    "function model = load_analysis_model(varargin)" + newline + ...
     "model = struct('X',table((1:8)','VariableNames',{'RESIST_TH'}),'PredictorNames',{{'RESIST_TH'}},'ResponseName','y','KernelFunction','squaredexponential');" + newline + ...
     "end" + newline);
-addpath(folder, '-begin'); clear uigetfile load_train_model; rehash;
+addpath(folder, '-begin'); clear uigetfile load_analysis_model; rehash;
 functions_cleanup = onCleanup(@clearStubs); %#ok<NASGU>
-assert(strcmp(which('load_train_model'), fullfile(folder, 'load_train_model.m')));
+assert(strcmp(which('load_analysis_model'), fullfile(folder, 'load_analysis_model.m')));
 app.loadModel(4);
 assert(numel(app.ModelRegistry) == 1);
 assert(~isempty(app.Panels{4}.Model));
@@ -33,5 +33,5 @@ fprintf(file, '%s', source);
 end
 
 function clearStubs()
-clear uigetfile load_train_model;
+clear uigetfile load_analysis_model;
 end
