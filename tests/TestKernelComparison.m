@@ -92,7 +92,7 @@ classdef TestKernelComparison < matlab.unittest.TestCase
         end
         function invalidRequestsStopBeforeFitting(testCase)
             X = (1:12)';
-            testCase.verifyError(@() evaluate_kernel_candidates(X, X, {'a'}, 3, 0, 0, @alwaysFail, @plus), 'evaluate_kernel_candidates:kernels');
+            testCase.verifyError(@() evaluate_kernel_candidates(X, X, cell(1, 0), 3, 0, 0, @alwaysFail, @plus), 'evaluate_kernel_candidates:kernels');
             testCase.verifyError(@() evaluate_kernel_candidates(X, X, {'a', 'a'}, 3, 0, 0, @alwaysFail, @plus), 'evaluate_kernel_candidates:kernels');
             testCase.verifyError(@() compare_gpr_kernels('apc', ones(25, 4), X, {'matern32', 'matern52'}, 'exact', 5, 0, 0), 'compare_gpr_kernels:apcRows');
             testCase.verifyError(@() compare_gpr_kernels('generic', X, X, {'matern32', 'swingperiodic'}, 'exact', 3, 0, 0), 'compare_gpr_kernels:invalidKernel');

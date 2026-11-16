@@ -8,6 +8,7 @@ classdef TestFlexibleSwingModel < matlab.unittest.TestCase
     end
     methods (Test)
         function multipleResponsesEvaluateShapBeforeSavingSelectedModel(testCase)
+            assume_target_release(testCase);
             x = linspace(800,1250,24)'; responses = [sin(x/25), cos(x/30)];
             condition = struct('Kernel','squaredexponential','FitMethod','exact');
             services = struct('Trainer',@(a,b,c,callback)train_modeling_candidate('swing',a,b,{'RESIST_TH'},c,struct(),callback), ...
@@ -27,6 +28,7 @@ classdef TestFlexibleSwingModel < matlab.unittest.TestCase
             testCase.verifyTrue(verification.Success);
         end
         function singlePredictorSavesAndPredicts(testCase)
+            assume_target_release(testCase);
             x = linspace(800, 1250, 30)'; y = 2*sin(2*pi*x/140)+0.01*x;
             [model, ~] = train_swing_gpr_model(x,y,{'RESIST_TH'},'squaredexponential','exact');
             testCase.verifyEqual(model.PredictorNames, {'RESIST_TH'});

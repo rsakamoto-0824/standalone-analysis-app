@@ -9,7 +9,7 @@ classdef TestModelCompatibility < matlab.unittest.TestCase
             root = fileparts(fileparts(mfilename('fullpath')));
             testCase.applyFixture(matlab.unittest.fixtures.PathFixture(fullfile(root, 'core')));
             require_r2025b();
-            testCase.assertTrue(license('test', 'Statistics_Toolbox'));
+            testCase.assertTrue(logical(license('test', 'Statistics_Toolbox')));
             index = (1:150)';
             testCase.X = [sin(index / 7), cos(index / 11), index / 31, sin(index / 13) + index / 200];
             testCase.Y = sin(testCase.X(:, 1)) + testCase.X(:, 2).^2 + ...
@@ -92,6 +92,7 @@ classdef TestModelCompatibility < matlab.unittest.TestCase
             testCase.verifyEqual(size(first), [12, 2]); testCase.verifyEqual(first, second);
         end
         function smallQuery_shapDimensionsMatch(testCase)
+            assume_target_release(testCase);
             model = train_generic_gpr_model(testCase.X(1:12, 1:2), testCase.Y(1:12));
             [~, values] = compute_shap_values(model, testCase.X(1:3, 1:2));
             testCase.verifyEqual(size(values), [3, 2]);

@@ -5,12 +5,16 @@ validate_numeric_data(inputs, '説明変数', mfilename); validate_numeric_data(
 if size(inputs,1) ~= size(responses,1) || size(responses,2) ~= numel(targets) || size(inputs,2) ~= numel(names)
     error('modeling:shape', '説明変数・目的変数の行数と列名を一致させてください。');
 end
-count = numel(conditions);
-if count < 1 || count*numel(targets) > 100, error('modeling:size', '一度に計算する目的変数×条件は1〜100組にしてください。'); end
+count = numel(conditions); constants = model_constants();
+if count < 1 || count*numel(targets) > constants.MAX_MODELING_CANDIDATES
+    error('modeling:size', '一度に計算する目的変数×条件は1〜%d組にしてください。', constants.MAX_MODELING_CANDIDATES);
+end
+% Folds が2以上なら、条件が1つでも交差検証で評価する。0なら学習データで評価する。
+compute_shap = ~isfield(options, 'ComputeShap') || options.ComputeShap;
 records = cell(numel(targets)*count,1); position = 0;
 for target = 1:numel(targets)
     actual = responses(:,target); report = [];
-    if count > 1 && options.Folds >= 2
+    if options.Folds >= 2
         labels = cellstr("condition_" + string(1:count));
         report = evaluate_kernel_candidates(inputs, actual, labels, options.Folds, options.Seed, options.Bins, @train, services.Predictor, @notifyCV);
     end
@@ -37,9 +41,11 @@ for target = 1:numel(targets)
             end
             record.Metrics = evaluate_predictions(actual, record.Prediction, options.Bins);
             record.TrainingMetrics = evaluate_predictions(actual, record.TrainingPrediction, options.Bins);
-            record.Status = '成功'; notify('SHAP', target, candidate);
+            record.Status = '成功';
+            if ~compute_shap, record.Seconds = toc(started); records{position} = addCVSeconds(record); continue; end
+            notify('SHAP', target, candidate);
             try
-                limit = min(size(inputs,1),1000);
+                limit = min(size(inputs,1),constants.MAX_SHAP_POINTS);
                 [object, values] = services.Shap(record.Model, inputs(1:limit,:));
                 if ~isequal(size(values), [limit,size(inputs,2)]) || any(~isfinite(values(:)))
                     error('modeling:shapShape', 'SHAP値の形状または数値が不正です。');
@@ -55,15 +61,22 @@ for target = 1:numel(targets)
             record.Model = []; record.Note = err.message;
         end
         record.Seconds = toc(started);
-        if ~isempty(report), record.Seconds=record.Seconds+report.Summary.Seconds(candidate); end
-        records{position} = record;
+        records{position} = addCVSeconds(record);
     end
 end
+    function record = addCVSeconds(record)
+        if ~isempty(report), record.Seconds = record.Seconds + report.Summary.Seconds(candidate); end
+    end
     function [model, warnings, details] = train(x,y,label,callback)
         condition_index = str2double(extractAfter(label,'condition_'));
         [model,warnings,details] = services.Trainer(x,y,conditions(condition_index),callback);
     end
-    function notifyCV(~), notify('交差検証',target,0); end
+    function notifyCV(update)
+        stage = sprintf('交差検証 %d / %d 分割', update.Fold, update.Folds);
+        if update.Fold == 0, stage = update.Stage; end
+        if update.PeriodCount > 0, stage = sprintf('%s（周期候補 %d / 最大%d）', stage, update.PeriodCount, update.PeriodMaximum); end
+        notify(stage, target, update.KernelIndex);
+    end
     function notify(stage, target_index, condition_index)
         if ~isempty(progress), progress(struct('Stage',stage,'Target',targets{target_index},'Condition',condition_index,'Conditions',count)); end
     end

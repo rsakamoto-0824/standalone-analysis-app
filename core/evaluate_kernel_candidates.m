@@ -16,8 +16,8 @@ if ~(iscellstr(kernels) || isstring(kernels)) || ~isvector(kernels)
     error('evaluate_kernel_candidates:kernels', 'カーネル名の一覧を渡してください。');
 end
 kernels = cellstr(lower(string(kernels(:)))); count = numel(kernels);
-if count < 2 || numel(unique(kernels)) ~= count
-    error('evaluate_kernel_candidates:kernels', '異なるカーネルを2個以上選択してください。');
+if count < 1 || numel(unique(kernels)) ~= count
+    error('evaluate_kernel_candidates:kernels', '重複しない候補を1個以上選択してください。');
 end
 previous_rng = rng; cleanup = onCleanup(@() rng(previous_rng));
 rng(seed, 'twister'); fold_id = zeros(rows, 1);

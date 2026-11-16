@@ -9,10 +9,10 @@ end
 if ~license('test', 'Compiler') || ~license('test', 'Statistics_Toolbox')
     error('build_windows:missingToolbox', 'MATLAB Compiler と Statistics and Machine Learning Toolbox が必要です。');
 end
-entry = fullfile(project_root, 'app', 'AnalysisApp.mlapp');
-if ~isfile(entry)
-    error('build_windows:missingMlapp', '先に docs/windows-build.md の手順で AnalysisApp.mlapp を作成してください。');
-end
+% 入口は app/launch_analysis_app.m。App Designer の AnalysisApp.mlapp を作成済みなら、そちらを優先する。
+ENTRY_MLAPP = 'AnalysisApp.mlapp'; ENTRY_FUNCTION = 'launch_analysis_app.m';
+entry_name = ENTRY_FUNCTION;
+if isfile(fullfile(project_root, 'app', ENTRY_MLAPP)), entry_name = ENTRY_MLAPP; end
 run_tests();
 output = fullfile(project_root, 'build', 'windows', edition);
 staging = tempname; manifest = prepare_edition_build(project_root, edition, staging);
@@ -30,7 +30,7 @@ for index=1:numel(sample_files)
 end
 additional = {fullfile(staging, 'core'), fullfile(staging, 'app'), fullfile(project_root, 'docs'), sample_folder, ...
     fullfile(project_root, 'README.md'), fullfile(project_root, 'verification.md'), fullfile(project_root, 'issues.md')};
-result = compiler.build.standaloneWindowsApplication(fullfile(staging, 'app', 'AnalysisApp.mlapp'), ...
+result = compiler.build.standaloneWindowsApplication(fullfile(staging, 'app', entry_name), ...
     'ExecutableName', executable, 'OutputDir', output, 'AdditionalFiles', additional, 'Verbose', 'on');
 file = fopen(fullfile(output, 'edition-manifest.json'), 'w', 'n', 'UTF-8');
 if file < 0, error('build_windows:manifest', '版の確認ファイルを保存できません。'); end

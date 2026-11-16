@@ -222,3 +222,23 @@ R2025bでの炉内GPR、微小な屈折率変動と定数応答、CSV/Excel/PNG�
 - Helpへ用語とpolyfit/polyvalの公式リンク、画像付きHTML手順書へ最小二乗近似の意味と6方式の操作を追記。ブラウザはPC幅1600/1366で本文14px、横幅のはみ出しなし、画像33箇所の読込、目次リンクを確認した。
 
 3次多項式は計測点を必ず通らず、応答の予測区間は付けない。候補選定に使った内部Slot検証は独立評価ではなく、端部・外挿性能も評価しない。R2025bおよびWindows/Runtimeでの最終確認は未実施。
+
+## 2026-11-16 画面の作り直しと、実モデルでの通し確認
+
+確認環境：MATLAB R2022b / macOS。開発用の例外（環境変数 `PROCESS_INSIGHT_DEV_RELEASE=allow`、配布版では無効）で製品コードをそのまま起動した。これまでの「表示専用コピー＋代替学習器」ではなく、**実際の fitrgp・MAT 保存・保存後検証**を実行している。SHAP の複数行計算（shapley の QueryPoints）は R2025b 専用のため、ここでは代替計算（1列を学習データの平均に置き換えた予測差）へ差し替えて画面の流れだけを確認した。
+
+- `run_app_flow_check`：14項目すべて成功。同梱サンプルで、APC（2カーネルの5分割交差検証・保存・`Train_Model` だけの MAT・後からの SHAP）、Swing Curve（下地あり／下地なし・swingperiodic・保存）、汎用回帰（GPR・重回帰・PLS の比較、`Regression_Model` と `Train_Model` の保存）、炉内補間（2 Run・6方式・`Furnace_Model` の保存）、保存モデルで推定、SHAP 解析、実験計画（D・I・直交表・拡張）、ワードクラウド、設定（テーマ・Fit method を変えても学習結果が残る）、Help、細かい操作（説明変数の並べ替え、表・図の書出し、ヘッダー行3の CSV）、入力の誤りの検出を確認した。
+- 単体テスト：138件成功、失敗0件、未実施5件（SHAP の複数行計算を使う R2025b 専用の確認）。これまで R2025b 専用として未実行だった実 GPR の試験（`TestModelCompatibility` の T-01〜T-10、`TestKernelComparisonModel`、`TestPeriodicModel`、`TestFurnaceModel`、`TestFlexibleSwingModel` の一部）を初めて実行した。
+- 上記の実行で見つけて直した不備：`TestModelCompatibility` の準備処理（`assertTrue(license(...))` が数値を返すため常に失敗し、R2025b でも T-01〜T-10 が全件失敗する状態）、`TestPeriodicModel` の Fit method の比較（MATLAB は `SD` と返す）。
+- 静的解析（`check_sources`）：従来からの改善提案5件のみ。新しい警告・構文エラーなし。原仕様の学習4種類・保存の正本5ブロックは一致（`check_model_contract` は単体テスト内で確認）。
+- 画面の画像確認：全画面を `exportapp` で書き出して目視。状況欄が空白になる表示不具合（`scroll` の使用が原因）を見つけ、新しい順に表示する方式へ変更した。設定画面の保存ボタンがスクロールの外に出る配置も修正した。ライト／ダーク、1360×860 と 1000×700 の表示を確認した。
+- 手順書：新しい画面の画像24枚（本文の画像は30箇所）で作り直し、内蔵ブラウザーの幅1366pxで、本文14px・横方向のはみ出しなし・画像の読込み失敗0件・目次15項目・ページ内リンク切れなし・重複 ID なしを確認した。
+
+未確認（対象環境での確認が必要）：
+
+- MATLAB R2025b / Windows での起動、`run_app_flow_check`、`run_tests`。R2025b の画面部品の見え方（文字の幅、既定の配色）は R2022b / macOS と異なる可能性がある。
+- SHAP の実計算（`shapley` の複数行計算、`swarmchart(ax, explainer)`）。分布図は、shapley オブジェクトから直接描けない場合でも同じ SHAP 値を標準の swarmchart で描くようにしたが、R2025b では未確認。
+- Windows exe の生成（入口を `launch_analysis_app.m` に変更）、Runtime だけの端末での起動、配布版での同梱ファイルの配置。
+- 実データでの確認。確認はすべて同梱の合成サンプルで行った。
+- クリップボードへのコピー、ファイル選択ダイアログからの操作（確認ではダイアログを開かない入口を使用）。
+

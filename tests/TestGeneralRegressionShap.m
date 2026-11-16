@@ -7,6 +7,7 @@ classdef TestGeneralRegressionShap < matlab.unittest.TestCase
     end
     methods (Test)
         function savedLinearAndPlsCanUseStandardShapleySwarmchart(testCase)
+            assume_target_release(testCase);
             t=(1:18)'; x=[sin(t),cos(t/3)]; y=2+3*x(:,1)-4*x(:,2);
             fixture=testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
             for method={'linear','pls'}

@@ -43,13 +43,14 @@ classdef TestPeriodicModel < matlab.unittest.TestCase
             testCase.verifyTrue(comparison.PredictionsExactlyEqual);
         end
         function customKernelSupportsShapPredictions(testCase)
+            assume_target_release(testCase);
             [~, values] = compute_shap_values(testCase.Model, testCase.Inputs(1:3, :));
             testCase.verifySize(values, [3, 4]); testCase.verifyTrue(all(isfinite(values), 'all'));
         end
         function approximateMethodsUseTheSelectedMethod(testCase)
             for method = {'sd', 'sr', 'fic'}
                 [model, ~, details] = train_swing_curve_model(testCase.Inputs(:, 1:3), testCase.Inputs(:, 4), testCase.Response, 'swingperiodic', method{1});
-                testCase.verifyEqual(model.FitMethod, method{1});
+                testCase.verifyTrue(strcmpi(model.FitMethod, method{1}), '選んだ Fit method で学習します（大文字・小文字は区別しない）。');
                 testCase.verifyEqual(details.Criterion, '近似周辺対数尤度');
                 testCase.verifyTrue(all(isfinite(predict(model, model.X))));
             end
