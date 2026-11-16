@@ -3,6 +3,7 @@ constants = furnace_constants();
 if nargin < 4, options = struct(); end
 if ~isfield(options, 'RBFWidth'), options.RBFWidth = constants.DefaultRBFWidth; end
 if ~isfield(options, 'RBFRidge'), options.RBFRidge = constants.DefaultRBFRidge; end
+if ~isfield(options,'FitMethod'), options.FitMethod='exact'; end
 if ~isvector(slots) || ~isvector(response), error('furnace:trainingShape', 'Slotと目的変数はベクトルにしてください。'); end
 [slots, response] = metric_inputs(slots, response, 4, mfilename);
 if numel(unique(slots)) ~= numel(slots), error('furnace:duplicateSlots', '学習するBoatSlotは重複できません。'); end
@@ -47,7 +48,8 @@ switch method
         if model.ResponseScale == 0, model.ResponseScale = 1; end
         standardized_response = (response - model.ResponseCenter) / model.ResponseScale;
         initial_parameters = [1; 1]; if strcmp(kernel, 'rationalquadratic'), initial_parameters = [1; 1; 1]; end
-        model.Fit = fitrgp(slots, standardized_response, 'KernelFunction', char(kernel), 'FitMethod', 'exact', ...
+        validate_model_parameters(char(kernel),options.FitMethod,mfilename);
+        model.Fit = fitrgp(slots, standardized_response, 'KernelFunction', char(kernel), 'FitMethod', options.FitMethod, ...
             'PredictMethod', 'exact', 'Standardize', true, 'BasisFunction', 'linear', ...
             'KernelParameters', initial_parameters, 'Sigma', constants.GPRInitialSigma, 'SigmaLowerBound', constants.GPRMinimumSigma);
 end

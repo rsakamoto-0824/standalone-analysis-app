@@ -161,7 +161,8 @@ classdef TestFurnaceInterpolation < matlab.unittest.TestCase
             testCase.verifyError(@() evaluate_furnace_models([1; 1; (3:7)'], x, {'Film'}, x, {'spline'}, struct()), 'furnace:duplicateSlots');
             testCase.verifyError(@() evaluate_furnace_models(x, [x, x], {'Film'}, x, {'spline'}, struct()), 'furnace:shape');
             testCase.verifyError(@() evaluate_furnace_models(x, [Inf; x(2:end)], {'Film'}, x, {'spline'}, struct()), 'evaluate_furnace_models:infiniteRows');
-            if ~strcmp(version('-release'), '2025b')
+            constants = model_constants(); allowed = strcmp(getenv(constants.DEVELOPMENT_RELEASE_VARIABLE), 'allow');
+            if ~strcmp(version('-release'), constants.REQUIRED_RELEASE) && ~allowed
                 testCase.verifyError(@() fit_furnace_model(x, x, 'gpr_matern52'), 'AnalysisApp:wrongRelease');
             end
         end

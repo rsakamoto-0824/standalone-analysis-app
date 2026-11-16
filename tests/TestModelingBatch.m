@@ -19,6 +19,35 @@ classdef TestModelingBatch < matlab.unittest.TestCase
             for k=1:4, testCase.verifyEqual(records{k}.Status,'成功',records{k}.Note); testCase.verifyEqual(records{k}.Metrics.Value(2),0,'AbsTol',1e-10); end
             testCase.verifyEqual(records{1}.Scope,'3分割交差検証');
         end
+        function singleConditionCanUseCrossValidation(testCase)
+            % 条件が1つでも、分割数を指定すれば学習に使っていない行で評価する。
+            [x,y,names,targets,c,o,s]=fixture(); o.Folds=3;
+            records=evaluate_modeling_batch(x,y,names,targets,c(1),o,s);
+            testCase.verifyNumElements(records,2);
+            for k=1:2
+                testCase.verifyEqual(records{k}.Status,'成功',records{k}.Note);
+                testCase.verifyEqual(records{k}.Scope,'3分割交差検証');
+                testCase.verifyEqual(sort(unique(records{k}.FoldId))',1:3);
+                testCase.verifyEqual(records{k}.Model.Rows,30,'保存対象は全行で学習したモデルです。');
+            end
+        end
+        function shapCanBeSkippedAndComputedLater(testCase)
+            [x,y,names,targets,c,o,s]=fixture(); o.ComputeShap=false;
+            records=evaluate_modeling_batch(x,y,names,targets,c,o,s);
+            for k=1:4
+                testCase.verifyEqual(records{k}.Status,'成功'); testCase.verifyEqual(records{k}.ShapStatus,'未計算');
+                testCase.verifyEmpty(records{k}.Shap); testCase.verifyNotEmpty(records{k}.Model);
+            end
+        end
+        function progressNamesTheStageAndCondition(testCase)
+            [x,y,names,targets,c,o,s]=fixture(); o.Folds=3; events={};
+            evaluate_modeling_batch(x,y,names,targets,c,o,s,@collect);
+            stages=cellfun(@(event)string(event.Stage),events);
+            testCase.verifyTrue(any(startsWith(stages,"交差検証 1 / 3")));
+            testCase.verifyTrue(any(stages=="学習") && any(stages=="SHAP"));
+            testCase.verifyTrue(all(cellfun(@(event)event.Conditions,events)==2));
+            function collect(event), events{end+1}=event; end
+        end
         function shapFailureKeepsModelAndOtherTargets(testCase)
             [x,y,names,targets,c,o,s]=fixture(); c(1).Kernel='shap_fail';
             records=evaluate_modeling_batch(x,y,names,targets,c,o,s);

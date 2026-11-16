@@ -14,10 +14,16 @@ diagnostic_charts = {}; diagnostic_names = {};
 names{1} = 'SHAP 分布';
 tab = uitab(parent, 'Title', names{1}); layout = uigridlayout(tab, [1, 1]);
 ax = uiaxes(layout); charts{1} = ax; hold(ax, 'on');
+drawn = false;
 if isfield(options, 'Explainer') && isa(options.Explainer, 'shapley')
-    swarmchart(ax, options.Explainer, 'NumImportantPredictors', numel(predictor_names));
-else
-    % 合成値による表示試験だけは、shapleyオブジェクトなしで標準の描画関数を呼ぶ。
+    try
+        swarmchart(ax, options.Explainer, 'NumImportantPredictors', numel(predictor_names)); drawn = true;
+    catch
+        % shapleyオブジェクトから直接描けない場合も、同じSHAP値を標準のswarmchartで描いて表示を続ける。
+        cla(ax); hold(ax, 'on');
+    end
+end
+if ~drawn
     for position = 1:numel(order)
         column = order(position);
         values = inputs(:, column); span = max(values) - min(values);

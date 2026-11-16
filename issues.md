@@ -1,7 +1,7 @@
 # 残課題
 
-- [ ] I-001 Windows / MATLAB R2025b で全単体テストを実行し、成功・失敗・未完了件数を記録する。
-- [ ] I-002 R2025b App Designer で薄い入口 `app/AnalysisApp.mlapp` を作成し、画面の表示・操作を確認する（`docs/windows-build.md`）。
+- [ ] I-001 Windows / MATLAB R2025b で `run_app_flow_check`（全機能の通し確認14項目）と `run_tests`（全単体テスト）を実行し、成功・失敗・未完了件数を記録する。
+- [x] I-002 exe の入口を `app/launch_analysis_app.m` に変更し、App Designer で `AnalysisApp.mlapp` を作る手作業を不要にした（作成済みならそちらを使う）。R2025b での起動確認は I-001 に含める。
 - [ ] I-003 MATLAB Compiler R2025b で Windows exe を生成し、Runtime R2025b のみの端末で全機能を確認する。
 - [ ] I-004 ユーザーが旧・新モデルを用意し、`compare_models` で互換性を確認する。
 - [ ] I-005 Q-01〜Q-11 の暫定方針をユーザー確認後に確定する。現在は原仕様の暫定方針を維持する。
@@ -21,3 +21,12 @@
 - [x] I-017 保存前のモデリング・SHAP評価、複数目的変数、Swing Curveの下地モード、条件履歴と選択保存、2〜5水準DOE、設定専用seed/RBF、9シートの合成Excelを実装。炉内補間は選択した1モデルを専用Furnace_Modelへ保存する。補助テストと非GPRのMAT往復・画面確認を実施。実GPR/SHAP・GPR炉内MAT往復・Windows通常版/Pro版/RuntimeはI-001・I-003で確認する。
 
 - [x] I-018 学習3画面の目的変数を左の入力欄へ移し、読込み時の候補更新/有効化と入力プレビュー、最終列の誤選択防止を修正。推定/SHAP/炉内も実ファイルの読込みコールバックと選択保持を補助確認。Windows R2025bの実クリック/キーボード操作と配布exeの再ビルド確認はI-001・I-003に含める。
+
+
+- [x] I-019 Swing Curveの下地選択と編集可能な列対応を修正。全GPRのFit methodを設定画面へ集約し、汎用回帰に重回帰・PLS、方式比較、専用MAT保存／再読込みを追加。数値・UI・実MAT往復を補助確認。R2025bでの実GPR／実SHAP、Windows両版／RuntimeはI-001・I-003で確認する。
+
+- [x] I-020 画面を作り直した（ホーム、目的別メニュー、4ステップの学習画面、画面内でのシート・ヘッダー行の指定、常に見える選択欄での列の割当、単独学習と条件比較の一本化、結果を消さない設定変更、新しい順の状況欄）。同梱サンプルを実 GPR で通す `run_app_flow_check` 14項目と単体テスト138件を R2022b（開発用の例外）で確認。SHAP の実計算と Windows / Runtime は I-001・I-003 で確認する。
+- [x] I-021 R2025b 専用テストの不備を修正（`TestModelCompatibility` の準備処理が常に失敗、`TestPeriodicModel` の Fit method の大文字・小文字）。学習ログへ原仕様7章の項目を記録するよう修正。
+- [ ] I-022 解説動画2本（`docs/video/app-overview`、未登録の `docs/video/animated-overview`）と紹介画像は、作り直す前の画面のまま。新しい画面で作り直すかを決める。
+- [ ] I-023 配布版（exe）での同梱ファイル（`samples/`、`docs/user-guide/`）の配置を Windows で確認し、「サンプルデータを開く」と Help の手順書ボタンが動くことを確認する。
+

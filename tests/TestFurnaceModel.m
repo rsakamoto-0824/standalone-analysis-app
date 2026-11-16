@@ -7,6 +7,16 @@ classdef TestFurnaceModel < matlab.unittest.TestCase
         end
     end
     methods (Test)
+        function configuredFitMethodReachesEveryGprKernel(testCase)
+            x=(1:8)'; y=100+sin(x/3);
+            for fit={'exact','sd','sr','fic'}
+                for kernel={'gpr_squaredexponential','gpr_matern52','gpr_rationalquadratic'}
+                    model=fit_furnace_model(x,y,kernel{1},struct('FitMethod',fit{1}));
+                    testCase.verifyTrue(strcmpi(model.Fit.FitMethod,fit{1}));
+                    testCase.verifyTrue(all(isfinite(predict_furnace_model(model,x))));
+                end
+            end
+        end
         function smoothGprKernelsReturnPredictionsAndResponseIntervals(testCase)
             x = [1; 6; 12; 20; 31; 45; 60]; y = 100 + 2*sin(x/30) + 0.01*x;
             methods = {'gpr_squaredexponential', 'gpr_matern52', 'gpr_rationalquadratic'};

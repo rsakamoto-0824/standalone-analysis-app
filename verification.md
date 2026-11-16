@@ -1,5 +1,19 @@
 # 検証記録
 
+## 2026-11-15 Swing Curveの列対応・共通Fit method・汎用回帰
+
+- Swing Curveの下地あり選択で右の条件画面を開き、任意名の下地列を選べるよう修正。対応表の入力列を編集可能にし、下地・膜厚の変更を右の選択へ同期する。設定適用後の対応保持と別ファイル読込み時の解除を確認した。
+- 全GPRのFit methodを設定画面だけで編集する共通値に変更。APC・Swing Curve・汎用回帰と比較条件、炉内GPRの評価オプションへの反映を確認した。重回帰・PLSはFit methodを使用しない。
+- 汎用回帰に切片付き重回帰とPLS、PLS成分数、GPRとの共通分割比較・モデル履歴・選択MAT保存を追加。標準化は各学習の学習行だけで行う。重回帰・PLSはProcessRegressionModel型のRegression_Model単独形式で、本アプリの推定・SHAP読込に対応する。GPRのTrain_Modelと炉内のFurnace_Model形式を維持する。
+- R2022bの数値補助テストは計43件成功。TestGeneralRegression 7、TestModelingBatch 9、TestFurnaceInterpolation 16、TestFurnaceSave 3、TestProductEnhancements 8。重回帰の既知係数・元単位での予測、PLSと最小二乗解、共線性と定数応答、各分割の学習除外と予測、複数目的変数、実MATの保存・再読込みと予測一致、不正な入力の拒否を確認した。実RegressionGP学習・保存と実SHAPは行っていない。
+- run_general_regression_ui_smokeが成功。表示専用コピーで、Swing Curveの別名入力列・編集同期・設定後保持、設定専用Fit method、重回帰・PLSの実計算による2目的変数、2つの代替GPRを含む4条件の比較、選択MAT保存・実読込み・保存モデル推定を確認。SHAPは合成値、GPRは代替関数を用いる。比較でPLSを選んだ場合にも成分数を編集できることを確認した。追加試験では方式切替後の再確認を省いて一度失敗したため、実際の操作順と同じく列対応確認を挟むよう試験を修正し、再実行で成功した。
+- run_target_selection_ui_smoke、run_batch_modeling_ui_smoke、run_loaded_model_ui_smokeも成功し、既存の目的変数選択・履歴・保存・読込モデルの受渡しを補助確認した。今回の新しい試験以外は合成学習器／合成ローダーによる従来の補助試験であり、実GPR・実SHAPの確認ではない。
+- 静的解析で新規製品ソースに指摘なし。既存の正本等への改善提案5件と表示試験用の不要な抑制コメント2件は残る。正本の学習4種類・保存の5ブロックはすべて一致した。
+- 参考画面41/42をexportappで撮影し、README・Help・Windows手順・HTMLを更新。HTMLの48ローカル参照・16ページ内リンクに欠落なし、重複IDなし。内蔵ブラウザーはタイムアウトしたためPlaywright CLIで幅1366×900の横はみ出しなし・本文14px・新画像2枚の1600px拡大・エラーログ0件を確認した。R2025b製品のマウス操作の確認ではない。
+
+R2025b専用のTestGeneralRegressionShap（実shapley・標準swarmchart・MAT往復）と、TestFurnaceModelの4 Fit method×3カーネルの試験を追加したが、この端末では未実行。Windows R2025bでの全テスト、通常版／Pro版の再ビルド、Runtimeでの新クラスのMAT読込み・実SHAPを引き続き確認する。
+
+
 ## 2026-11-10 目的変数の選択修正
 
 - 学習3画面では目的変数が右の結果タブにあり、読込み後も「結果」を表示していた。サンプルAPCを本番の読込み経路へ渡し、最終列Lotが初期目的変数になることも再現した。
@@ -208,3 +222,23 @@ R2025bでの炉内GPR、微小な屈折率変動と定数応答、CSV/Excel/PNG�
 - Helpへ用語とpolyfit/polyvalの公式リンク、画像付きHTML手順書へ最小二乗近似の意味と6方式の操作を追記。ブラウザはPC幅1600/1366で本文14px、横幅のはみ出しなし、画像33箇所の読込、目次リンクを確認した。
 
 3次多項式は計測点を必ず通らず、応答の予測区間は付けない。候補選定に使った内部Slot検証は独立評価ではなく、端部・外挿性能も評価しない。R2025bおよびWindows/Runtimeでの最終確認は未実施。
+
+## 2026-11-16 画面の作り直しと、実モデルでの通し確認
+
+確認環境：MATLAB R2022b / macOS。開発用の例外（環境変数 `PROCESS_INSIGHT_DEV_RELEASE=allow`、配布版では無効）で製品コードをそのまま起動した。これまでの「表示専用コピー＋代替学習器」ではなく、**実際の fitrgp・MAT 保存・保存後検証**を実行している。SHAP の複数行計算（shapley の QueryPoints）は R2025b 専用のため、ここでは代替計算（1列を学習データの平均に置き換えた予測差）へ差し替えて画面の流れだけを確認した。
+
+- `run_app_flow_check`：14項目すべて成功。同梱サンプルで、APC（2カーネルの5分割交差検証・保存・`Train_Model` だけの MAT・後からの SHAP）、Swing Curve（下地あり／下地なし・swingperiodic・保存）、汎用回帰（GPR・重回帰・PLS の比較、`Regression_Model` と `Train_Model` の保存）、炉内補間（2 Run・6方式・`Furnace_Model` の保存）、保存モデルで推定、SHAP 解析、実験計画（D・I・直交表・拡張）、ワードクラウド、設定（テーマ・Fit method を変えても学習結果が残る）、Help、細かい操作（説明変数の並べ替え、表・図の書出し、ヘッダー行3の CSV）、入力の誤りの検出を確認した。
+- 単体テスト：138件成功、失敗0件、未実施5件（SHAP の複数行計算を使う R2025b 専用の確認）。これまで R2025b 専用として未実行だった実 GPR の試験（`TestModelCompatibility` の T-01〜T-10、`TestKernelComparisonModel`、`TestPeriodicModel`、`TestFurnaceModel`、`TestFlexibleSwingModel` の一部）を初めて実行した。
+- 上記の実行で見つけて直した不備：`TestModelCompatibility` の準備処理（`assertTrue(license(...))` が数値を返すため常に失敗し、R2025b でも T-01〜T-10 が全件失敗する状態）、`TestPeriodicModel` の Fit method の比較（MATLAB は `SD` と返す）。
+- 静的解析（`check_sources`）：従来からの改善提案5件のみ。新しい警告・構文エラーなし。原仕様の学習4種類・保存の正本5ブロックは一致（`check_model_contract` は単体テスト内で確認）。
+- 画面の画像確認：全画面を `exportapp` で書き出して目視。状況欄が空白になる表示不具合（`scroll` の使用が原因）を見つけ、新しい順に表示する方式へ変更した。設定画面の保存ボタンがスクロールの外に出る配置も修正した。ライト／ダーク、1360×860 と 1000×700 の表示を確認した。
+- 手順書：新しい画面の画像24枚（本文の画像は30箇所）で作り直し、内蔵ブラウザーの幅1366pxで、本文14px・横方向のはみ出しなし・画像の読込み失敗0件・目次15項目・ページ内リンク切れなし・重複 ID なしを確認した。
+
+未確認（対象環境での確認が必要）：
+
+- MATLAB R2025b / Windows での起動、`run_app_flow_check`、`run_tests`。R2025b の画面部品の見え方（文字の幅、既定の配色）は R2022b / macOS と異なる可能性がある。
+- SHAP の実計算（`shapley` の複数行計算、`swarmchart(ax, explainer)`）。分布図は、shapley オブジェクトから直接描けない場合でも同じ SHAP 値を標準の swarmchart で描くようにしたが、R2025b では未確認。
+- Windows exe の生成（入口を `launch_analysis_app.m` に変更）、Runtime だけの端末での起動、配布版での同梱ファイルの配置。
+- 実データでの確認。確認はすべて同梱の合成サンプルで行った。
+- クリップボードへのコピー、ファイル選択ダイアログからの操作（確認ではダイアログを開かない入口を使用）。
+
