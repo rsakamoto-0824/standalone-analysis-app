@@ -29,6 +29,11 @@ apc.Kernels.Value = {'squaredexponential', 'matern52'}; apc.Kernels.ValueChanged
 apc.Steps.SelectedTab = apc.StepTabs.Conditions; snap('55-conditions');
 apc.runModeling(); apc.selectRow(1); snap('57-results');
 chart_tabs = apc.Result.ChartTabs.Children; apc.Result.ChartTabs.SelectedTab = chart_tabs(strcmp({chart_tabs.Title}, 'SHAP 分布')); snap('58-results-shap');
+% SHAP依存図の色を、別の説明変数へ切り替えた状態を撮る。
+dependence = chart_tabs(strcmp({chart_tabs.Title}, 'SHAP 依存: SIN_TH')); apc.Result.ChartTabs.SelectedTab = dependence;
+selector = findobj(dependence, 'Type', 'uidropdown'); selector.Value = find(strcmp(apc.Records{1}.InputNames, 'NSG_TH'));
+selector.ValueChangedFcn(selector, []); snap('74-shap-color');
+apc.Result.showTable(apc.TABLE_OUTPUT); snap('75-output-table');
 model_path = fullfile(work, 'Train_Model_CD_X.mat'); apc.saveSelectedTo(model_path); snap('59-results-verification');
 
 % --- Swing Curve ---
@@ -63,6 +68,7 @@ furnace.run(); snap('64-furnace-results');
 app.selectPage('predict'); predict_page = app.page('predict');
 predict_page.openModel(model_path); predict_page.Source.open(sample, 'Predict_SHAP', 1);
 predict_page.Actual.Value = 'CD_X'; predict_page.confirm(); predict_page.run(); snap('61-predict');
+predict_page.Result.showTable(predict_page.TABLE_OUTPUT); snap('76-predict-output');
 app.selectPage('shap'); shap_page = app.page('shap'); [~, ids] = app.Models.list(); shap_page.selectModel(ids(1));
 shap_page.Source.open(sample, 'Predict_SHAP', 1); shap_page.confirm(); shap_page.run(); snap('62-shap-page');
 

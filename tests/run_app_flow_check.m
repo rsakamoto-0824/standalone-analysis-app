@@ -36,6 +36,7 @@ step('ワードクラウド', @checkWords);
 step('設定：テーマ変更で結果が消えない', @checkSettings);
 step('Help', @() app.selectPage('help'));
 step('細かい操作：並べ替え・書出し・CSV・ヘッダー行', @checkDetails);
+step('結果の表示と出力：横並びの散布図・SHAPの色・1ファイル出力・進捗', @checkOutputs);
 step('入力の誤りを分かる言葉で止める', @checkValidation);
 
 results = table(string(names(:)), logical(passed(:)), string(notes(:)), 'VariableNames', {'Step', 'Passed', 'Note'});
@@ -103,6 +104,48 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         page.selectRow(3); page.computeShapForSelected();
         assert(strcmp(page.Records{3}.ShapStatus, '成功'), '後からのSHAP計算に失敗しました。');
     end
+    function checkOutputs()
+        app.selectPage('apc'); page = app.page('apc'); page.selectRow(1); record = page.Records{1};
+        % 実測値と予測値・残差は1つのタブに横並び（2つの図）。
+        tabs = page.Result.ChartTabs.Children; titles = {tabs.Title};
+        assert(any(strcmp(titles, EvaluationScatterView.TAB_TITLE)) && ~any(strcmp(titles, '残差')), '散布図が1つのタブにまとまっていません: %s', strjoin(titles, ', '));
+        scatter_tab = tabs(strcmp(titles, EvaluationScatterView.TAB_TITLE));
+        assert(numel(findobj(scatter_tab, 'Type', 'axes')) == 2, '散布図のタブに2つの図がありません。');
+        % 入れ子の関数は外側と変数を共有するため、外側の names（確認項目の名前）と別の名前にする。
+        [charts, chart_names] = page.Result.validCharts();
+        combined = find(strcmp(chart_names, EvaluationScatterView.COMBINED_NAME), 1);
+        assert(~isempty(combined), '2つ並べた図を書き出しの対象にしていません。');
+        png = fullfile(work, 'scatter_pair.png'); page.Result.exportFigureTo(charts{combined}, png);
+        picture = imread(png); assert(size(picture, 2) > 1.6 * size(picture, 1), '2つ並べた図のPNGが横長になっていません（%d×%d）。', size(picture, 2), size(picture, 1));
+        % SHAP依存図の色を、任意の説明変数へ切り替える。
+        dependence = tabs(strcmp(titles, 'SHAP 依存: SIN_TH'));
+        selector = findobj(dependence, 'Type', 'uidropdown'); assert(numel(selector) == 1, 'SHAP依存図に色の選択欄がありません。');
+        assert(isequal(selector.ItemsData, 0:4), '色の候補が「単色」と全説明変数になっていません。');
+        selector.Value = find(strcmp(record.InputNames, 'NSG_TH')); selector.ValueChangedFcn(selector, []);
+        scale = findobj(dependence, 'Type', 'colorbar'); assert(numel(scale) == 1 && strcmp(scale.Label.String, 'NSG_TH'), '色の変数を切り替えられません。');
+        selector.Value = 0; selector.ValueChangedFcn(selector, []);
+        assert(isempty(findobj(dependence, 'Type', 'colorbar')), '単色に戻せません。');
+        % 元データの説明変数・目的変数と、予測値・残差・SHAPを1つの表・1つのファイルにする。
+        output = page.Result.tableData(page.TABLE_OUTPUT);
+        expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'CD_X', 'CD_X_予測値', 'CD_X_残差', '検証分割', 'CD_X_全データモデルの予測値'}, ...
+            strcat('SHAP_', app.Constants.PREDICTOR_NAMES)];
+        assert(isequal(output.Properties.VariableNames, expected), '出力の列が想定と違います: %s', strjoin(output.Properties.VariableNames, ', '));
+        assert(height(output) == numel(record.Actual) && isequal(output.CD_X, record.Actual), '出力の目的変数が元データと一致しません。');
+        assert(max(abs(output.("CD_X_残差") - (record.Actual - record.Prediction))) == 0, '残差が実測−予測になっていません。');
+        source = page.Source.Data; column = find(strcmp(source.Headers, 'SIN_RN'));
+        assert(isequal(output.SIN_RN, cell2mat(source.Cells(:, column))), '出力の説明変数が元データと一致しません。');
+        csv = fullfile(work, 'output.csv'); page.exportOutputTo(csv);
+        file = fopen(csv, 'r'); head = fread(file, 3, '*uint8')'; fclose(file);
+        assert(isequal(head, uint8([239, 187, 191])), 'CSVの先頭にBOMがありません（Windows版Excelで文字化けします）。');
+        back = readtable(csv, 'VariableNamingRule', 'preserve', 'Encoding', 'UTF-8');
+        assert(isequal(back.Properties.VariableNames, expected) && height(back) == height(output), '保存したCSVを読み戻せません。');
+        xlsx = fullfile(work, 'output.xlsx'); page.exportOutputTo(xlsx);
+        back = readtable(xlsx, 'VariableNamingRule', 'preserve'); assert(width(back) == numel(expected), 'Excelへ保存できません。');
+        % 基準周期は 波長 ÷ 屈折率 ÷ 2（約70nm）。
+        swing = app.page('swing');
+        assert(contains(swing.Period.Reference.Text, '÷ 2 = 70.0565'), '基準周期の表示が違います: %s', swing.Period.Reference.Text);
+        last = swing.Records{end}; assert(abs(last.PeriodOptions.ReferencePeriod - 248/1.77/2) < 1e-9, '学習に使った基準周期が違います。');
+    end
     function checkSwingWithBase()
         app.selectPage('swing'); page = app.page('swing');
         page.openSample(); page.selectTargets({'CD_X'});
@@ -162,16 +205,20 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         page.openModel(apc_path); page.Source.open(sample, 'Predict_SHAP', 1);
         assert(isequal(page.Mapper.selection(), app.Constants.PREDICTOR_NAMES), '推定の列が自動で割り当たりません。');
         page.Actual.Value = 'CD_X'; page.confirm(); page.run();
-        output = page.Result.tableData(page.TABLE_RESULT);
-        assert(height(output) == size(page.Source.Data.Cells, 1) && all(isfinite(output.y_pred)), '推定結果が不正です。');
+        output = page.Result.tableData(page.TABLE_OUTPUT);
+        expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'CD_X', 'CD_X_予測値', 'CD_X_残差'}];
+        assert(isequal(output.Properties.VariableNames, expected), '推定の出力の列が想定と違います: %s', strjoin(output.Properties.VariableNames, ', '));
+        assert(height(output) == size(page.Source.Data.Cells, 1) && all(isfinite(output.("CD_X_予測値"))), '推定結果が不正です。');
         assert(~isempty(page.Result.tableData('評価指標')), '実測列を選んだときは評価指標を表示します。');
     end
     function checkShapPage()
         app.selectPage('shap'); page = app.page('shap');
         [~, ids] = app.Models.list(); page.selectModel(ids(1));
         page.Source.open(sample, 'Predict_SHAP', 1); page.confirm(); page.run();
-        output = page.Result.tableData(page.TABLE_SHAP);
-        assert(width(output) == 5 && height(output) == size(page.Source.Data.Cells, 1), 'SHAP値の表が不正です。');
+        output = page.Result.tableData(page.TABLE_OUTPUT);
+        expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'予測値'}, strcat('SHAP_', app.Constants.PREDICTOR_NAMES)];
+        assert(isequal(output.Properties.VariableNames, expected), 'SHAPの出力の列が想定と違います: %s', strjoin(output.Properties.VariableNames, ', '));
+        assert(height(output) == size(page.Source.Data.Cells, 1), 'SHAPの出力の行数が不正です。');
         assert(~isempty(page.Result.validCharts()), 'SHAPのグラフがありません。');
     end
     function checkDesign()

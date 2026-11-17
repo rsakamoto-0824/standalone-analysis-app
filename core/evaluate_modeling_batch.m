@@ -11,12 +11,17 @@ if count < 1 || count*numel(targets) > constants.MAX_MODELING_CANDIDATES
 end
 % Folds が2以上なら、条件が1つでも交差検証で評価する。0なら学習データで評価する。
 compute_shap = ~isfield(options, 'ComputeShap') || options.ComputeShap;
+% 進捗の割合：1回の学習と1回のSHAP計算をそれぞれ1単位として数える。
+trainings_per_target = count; if options.Folds >= 2, trainings_per_target = count*(options.Folds+1); end
+units_per_target = trainings_per_target + count*double(compute_shap);
+total_units = numel(targets)*units_per_target; trained = 0; shapped = 0; partial = 0;
 records = cell(numel(targets)*count,1); position = 0;
 for target = 1:numel(targets)
-    actual = responses(:,target); report = [];
+    actual = responses(:,target); report = []; trained = 0; shapped = 0; partial = 0;
     if options.Folds >= 2
         labels = cellstr("condition_" + string(1:count));
         report = evaluate_kernel_candidates(inputs, actual, labels, options.Folds, options.Seed, options.Bins, @train, services.Predictor, @notifyCV);
+        trained = trainings_per_target; partial = 0;
     end
     for candidate = 1:count
         position = position+1; notify('学習', target, candidate); started = tic;
@@ -35,13 +40,14 @@ for target = 1:numel(targets)
                 record.FoldMetrics.Kernel(:) = string(modeling_condition_label(conditions(candidate)));
                 record.Note = char(report.Summary.Note(candidate));
             else
-                [record.Model, warnings, record.Details] = services.Trainer(inputs, actual, conditions(candidate), []);
+                [record.Model, warnings, record.Details] = services.Trainer(inputs, actual, conditions(candidate), @periodProgress);
                 record.Note = char(strjoin(string(warnings), ' / '));
                 record.Prediction = services.Predictor(record.Model, inputs); record.TrainingPrediction = record.Prediction;
             end
             record.Metrics = evaluate_predictions(actual, record.Prediction, options.Bins);
             record.TrainingMetrics = evaluate_predictions(actual, record.TrainingPrediction, options.Bins);
             record.Status = '成功';
+            if isempty(report), trained = candidate; partial = 0; end
             if ~compute_shap, record.Seconds = toc(started); records{position} = addCVSeconds(record); continue; end
             notify('SHAP', target, candidate);
             try
@@ -60,6 +66,8 @@ for target = 1:numel(targets)
             if strcmp(err.identifier,'AnalysisApp:cancelled'), rethrow(err); end
             record.Model = []; record.Note = err.message;
         end
+        if isempty(report), trained = candidate; partial = 0; end
+        if compute_shap, shapped = candidate; end
         record.Seconds = toc(started);
         records{position} = addCVSeconds(record);
     end
@@ -70,14 +78,29 @@ end
     function [model, warnings, details] = train(x,y,label,callback)
         condition_index = str2double(extractAfter(label,'condition_'));
         [model,warnings,details] = services.Trainer(x,y,conditions(condition_index),callback);
+        trained = trained + 1; partial = 0;
     end
     function notifyCV(update)
+        % 前の条件が途中で失敗した場合も、条件の切替えで進捗をそろえる。
+        trained = max(trained, (update.KernelIndex-1)*(update.Folds+1));
         stage = sprintf('交差検証 %d / %d 分割', update.Fold, update.Folds);
         if update.Fold == 0, stage = update.Stage; end
-        if update.PeriodCount > 0, stage = sprintf('%s（周期候補 %d / 最大%d）', stage, update.PeriodCount, update.PeriodMaximum); end
+        partial = 0;
+        if update.PeriodCount > 0
+            stage = sprintf('%s（周期候補 %d / 最大%d）', stage, update.PeriodCount, update.PeriodMaximum);
+            partial = min(update.PeriodCount/max(update.PeriodMaximum,1), 1);
+        end
         notify(stage, target, update.KernelIndex);
     end
+    function periodProgress(number, maximum, ~)
+        % 周期カーネルは候補ごとに学習し直すため、1回の学習の中の進み具合も反映する。
+        partial = min(number/max(maximum,1), 1);
+        notify(sprintf('学習（周期候補 %d / 最大%d）', number, maximum), target, candidate);
+    end
     function notify(stage, target_index, condition_index)
-        if ~isempty(progress), progress(struct('Stage',stage,'Target',targets{target_index},'Condition',condition_index,'Conditions',count)); end
+        if isempty(progress), return; end
+        done = (target_index-1)*units_per_target + trained + shapped + partial;
+        progress(struct('Stage',stage,'Target',targets{target_index},'TargetIndex',target_index,'Targets',numel(targets), ...
+            'Condition',condition_index,'Conditions',count,'Done',min(done,total_units),'Total',total_units));
     end
 end

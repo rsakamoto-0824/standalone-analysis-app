@@ -41,28 +41,48 @@ end
 for position = 1:numel(order)
     column = order(position); names{position + 1} = ['SHAP 依存: ' predictor_names{column}];
     tab = uitab(parent, 'Title', names{position + 1});
-    others = order(order ~= column);
+    % 色の初期値は、自身を除いて最も重要な説明変数（原仕様5.6）。画面の「色の変数」で任意に変更できる。
+    others = order(order ~= column); default_color = 0;
+    if ~isempty(others), default_color = others(1); end
     if strcmp(predictor_names{column}, 'RESIST_TH') && options.AllowSwingFit && strcmp(options.Edition, 'pro')
-        color_values = []; color_name = '';
-        if ~isempty(others), color_values = inputs(:, others(1)); color_name = predictor_names{others(1)}; end
+        options.ColorDefault = default_color;
         % 通常版のビルドからProクラスを完全に除くため、直接の静的依存を作らない。
-        view = feval('SwingCurveView', tab, inputs(:, column), shap_all(:, column), color_values, color_name, options); %#ok<FVAL>
+        view = feval('SwingCurveView', tab, inputs(:, column), shap_all(:, column), inputs, predictor_names, options); %#ok<FVAL>
         charts{position + 1} = view.Axes;
         diagnostic_charts = {view.DiagnosticAxes.Histogram, view.DiagnosticAxes.QQ, view.DiagnosticAxes.Residual};
         diagnostic_names = {'SHAP Swing Curve近似: 残差分布', 'SHAP Swing Curve近似: 正規Q–Q', 'SHAP Swing Curve近似: 残差対膜厚'};
         continue;
     end
-    layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout); charts{position + 1} = ax;
-    if isempty(others)
-        scatter(ax, inputs(:, column), shap_all(:, column), 18, 'filled');
-    else
-        color_column = others(1);
-        scatter(ax, inputs(:, column), shap_all(:, column), 18, inputs(:, color_column), 'filled');
-        scale = colorbar(ax); scale.Label.String = predictor_names{color_column}; scale.Label.Interpreter = 'none';
-    end
-    xlabel(ax, predictor_names{column}, 'Interpreter', 'none'); ylabel(ax, 'SHAP value');
-    title(ax, names{position + 1}, 'Interpreter', 'none');
-    if strcmp(predictor_names{column}, 'RESIST_TH'), ax.XAxis.Exponent = 0; xtickformat(ax, '%.6f'); end
+    charts{position + 1} = dependenceChart(tab, inputs, shap_all(:, column), predictor_names, column, default_color, names{position + 1});
 end
 charts = [charts, diagnostic_charts]; names = [names, diagnostic_names];
+end
+
+function ax = dependenceChart(tab, inputs, shap_values, predictor_names, column, default_color, title_text)
+% SHAP依存図。上の「色の変数」で、点の色に使う説明変数を選び直せる。
+NO_COLOR = 0;
+layout = uigridlayout(tab, [2, 1]); layout.RowHeight = {30, '1x'}; layout.Padding = [4, 4, 4, 4];
+row = uigridlayout(layout, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, 260, '1x'};
+uilabel(row, 'Text', '色の変数（説明変数）');
+choice = uidropdown(row, 'Items', [{'(単色)'}, predictor_names(:)'], 'ItemsData', [NO_COLOR, 1:numel(predictor_names)], ...
+    'Value', default_color, 'Tooltip', '点の色に使う説明変数を選びます。SHAP値や評価は変わりません。');
+uilabel(row, 'Text', '');
+ax = uiaxes(layout);
+choice.ValueChangedFcn = @(field, ~) draw(field.Value);
+draw(default_color);
+
+    function draw(color_column)
+        cla(ax); colorbar(ax, 'off');
+        if color_column == NO_COLOR
+            scatter(ax, inputs(:, column), shap_values, 18, 'filled');
+        else
+            scatter(ax, inputs(:, column), shap_values, 18, inputs(:, color_column), 'filled');
+            scale = colorbar(ax); scale.Label.String = predictor_names{color_column}; scale.Label.Interpreter = 'none';
+        end
+        xlabel(ax, predictor_names{column}, 'Interpreter', 'none'); ylabel(ax, 'SHAP value');
+        title(ax, title_text, 'Interpreter', 'none'); grid(ax, 'on');
+        if strcmp(predictor_names{column}, 'RESIST_TH'), ax.XAxis.Exponent = 0; xtickformat(ax, '%.6f'); end
+        window = ancestor(ax, 'figure');
+        if ~isempty(window) && mean(window.Color) < 0.5, apply_app_theme(ax, 'ダーク'); end
+    end
 end

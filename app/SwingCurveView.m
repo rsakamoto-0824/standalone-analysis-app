@@ -25,12 +25,17 @@ classdef SwingCurveView < handle
                 error('SwingCurveView:proRequired', 'レジスト膜厚SHAPの近似・カーブ評価はPro版の機能です。');
             end
             view.Thickness = thickness(:); view.Contribution = contribution(:);
+            % 色の候補：colors は説明変数の行列、color_name はその列名（1列だけの旧形式も受け付ける）。
+            color_name = cellstr(string(color_name)); if isempty(colors), color_name = {}; end
             view.Colors = colors; view.ColorName = color_name;
+            default_color = 0;
+            if isfield(options, 'ColorDefault'), default_color = options.ColorDefault;
+            elseif ~isempty(color_name), default_color = 1; end
             layout = uigridlayout(parent, [4, 1], 'Scrollable', 'on');
-            layout.RowHeight = {128, 100, 380, 190}; view.Layout = layout;
-            controls = uigridlayout(layout, [4, 6]); controls.Padding = [0, 0, 0, 0];
+            layout.RowHeight = {162, 100, 380, 190}; view.Layout = layout;
+            controls = uigridlayout(layout, [5, 6]); controls.Padding = [0, 0, 0, 0];
             controls.Layout.Row = 1; controls.Layout.Column = 1;
-            controls.RowHeight = {30, 30, 30, 30}; controls.RowSpacing = 4; controls.ColumnSpacing = 6;
+            controls.RowHeight = {30, 30, 30, 30, 30}; controls.RowSpacing = 4; controls.ColumnSpacing = 6;
             controls.ColumnWidth = {70, '1x', 70, '1x', 150, 94};
             uilabel(controls, 'Text', '膜厚下限');
             view.Controls.RangeMin = uieditfield(controls, 'numeric', 'Value', min(thickness), 'ValueDisplayFormat', '%.6f');
@@ -42,7 +47,7 @@ classdef SwingCurveView < handle
             view.Controls.PeriodMin = uieditfield(controls, 'numeric', 'Limits', [0, Inf], 'Value', 0);
             uilabel(controls, 'Text', '周期上限');
             view.Controls.PeriodMax = uieditfield(controls, 'numeric', 'Limits', [0, Inf], 'Value', 0);
-            hint = uilabel(controls, 'Text', '周期0/0＝波長÷屈折率の75〜125%。膜厚はnm。', 'WordWrap', 'on'); hint.Layout.Column = [5, 6];
+            hint = uilabel(controls, 'Text', '周期0/0＝波長÷屈折率÷2の75〜125%。膜厚はnm。', 'WordWrap', 'on'); hint.Layout.Column = [5, 6];
             uilabel(controls, 'Text', '近似方式');
             view.Controls.Method = uidropdown(controls, 'Items', {'三角関数', 'スプライン補間'});
             uilabel(controls, 'Text', '波長 nm');
@@ -50,6 +55,11 @@ classdef SwingCurveView < handle
             uilabel(controls, 'Text', '屈折率');
             view.Controls.RefractiveIndex = uieditfield(controls, 'numeric', 'Value', options.PeriodOptions.RefractiveIndex, 'Limits', [eps, Inf]);
             hint = uilabel(controls, 'Text', 'スプラインは同一膜厚の平均値を通る補間です。周期・一定振幅は定義しません。', 'WordWrap', 'on'); hint.Layout.Column = [1, 6];
+            label = uilabel(controls, 'Text', '色の変数'); label.Layout.Row = 5; label.Layout.Column = 1;
+            view.Controls.ColorBy = uidropdown(controls, 'Items', [{'(単色)'}, color_name(:)'], 'ItemsData', [0, 1:numel(color_name)], ...
+                'Value', default_color, 'Tooltip', '点の色に使う説明変数を選びます。近似や評価は変わりません。', ...
+                'ValueChangedFcn', @(~, ~) view.refit());
+            view.Controls.ColorBy.Layout.Row = 5; view.Controls.ColorBy.Layout.Column = [2, 3];
             if max(abs(options.PeriodOptions.PeriodBounds - options.PeriodOptions.ReferencePeriod*[0.75, 1.25])) > 1e-9
                 view.Controls.PeriodMin.Value = options.PeriodOptions.PeriodBounds(1); view.Controls.PeriodMax.Value = options.PeriodOptions.PeriodBounds(2);
             end
@@ -151,12 +161,13 @@ classdef SwingCurveView < handle
                 view.DiagnosticLabels.(fields{index}).Text = '残差診断は未計算です。';
                 view.DiagnosticLabels.(fields{index}).Tooltip = '残差診断は未計算です。';
             end
-            ax = view.Axes; cla(ax); hold(ax, 'on');
-            if isempty(view.Colors)
+            ax = view.Axes; cla(ax); colorbar(ax, 'off'); hold(ax, 'on');
+            color_column = view.Controls.ColorBy.Value;
+            if color_column == 0
                 scatter(ax, view.Thickness, view.Contribution, 18, 'filled', 'DisplayName', 'SHAP値');
             else
-                scatter(ax, view.Thickness, view.Contribution, 18, view.Colors, 'filled', 'DisplayName', 'SHAP値');
-                scale = colorbar(ax); scale.Label.String = view.ColorName; scale.Label.Interpreter = 'none';
+                scatter(ax, view.Thickness, view.Contribution, 18, view.Colors(:, color_column), 'filled', 'DisplayName', 'SHAP値');
+                scale = colorbar(ax); scale.Label.String = view.ColorName{color_column}; scale.Label.Interpreter = 'none';
             end
             xlabel(ax, 'RESIST_TH（入力の膜厚単位）', 'Interpreter', 'none'); ylabel(ax, 'SHAP値（応答と同じ単位）');
             title(ax, 'RESIST_TH の SHAP 依存図', 'Interpreter', 'none');

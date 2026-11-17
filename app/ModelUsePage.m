@@ -33,8 +33,7 @@ classdef ModelUsePage < AppPage
         MODE_DEPENDENCE = 'SHAP依存確認（全説明変数のSHAP）'
         MODE_DENOISE = 'ノイズ除去用SHAP（Swing Curve：膜厚のSHAPだけを出力）'
         IN_PLANE_ROLES = {'X', 'Y'}
-        TABLE_RESULT = '推定結果'
-        TABLE_SHAP = 'SHAP値'
+        TABLE_OUTPUT = '出力（入力・予測・SHAPを並べた表）'
     end
     methods
         function page = ModelUsePage(app, parent, kind)
@@ -264,32 +263,27 @@ classdef ModelUsePage < AppPage
 
         % ================= ④ 実行 =================
         function prediction = runPrediction(page, matrix, rows)
+            extra = table();
             if strcmp(page.Mode.Value, page.MODE_IN_PLANE)
                 [prediction, outside, warnings] = predict_in_plane(page.Model, matrix);
-                output = table(rows, prediction, outside, 'VariableNames', {'SourceRow', 'y_pred', 'OutsideTrainingRange'});
+                extra = table(outside, 'VariableNames', {'OutsideTrainingRange'});
                 page.showWarnings(warnings);
             else
                 prediction = page.App.Services.Predictor(page.Model, matrix);
-                output = table(rows, prediction, 'VariableNames', {'SourceRow', 'y_pred'});
             end
-            if ~strcmp(page.Actual.Value, page.NO_ACTUAL)
-                actual = extract_numeric_columns(page.Source.Data, {page.Actual.Value});
-                output = addvars(output, actual, actual - prediction, 'NewVariableNames', {'Actual', 'Residual'});
-            end
-            page.Result.setTable(page.TABLE_RESULT, output);
+            page.Result.setTable(page.TABLE_OUTPUT, page.outputTable(matrix, rows, prediction, extra, {}, []));
         end
         function prediction = runShap(page, matrix, rows)
             names = page.displayNames(); services = page.App.Services;
             prediction = services.Predictor(page.Model, matrix);
             if strcmp(page.Mode.Value, page.MODE_DENOISE)
                 [resist, explainer, values] = services.Denoise(page.Model, matrix(:, 1:end-1), matrix(:, end));
-                output = table(rows, resist, 'VariableNames', {'SourceRow', 'shap_resist'});
+                shap_columns = {'shap_resist'}; shap_values = resist;
             else
                 [explainer, values] = services.Shap(page.Model, matrix);
-                output = array2table(values, 'VariableNames', names);
-                output = addvars(output, rows, 'Before', 1, 'NewVariableNames', 'SourceRow');
+                shap_columns = strcat('SHAP_', names); shap_values = values;
             end
-            page.Result.setTable(page.TABLE_SHAP, output);
+            page.Result.setTable(page.TABLE_OUTPUT, page.outputTable(matrix, rows, prediction, table(), shap_columns, shap_values));
             if page.ShowPlots.Value
                 % APC学習で作ったモデルには、Swing Curveのカーブ評価を付けない。
                 allow_fit = ~strcmp(page.ModelEntry.Kind, 'apc'); period_options = swing_period_options();
@@ -300,6 +294,16 @@ classdef ModelUsePage < AppPage
                 page.Result.registerCharts(charts, chart_names);
             end
         end
+        function output = outputTable(page, matrix, rows, prediction, extra, shap_columns, shap_values)
+            % 元データの説明変数（割り当てた入力列）と実測列、予測値・残差・SHAP値を1つの表へまとめる。
+            mapping = page.Mapper.mapping(); target = ''; actual = [];
+            if ~strcmp(page.Actual.Value, page.NO_ACTUAL)
+                target = page.Actual.Value; actual = extract_numeric_columns(page.Source.Data, {target});
+            end
+            parts = struct('SourceRows', rows, 'InputColumns', {mapping(:, 3)'}, 'Inputs', matrix, 'TargetName', target, ...
+                'Actual', actual, 'Predicted', prediction, 'Extra', extra, 'ShapColumns', {shap_columns}, 'ShapValues', shap_values);
+            output = combine_model_outputs(parts);
+        end
         function evaluate(page, matrix, prediction)
             names = string(page.Mapper.Roles); panel = page.Result; label = page.ModelEntry.Label;
             if ~strcmp(page.Actual.Value, page.NO_ACTUAL) && numel(prediction) >= 2
@@ -309,7 +313,7 @@ classdef ModelUsePage < AppPage
                 panel.setTable('列の要約', summarize_model_columns([matrix, actual, prediction, actual - prediction], ...
                     [names, "Actual", "Predicted", "Residual"]));
                 view = EvaluationScatterView(panel.ChartTabs, actual, prediction, page.Source.Data);
-                panel.registerCharts(view.Axes, view.Names);
+                [charts, chart_names] = view.charts(); panel.registerCharts(charts, chart_names);
                 panel.setHeadline(sprintf('%s\nRMSE: %.6g    R²: %.6g    n = %d（読み込んだデータで評価。学習に未使用かは利用者が確認）', ...
                     label, metrics.Value(2), metrics.Value(1), numel(actual)));
             elseif numel(prediction) >= 2
@@ -319,7 +323,7 @@ classdef ModelUsePage < AppPage
                 panel.setHeadline(sprintf('%s\n1件の結果です。評価と要約には2件以上が必要です。', label));
             end
             if isempty(panel.validCharts())
-                if strcmp(page.Kind, 'predict'), panel.showTable(page.TABLE_RESULT); else, panel.showTable(page.TABLE_SHAP); end
+                panel.showTable(page.TABLE_OUTPUT);
             else
                 panel.showCharts();
             end

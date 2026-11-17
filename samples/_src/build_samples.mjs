@@ -45,7 +45,8 @@ intro.getRange('A15:E18').values=[
 ];
 intro.getRange('G4:H4').values=[['合成条件','値']];
 intro.getRange('G5:H13').values=[['露光波長_nm',248],['レジスト屈折率',1.77],['基準周期_nm',null],['CD基準_nm',50],['周期片振幅_nm',2.5],['膜厚トレンド',0.005],['下地膜厚係数',0.05],['屈折率係数',10],['NSG係数',0.03]];
-intro.getRange('H7').formulas=[['=H5/H6']];
+// Swing Curve の周期は λ/(2n)：基準周期 = 露光波長 ÷ レジスト屈折率 ÷ 2（2026-11-17 に ÷2 を追加）。
+intro.getRange('H7').formulas=[['=H5/H6/2']];
 intro.getRange('H5:H6').format.fill=amber;
 intro.getRange('H8:H13').format.fill=amber;
 intro.getRange('G15:H16').values=[['出所','波長248nm・屈折率1.77は指定値。その他は合成データ用の仮定。'],['欠測','Furnaceの空欄は数式による意図的な未計測。0へ置き換えません。']];

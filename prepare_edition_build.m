@@ -20,7 +20,7 @@ writeFile(fullfile(staging, 'core', 'app_edition.m'), sprintf('function edition 
 if strcmp(edition, 'standard')
     path = fullfile(staging, 'app', 'plot_shap_figures.m'); source = fileread(path);
     first = strfind(source, '    if strcmp(predictor_names{column}, ''RESIST_TH'') && options.AllowSwingFit');
-    last = strfind(source, '    layout = uigridlayout(tab, [1, 1]); ax = uiaxes(layout); charts{position + 1} = ax;');
+    last = strfind(source, '    charts{position + 1} = dependenceChart(');
     if numel(first) ~= 1 || numel(last) ~= 1 || first >= last
         error('build:proIsolation', '通常版のPro実装を分離できません。');
     end

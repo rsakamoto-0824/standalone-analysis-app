@@ -126,7 +126,7 @@ classdef ResultPanel < handle
         function exportTableTo(panel, path)
             [data, ~] = panel.currentTable();
             if isempty(data), error('ResultPanel:noTable', '保存する表がありません。表のタブを選んでから保存してください。'); end
-            writetable(data, path, 'WriteRowNames', ~isempty(data.Properties.RowNames));
+            write_result_table(data, path);
             [~, base, extension] = fileparts(path); panel.Owner.message(['表を保存しました: ' base extension]);
         end
         function exportFigure(panel)
@@ -143,7 +143,11 @@ classdef ResultPanel < handle
         function exportFigureTo(panel, chart, path)
             if isnumeric(chart), charts = panel.validCharts(); chart = charts{chart}; end
             panel.reveal(chart);
-            exportgraphics(chart, path, 'Resolution', panel.EXPORT_RESOLUTION);
+            if isa(chart, 'matlab.ui.container.Panel')
+                panel.exportContainer(chart, path);
+            else
+                exportgraphics(chart, path, 'Resolution', panel.EXPORT_RESOLUTION);
+            end
             [~, base, extension] = fileparts(path); panel.Owner.message(['グラフを保存しました: ' base extension]);
         end
         function copyFigure(panel)
@@ -166,13 +170,45 @@ classdef ResultPanel < handle
             valid = cellfun(@(chart) isgraphics(chart), panel.Charts);
             panel.Charts = panel.Charts(valid); panel.ChartNames = panel.ChartNames(valid);
         end
+        function exportContainer(panel, container, path)
+            % 並べた図（パネル）を1枚のPNGにする。パネルを直接書き出せないリリースでは、
+            % 中の図を1枚ずつ書き出し、左から順に横へつなぐ。
+            try
+                exportgraphics(container, path, 'Resolution', panel.EXPORT_RESOLUTION); return;
+            catch
+                % 下で中の図をつなぐ方法に切り替える。
+            end
+            GAP_PIXELS = 24;
+            axes_list = findobj(container, 'Type', 'axes');
+            if isempty(axes_list), error('ResultPanel:noChart', '書き出す図がありません。'); end
+            positions = arrayfun(@(ax) getpixelposition(ax, true), axes_list, 'UniformOutput', false);
+            [~, order] = sort(cellfun(@(position) position(1), positions)); axes_list = axes_list(order);
+            images = cell(1, numel(axes_list));
+            for index = 1:numel(axes_list)
+                temporary = [tempname '.png']; cleanup = onCleanup(@() deleteFile(temporary));
+                exportgraphics(axes_list(index), temporary, 'Resolution', panel.EXPORT_RESOLUTION);
+                images{index} = imread(temporary); clear cleanup;
+            end
+            background = images{1}(1, 1, :); height = max(cellfun(@(image) size(image, 1), images));
+            pieces = {};
+            for index = 1:numel(images)
+                image = images{index};
+                filler = repmat(background, height - size(image, 1), size(image, 2));
+                pieces{end + 1} = [image; filler]; %#ok<AGROW>
+                if index < numel(images), pieces{end + 1} = repmat(background, height, GAP_PIXELS); end %#ok<AGROW>
+            end
+            imwrite([pieces{:}], path);
+        end
         function [chart, name] = chooseChart(panel, prompt)
             chart = []; name = '';
             [charts, names] = panel.validCharts();
             if isempty(charts), error('ResultPanel:noChart', 'グラフがありません。先に解析を実行してください。'); end
             choice = find(cellfun(@(item) panel.isShown(item), charts));
             if numel(choice) ~= 1
-                [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', prompt, 'ListSize', [320, 240]);
+                % 表示中の図を先に選んだ状態で一覧を出す（並べた図があればそれが先頭）。
+                initial = 1; if ~isempty(choice), initial = choice(1); end
+                [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', prompt, ...
+                    'ListSize', [360, 240], 'InitialValue', initial);
                 if ~accepted, return; end
             end
             chart = charts{choice}; name = names{choice};
@@ -195,4 +231,8 @@ classdef ResultPanel < handle
             drawnow;
         end
     end
+end
+
+function deleteFile(path)
+if isfile(path), delete(path); end
 end

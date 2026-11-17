@@ -53,7 +53,8 @@ classdef ModelingPage < AppPage
         CHART_COMPARISON = '条件の比較（RMSE）'
         CHART_PERIOD = '周期探索（周辺尤度）'
         TABLE_VERIFICATION = '保存後検証'
-        TABLE_SHAP = 'SHAP値'
+        TABLE_OUTPUT = '予測・SHAPの出力（入力と並べた表）'
+        OUTPUT_FILE_PREFIX = 'Prediction_SHAP'
     end
     methods
         function page = ModelingPage(app, parent, kind)
@@ -102,6 +103,8 @@ classdef ModelingPage < AppPage
                     page.Steps.SelectedTab = page.StepTabs.Variables;
                     error('AnalysisApp:unconfirmed', '「② 変数を選ぶ」で列対応を確認してから実行してください。');
                 end
+                % ボタンを押したらすぐに進捗バーを表示する（入力の読取りにも時間がかかる場合があるため）。
+                dialog = page.App.startProgress('モデリング・SHAP評価', '入力データと条件を確認しています。', true);
                 data = page.Source.Data; settings = page.settings();
                 if settings.Bins > 0, validate_bin_count(settings.Bins, 'AnalysisApp'); end
                 [inputs, responses, names, targets] = modeling_input_data(data, page.currentMapping(), page.Targets.Value);
@@ -113,10 +116,11 @@ classdef ModelingPage < AppPage
                 kind = page.Kind; trainer = page.App.Services.Trainer;
                 services = struct('Trainer', @(x, y, condition, callback) trainer(kind, x, y, names, condition, period_options, callback), ...
                     'Predictor', page.App.Services.Predictor, 'Shap', page.App.Services.Shap);
-                dialog = page.App.startProgress('モデリング・SHAP評価', '条件を準備しています。', true);
                 started = tic;
+                dialog.Indeterminate = 'off'; dialog.Value = 0;
+                dialog.Message = sprintf('学習を始めます（目的変数 %d列 × 条件 %d）。', numel(targets), numel(conditions));
                 records = evaluate_modeling_batch(inputs, responses, names, targets, conditions, options, services, ...
-                    @(event) page.reportProgress(dialog, event));
+                    @(event) page.reportProgress(dialog, event, started));
                 AnalysisController.closeProgress(dialog);
                 page.acceptRecords(records, data, period_options, toc(started));
             catch err
@@ -188,12 +192,35 @@ classdef ModelingPage < AppPage
             notice = page.App.releaseNotice();
             if ~isempty(notice), page.message(notice); end
         end
+        function exportOutput(page)
+            try
+                record = page.selectedRecord();
+                default_name = sprintf('%s_%s_%s.csv', page.OUTPUT_FILE_PREFIX, matlab.lang.makeValidName(record.Target), ...
+                    matlab.lang.makeValidName(modeling_condition_label(record.Condition)));
+                path = page.App.chooseSaveFile({'*.csv', 'CSV'; '*.xlsx', 'Excel'}, '予測・SHAPの出力を保存', default_name);
+                if isempty(path), return; end
+                page.exportOutputTo(path);
+            catch err
+                page.showError(err);
+            end
+        end
+        function exportOutputTo(page, path)
+            record = page.selectedRecord();
+            write_result_table(page.outputTable(record), path);
+            [~, base, extension] = fileparts(path);
+            page.message(sprintf('予測・SHAPの出力を保存しました: %s（%s）', [base extension], page.recordLabel(record)));
+            if isempty(record.Shap)
+                page.message('このモデルはSHAPを計算していないため、SHAPの列はありません。「選択モデルのSHAPを計算」の後に保存すると含まれます。');
+            elseif size(record.Shap.Values, 1) < numel(record.SourceRows)
+                page.message(sprintf('SHAPは先頭%d行だけ計算しているため、それ以降の行のSHAPは空欄です。', size(record.Shap.Values, 1)));
+            end
+        end
         function exportModelList(page)
             try
                 if isempty(page.Records), error('modeling:noRecord', '保存する一覧がありません。先に③で実行してください。'); end
                 path = page.App.chooseSaveFile({'*.csv', 'CSV'; '*.xlsx', 'Excel'}, 'モデルの一覧を保存', 'model_list.csv');
                 if isempty(path), return; end
-                writetable(page.ModelTable.Data, path); page.message('モデルの一覧を保存しました。');
+                write_result_table(page.ModelTable.Data, path); page.message('モデルの一覧を保存しました。');
             catch err
                 page.showError(err);
             end
@@ -362,15 +389,16 @@ classdef ModelingPage < AppPage
         function buildResultStep(page)
             tab = uitab(page.Steps, 'Title', '④ 結果を比べて保存'); page.StepTabs.Results = tab;
             grid = uigridlayout(tab, [4, 1]); grid.RowHeight = {22, page.MODEL_TABLE_HEIGHT, 34, '1x'}; page.ResultGrid = grid;
-            uilabel(grid, 'Text', '学習したモデルの一覧（行をクリックすると、下に評価とグラフを表示します。以前の実行結果も残ります）', 'FontWeight', 'bold');
+            uilabel(grid, 'Text', '学習したモデルの一覧（行をクリックすると、下に評価とグラフを表示します。以前の実行結果も残ります。比較は同じ目的変数・同じ評価データの中で行います）', 'FontWeight', 'bold');
             page.ModelTable = uitable(grid, 'Data', table(), 'RowName', {}, 'CellSelectionCallback', @(~, event) page.modelRowSelected(event));
-            row = uigridlayout(grid, [1, 5]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {'1x', 150, 200, 200, 110};
-            uilabel(row, 'Text', '比較は同じ目的変数・同じ評価データの中で行います。');
+            row = uigridlayout(grid, [1, 6]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, '1x', '1x', '1x', '1.2x', 100};
             page.ExpandButton = uibutton(row, 'state', 'Text', 'グラフを大きく表示', 'ValueChangedFcn', @(~, ~) page.toggleExpand(), ...
                 'Tooltip', 'モデルの一覧をたたみ、評価とグラフの表示を広げます。もう一度押すと戻ります。');
             AppPage.primaryButton(row, '選択モデルをMAT保存', @(~, ~) page.saveSelected());
             uibutton(row, 'Text', '選択モデルのSHAPを計算', 'ButtonPushedFcn', @(~, ~) page.computeShapForSelected(), ...
                 'Tooltip', 'SHAPをまだ計算していないモデル、または失敗したモデルで計算し直します。MAT保存は不要です。');
+            uibutton(row, 'Text', '予測・SHAPを1ファイルに保存', 'ButtonPushedFcn', @(~, ~) page.exportOutput(), ...
+                'Tooltip', '選んだモデルについて、元データの説明変数・目的変数と、予測値・残差・SHAP値を並べた1つの表を CSV / Excel で保存します。');
             uibutton(row, 'Text', '一覧を保存', 'ButtonPushedFcn', @(~, ~) page.exportModelList());
             holder = uigridlayout(grid, [1, 1]); holder.Padding = [0, 0, 0, 0];
             page.Result = ResultPanel(page, holder, '①〜③を進めて実行すると、ここにモデルの評価とグラフを表示します。');
@@ -504,9 +532,10 @@ classdef ModelingPage < AppPage
             page.refreshPlan();
         end
         function periodChanged(page)
-            reference = page.Period.Wavelength.Value / page.Period.RefractiveIndex.Value;
-            page.Period.Reference.Text = sprintf('基準周期 = 波長 ÷ 屈折率 = %.4f nm（探索範囲の既定 %.2f〜%.2f nm）', ...
-                reference, 0.75 * reference, 1.25 * reference);
+            % 表示も学習と同じ swing_period_options で求める（式を1か所にまとめる）。
+            defaults = swing_period_options(page.Period.Wavelength.Value, page.Period.RefractiveIndex.Value);
+            page.Period.Reference.Text = sprintf('基準周期 = 波長 ÷ 屈折率 ÷ 2 = %.4f nm（探索範囲の既定 %.2f〜%.2f nm）', ...
+                defaults.ReferencePeriod, defaults.PeriodBounds(1), defaults.PeriodBounds(2));
             enabled = matlab.lang.OnOffSwitchState(page.Period.Custom.Value);
             page.Period.Lower.Enable = enabled; page.Period.Upper.Enable = enabled;
         end
@@ -569,12 +598,14 @@ classdef ModelingPage < AppPage
             page.setState(page.Plan, sprintf('目的変数 %d列 × 条件 %d = %d モデルを学習します。%s、%s。', ...
                 targets, count, targets * count, evaluation, shap), true);
         end
-        function reportProgress(~, dialog, event)
+        function reportProgress(~, dialog, event, started)
+            [fraction, summary] = format_progress(event.Done, event.Total, toc(started));
+            dialog.Indeterminate = 'off'; dialog.Value = fraction;
+            where = sprintf('目的変数 %s（%d / %d）', event.Target, event.TargetIndex, event.Targets);
             if event.Condition > 0
-                dialog.Message = sprintf('%s：%s（条件 %d / %d）', event.Target, event.Stage, event.Condition, event.Conditions);
-            else
-                dialog.Message = sprintf('%s：%s（全%d条件）', event.Target, event.Stage, event.Conditions);
+                where = sprintf('%s・条件 %d / %d', where, event.Condition, event.Conditions);
             end
+            dialog.Message = sprintf('%s\n%s：%s', summary, where, event.Stage);
             drawnow;
             if dialog.CancelRequested
                 error('AnalysisApp:cancelled', 'モデリングを中止しました。今回の結果は一覧へ追加していません。以前の結果は残っています。');
@@ -715,16 +746,11 @@ classdef ModelingPage < AppPage
             panel.setHeadline(sprintf('%s / %s / 評価データ: %s%s\nRMSE: %.6g    R²: %.6g    n = %d', record.Target, ...
                 modeling_condition_label(record.Condition), record.Scope, caution, record.Metrics.Value(2), record.Metrics.Value(1), numel(actual)));
             view = EvaluationScatterView(panel.ChartTabs, actual, predicted, record.Source);
-            panel.registerCharts(view.Axes, view.Names);
+            [charts, chart_names] = view.charts(); panel.registerCharts(charts, chart_names);
             page.drawComparison(record);
             panel.setTable('評価指標', display_metric_names(page.metricTable(record)));
-            results = table(record.SourceRows, actual, predicted, residual, 'VariableNames', {'SourceRow', 'Actual', 'Predicted', 'Residual'});
-            if ~isempty(record.FoldId)
-                results = addvars(results, record.FoldId, 'After', 'SourceRow', 'NewVariableNames', 'Fold');
-                results = addvars(results, record.TrainingPrediction, 'NewVariableNames', 'TrainingPredicted');
-                panel.setTable('検証分割', record.FoldMetrics);
-            end
-            panel.setTable('予測結果', results);
+            if ~isempty(record.FoldId), panel.setTable('検証分割', record.FoldMetrics); end
+            panel.setTable(page.TABLE_OUTPUT, page.outputTable(record));
             panel.setTable('列の要約', summarize_model_columns([record.Inputs, actual, predicted, residual], ...
                 [string(record.InputNames), "Actual", "Predicted", "Residual"]));
             if ~isempty(record.Details), page.showPeriodSearch(record.Details); end
@@ -769,11 +795,22 @@ classdef ModelingPage < AppPage
             title(ax, sprintf('採用した周期 %.6g nm（尤度が最も大きい候補）', details.Period));
             legend(ax, 'Location', 'best'); grid(ax, 'on');
         end
+        function output = outputTable(~, record)
+            % 元データの説明変数（入力ファイルの列名）・目的変数と、予測値・残差・SHAP値を1つの表へまとめる。
+            % 交差検証では「予測値」は学習に使っていない分割での予測で、全データで学習したモデルの値も並べる。
+            parts = struct('SourceRows', record.SourceRows, 'InputColumns', {record.Columns}, 'Inputs', record.Inputs, ...
+                'TargetName', record.Target, 'Actual', record.Actual, 'Predicted', record.Prediction, 'Extra', table());
+            if ~isempty(record.FoldId)
+                parts.Extra = table(record.FoldId, record.TrainingPrediction, ...
+                    'VariableNames', {'検証分割', [record.Target '_全データモデルの予測値']});
+            end
+            if ~isempty(record.Shap)
+                parts.ShapColumns = strcat('SHAP_', record.InputNames); parts.ShapValues = record.Shap.Values;
+            end
+            output = combine_model_outputs(parts);
+        end
         function showShap(page, record)
             panel = page.Result; names = record.InputNames; values = record.Shap.Values;
-            output = array2table(values, 'VariableNames', names);
-            output = addvars(output, record.SourceRows(1:size(values, 1)), 'Before', 1, 'NewVariableNames', 'SourceRow');
-            panel.setTable(page.TABLE_SHAP, output);
             options = struct('Edition', page.App.Edition, 'AllowSwingFit', ~strcmp(page.Kind, 'apc'), ...
                 'PeriodOptions', record.PeriodOptions, 'Explainer', record.Shap.Explainer);
             [charts, chart_names] = plot_shap_figures(panel.ChartTabs, values, record.Shap.Inputs, names, options);
