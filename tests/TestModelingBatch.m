@@ -48,6 +48,20 @@ classdef TestModelingBatch < matlab.unittest.TestCase
             testCase.verifyTrue(all(cellfun(@(event)event.Conditions,events)==2));
             function collect(event), events{end+1}=event; end
         end
+        function progressCountsEveryTrainingAndShapUntilComplete(testCase)
+            % 進捗バー用の割合：3分割＋全データ＝4回の学習×2条件＋SHAP 2回＝10単位/目的変数、2目的変数で20単位。
+            [x,y,names,targets,c,o,s]=fixture(); o.Folds=3; events={};
+            evaluate_modeling_batch(x,y,names,targets,c,o,s,@collect);
+            done=cellfun(@(event)event.Done,events); total=cellfun(@(event)event.Total,events);
+            testCase.verifyTrue(all(total==20));
+            testCase.verifyTrue(all(diff(done)>=-1e-12),'進捗が戻らない。');
+            testCase.verifyGreaterThanOrEqual(max(done),19,'最後のSHAPの直前まで進む。');
+            testCase.verifyEqual(events{end}.TargetIndex,2); testCase.verifyEqual(events{end}.Targets,2);
+            o.Folds=0; o.ComputeShap=false; events={};
+            evaluate_modeling_batch(x,y,names,targets,c,o,s,@collect);
+            testCase.verifyTrue(all(cellfun(@(event)event.Total,events)==4));
+            function collect(event), events{end+1}=event; end
+        end
         function shapFailureKeepsModelAndOtherTargets(testCase)
             [x,y,names,targets,c,o,s]=fixture(); c(1).Kernel='shap_fail';
             records=evaluate_modeling_batch(x,y,names,targets,c,o,s);

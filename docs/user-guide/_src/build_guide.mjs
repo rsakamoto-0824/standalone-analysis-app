@@ -6,32 +6,18 @@ const guideRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const pagePath = path.join(guideRoot, 'procedure-guide.html');
 const workFolder = ['C:', 'work', 'StandaloneAnalysisApp'].join(String.fromCharCode(92));
 const distributionFolder = ['C:', 'Apps', 'StandaloneAnalysisApp'].join(String.fromCharCode(92));
-const escape = (text) => String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-const table = (heads, rows) => `<table class="guide-table"><thead><tr>${heads.map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-const code = (label, text) => `<div class="code-block"><div class="code-header"><span>${escape(label)}</span><button type="button" class="copy-button" aria-label="${escape(label)}をコピー">コピー</button></div><pre><code>${escape(text)}</code></pre></div>`;
-const note = (title, text, type='info') => `<div class="callout ${type}"><div class="callout-icon" aria-hidden="true">${type==='warning'?'!':'i'}</div><div><h3>${title}</h3><p>${text}</p></div></div>`;
-const step = (number, title, body, expected='') => `<article class="step-card"><h3><span class="step-label">${number}</span>${title}</h3>${body}${expected?`<p class="expected"><strong>確認：</strong>${expected}</p>`:''}</article>`;
-let figureCount = 0;
-const shot = (name, caption, detail='R2022b / macOS で、同梱の合成サンプルを実際に学習して撮影した参考画面です（SHAPだけ代替計算）。R2025b / Windows の画面とは細部が異なる場合があります。') => {
-  figureCount += 1;
-  const png = fs.readFileSync(path.join(guideRoot, "images", `${name}.png`));
-  const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
-  return `<figure class="screenshot"><button type="button" class="image-open" aria-label="${escape(caption)}を拡大"><img src="images/${name}.png" alt="${escape(caption)}" loading="lazy" width="${width}" height="${height}"></button><figcaption><span class="shot-tag">参考撮影 · R2022b / macOS</span><span class="shot-zoom">クリックで拡大 / Escで閉じる</span><strong>図${figureCount}　${caption}</strong><span class="shot-note">${detail}</span></figcaption></figure>`;
-};
-const officialShot = (name, caption) => {
-  figureCount += 1;
-  return `<figure class="screenshot vendor-shot"><button type="button" class="image-open" aria-label="${escape(caption)}を拡大"><img src="images/${name}.png" alt="${escape(caption)}" loading="lazy"></button><figcaption><span class="shot-tag">MathWorks公式資料の掲載例</span><span class="shot-zoom">クリックで拡大</span><strong>図${figureCount}　${caption}</strong><span class="shot-note">出典：<a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-startup-function.html">Specify Startup Tasks and App Input Arguments in App Designer</a>（掲載ページ R2026b、2026-10-28参照）。当プロジェクトの実行画面ではありません。R2025b ではメニュー名・配置が異なる場合があります。画像 © The MathWorks, Inc.</span></figcaption></figure>`;
-};
-const check = (text) => `<label><input type="checkbox"> <span>${text}</span></label>`;
+import { escape, table, code, note, step, check, createShots, renderPage } from './guide_parts.mjs';
+const { shot, count: figureTotal } = createShots(guideRoot);
 const sections = [];
 const add = (id,title,kicker,body) => sections.push({id,title,kicker,body});
 
 
 add('overview','目的と対象','START HERE',`
 <p>この手順書は、<strong>Process Insight Tool（MATLAB R2025b 向け）を Windows でビルドし、MATLAB 本体のない端末へ配布して利用する</strong>までの操作を説明します。左の目次から必要な章へ移動でき、画像はクリックして拡大できます。コードは「コピー」ボタンでコピーできます。</p>
+${note('アプリの使い方だけを知りたい方へ','画面の操作だけをまとめた<a href="user-manual.html">利用者向け手順書</a>があります。この手順書は、ビルド・配布を含む作成担当者向けの内容も含みます。')}
 <div class="card-grid three-columns"><article class="feature-card"><span class="card-label">作成担当者</span><h3>初回の確認とビルド</h3><p>2〜6章で環境を確認し、ソースからの起動、通し確認、テスト、exe、Runtime を用意します。</p></article><article class="feature-card"><span class="card-label">利用者</span><h3>データを解析</h3><p>アプリを受け取ったら、6章の起動確認と7〜12章の操作を参照します。</p></article><article class="feature-card"><span class="card-label">保守担当者</span><h3>結果と問題を確認</h3><p>13章の完了確認、14章の対処表、15章のソースと公式資料を参照します。</p></article></div>
 ${table(['項目','現在の状態'],[
-['画面・計算・テストのソース','作成済み。2026-11-16 に画面を作り直しました（4ステップで進む学習画面、ホーム、画面内でのシート・ヘッダー行の指定、常に見える選択欄での列の割当）。'],
+['画面・計算・テストのソース','作成済み。2026-11-17 に画面を作り直しました（4ステップで進む学習画面、ホーム、画面内でのシート・ヘッダー行の指定、常に見える選択欄での列の割当）。'],
 ['手元（R2022b / macOS）での確認','開発用の例外で起動し、同梱サンプルで全機能を通す確認（<code>run_app_flow_check</code> の14項目）と単体テストに成功。SHAP の計算だけは R2025b 専用のため、代替計算で画面の流れを確認しました。'],
 ['R2025b / Windows での確認','未実施。4章・5章の手順で、対象の PC で確認します。'],
 ['Windows exe','未生成。5章の手順で作成します。App Designer での手作業は不要になりました。'],
@@ -140,15 +126,16 @@ ${shot('54-variables-generic','汎用回帰：入力に使う列を選び、順�
 ${shot('55-conditions','③ 条件を決めて実行：カーネルを複数選ぶと交差検証で比較する')}
 ${shot('71-conditions-generic','汎用回帰：GPR・重回帰・PLS回帰を選んで同じ分割で比較する')}
 ${note('検証の範囲と計算量','交差検証の指標は、全行の検証予測をまとめて計算します（分割ごとの平均ではありません）。条件ごとに「分割数＋1」回の学習を行うため、条件や目的変数が多いほど時間がかかります。APC は各分割の学習に25行以上が必要です。行をランダムに分けるため、ロットや時系列のまとまりは分離しません。比較に使った検証値は条件選びにも使っているので、採用後は別のデータでも確認してください。')}
-${step('8-3','④ 結果を比べる',`<ol><li>上の一覧に、学習したモデルが1行ずつ並びます。<strong>行をクリックすると、下に評価とグラフを表示します</strong>（選んだ行は青く表示）。</li><li>「順位」は、同じ実行・同じ目的変数の中で RMSE が小さい順です。「評価データ」が「学習データ」の行は、学習に使ったデータでの当てはまりです。</li><li>下の <span class="ui-name">グラフ</span> で、実測値と予測値・残差・条件の比較（RMSE）・SHAP を確認します。実測値と予測値・残差は「色を指定する列」で入力ファイルの任意の列により色分けできます。</li><li>表のタブで、評価指標（8指標）・検証分割・予測結果・列の要約・SHAP値を確認できます。</li><li>条件を変えて③をもう一度実行すると、以前の結果を残したまま一覧へ追加します。</li></ol><p>グラフを広く見たいときは <span class="ui-name">グラフを大きく表示</span> を押すと、一覧をたたみます。一覧はアプリを終了すると消えるため、使うモデルは終了前に保存してください。</p>`,'一覧の「状態」が成功で、見出しに RMSE・R²・件数が表示されること。失敗した行は「備考」に理由が表示されます。')}
-${shot('57-results','④ 結果を比べて保存：一覧の行をクリックすると、下に評価とグラフを表示する')}
+${step('8-3','④ 結果を比べる',`<ol><li>上の一覧に、学習したモデルが1行ずつ並びます。<strong>行をクリックすると、下に評価とグラフを表示します</strong>（選んだ行は青く表示）。</li><li>「順位」は、同じ実行・同じ目的変数の中で RMSE が小さい順です。「評価データ」が「学習データ」の行は、学習に使ったデータでの当てはまりです。</li><li>下の <span class="ui-name">グラフ</span> で、実測値と予測値・残差・条件の比較（RMSE）・SHAP を確認します。実測値と予測値・残差は1つのタブに横並びで表示し、「色を指定する列」で入力ファイルの任意の列により2つの図をまとめて色分けできます。SHAP 依存図は上の「色の変数」で、点の色に使う説明変数を選び直せます。</li><li>表のタブで、評価指標（8指標）・検証分割・予測・SHAPの出力（元データの説明変数・目的変数と予測値・残差・SHAP値を並べた表）・列の要約を確認できます。<span class="ui-name">予測・SHAPを1ファイルに保存</span> で、この表を CSV / Excel の1ファイルに保存できます。</li><li>条件を変えて③をもう一度実行すると、以前の結果を残したまま一覧へ追加します。</li></ol><p>グラフを広く見たいときは <span class="ui-name">グラフを大きく表示</span> を押すと、一覧をたたみます。一覧はアプリを終了すると消えるため、使うモデルは終了前に保存してください。</p>`,'一覧の「状態」が成功で、見出しに RMSE・R²・件数が表示されること。失敗した行は「備考」に理由が表示されます。')}
+${shot('57-results','④ 結果を比べて保存：一覧の行をクリックすると、下に評価とグラフを表示する（実測値と予測値・残差は横並び）')}
+${shot('75-output-table','予測・SHAPの出力：元データの説明変数・目的変数と、予測値・残差・SHAP値を1つの表に並べる')}
 ${shot('72-results-generic','条件の比較（RMSE）：同じ目的変数の条件を棒グラフで比べる')}
 ${shot('58-results-shap','SHAP分布と依存図もアプリ内に表示する','R2022b のため SHAP は代替計算（1列を平均に置き換えた予測差）で描いた参考画面です。R2025b では shapley の計算結果を標準の swarmchart で表示します。')}
 ${step('8-4','選んだ1モデルだけをMAT保存する',`<ol><li>一覧で保存するモデルの行をクリックします。</li><li><span class="ui-name">選択モデルをMAT保存</span> を押し、保存先を決めます。初期の名前は <code>Train_Model_目的変数.mat</code>（APC）、<code>SwingCurve_Model_目的変数.mat</code>、<code>GenericGPR_Model_目的変数.mat</code>、<code>GenericRegression_Model_目的変数.mat</code>（重回帰・PLS）です。</li><li>保存後、自動で読み直して検証し、<span class="ui-name">保存後検証</span> の表を表示します。一覧の「保存先」にもファイル名が入ります。</li></ol><p>再学習や SHAP の再計算は行わず、全データで学習済みのそのモデルを保存します。GPR の MAT に入る変数は <code>Train_Model</code> だけです。重回帰・PLS は別形式の <code>Regression_Model</code> で、GPR 専用の制御側へは渡しません。</p>`,'保存後検証の Passed がすべてチェック済みであること。1つでも失敗すると「このモデルを制御に使用しないでください」と表示します。')}
 ${shot('59-results-verification','保存後検証：変数名・説明変数の名前と順序・設定・行数・予測の一致を確認する')}
 <h3 id="periodic-kernel">8-5　Swing Curve向けの周期カーネルを選ぶ</h3>
 <p>Swing Curve学習の③で、カーネルに <code>swingperiodic</code> を選べます。レジスト膜厚の周期成分と、膜厚の直線的な変化（バルク効果を想定）を組み合わせた専用カーネルです。周期は入力しません。右の <span class="ui-name">周期の探索範囲</span> の中から、GPR の当てはまり（周辺尤度）が最も大きい周期を内部で選びます。</p>
-<ol><li>露光波長（初期値 248 nm）とレジスト屈折率（初期値 1.77）を確認します。基準周期は「波長 ÷ 屈折率」で、初期値では約 140.11 nm です。</li><li>探索範囲は基準周期の 75〜125% です。<span class="ui-name">探索範囲を自分で指定する</span> にチェックを入れると、下限と上限を入力できます。</li><li>実行後、④の <span class="ui-name">周期の最適化</span> の表と「周期探索（周辺尤度）」のグラフで、候補ごとの値と採用した周期を確認します。</li></ol>
+<ol><li>露光波長（初期値 248 nm）とレジスト屈折率（初期値 1.77）を確認します。基準周期は「波長 ÷ 屈折率 ÷ 2」（レジスト膜内の定在波の周期）で、初期値では約 70.06 nm です。</li><li>探索範囲は基準周期の 75〜125%（初期値では約 52.54〜87.57 nm）です。<span class="ui-name">探索範囲を自分で指定する</span> にチェックを入れると、下限と上限を入力できます。</li><li>実行後、④の <span class="ui-name">周期の最適化</span> の表と「周期探索（周辺尤度）」のグラフで、候補ごとの値と採用した周期を確認します。</li></ol>
 <p>候補の周期ごとに GPR を学習し直すため（最大48回）、通常の学習より時間がかかります。交差検証では各分割の学習データだけで周期を探索し直します。周期はモデルの中に保持し、MAT には従来どおり <code>Train_Model</code> だけを保存します。大域的に最良の周期である保証はありません。</p>
 ${shot('56-conditions-swing','Swing Curve：swingperiodic を選び、周期の探索範囲を同じ画面で指定する')}
 ${shot('60-period-search','周期探索：候補ごとの周辺尤度と、採用した周期をグラフで確認する')}
@@ -158,14 +145,14 @@ add('prediction','保存モデルで推定・評価する','USER · PREDICTION',
 <p class="section-intro">「5 保存モデルで推定」は、左の①〜④を上から進めると、右に結果を表示します。</p>
 ${step('9-1','① モデルを選ぶ',`<p><span class="ui-name">学習済みMATを開く</span> で MAT を読み込みます。<span class="ui-name">使用するモデル</span> では、読み込んだ MAT のほか、この起動中に学習したモデル（保存していないものを含む）も選べます。選ぶと、説明変数の名前と順序を表示します。信頼できる作成元の MAT だけを開いてください。</p>`)}
 ${step('9-2','② データを開き、③ 列を割り当てる',`<ol><li>推定したいデータを開きます（操作は7章と同じ）。</li><li><span class="ui-name">処理の種類</span> を選びます。通常は「汎用推定」です。既存の面内モデル（X・Y・半径の3変数）を使うときだけ「面内推定」を選び、X・Y 座標の2列を割り当てます。</li><li>モデルの説明変数ごとに、入力ファイルの列をドロップダウンで選びます。列名が同じ場合は自動で選びます。</li><li>誤差も見たいときは <span class="ui-name">評価用の実測列（任意）</span> を選びます。</li></ol>`)}
-${step('9-3','④ 確認して実行する',`<p><span class="ui-name">列の割当を確認</span> を押してから <span class="ui-name">④ 推定を実行</span> を押します。</p>`,'「推定結果」の表に SourceRow と y_pred が表示されること。実測列を選んだ場合は Actual・Residual と、評価指標・列の要約・実測値と予測値のグラフも表示します。')}
+${step('9-3','④ 確認して実行する',`<p><span class="ui-name">列の割当を確認</span> を押してから <span class="ui-name">④ 推定を実行</span> を押します。</p>`,'「出力（入力・予測・SHAPを並べた表）」に、SourceRow・割り当てた説明変数の列・予測値が表示されること。実測列を選んだ場合は実測列・予測値・残差と、評価指標・列の要約・実測値と予測値・残差の横並びのグラフも表示します。')}
 ${shot('61-predict','保存モデルで推定：左で ①モデル ②データ ③列の割当 ④実行、右に結果')}
 <p>実測列を選ばない場合、RMSE・R² は計算しません。面内推定で学習範囲の外の座標が含まれると、警告と <code>OutsideTrainingRange</code> の列で知らせます。評価に使うデータがモデルの学習に使っていないものかどうかは、利用者が確認してください。</p>
 `);
 
 add('shap','SHAP解析とアプリ内のグラフ','USER · SHAP',`
 <h3 id="save-free-shap">10-A　学習時のSHAP（MATを保存しなくても計算できます）</h3><p>学習画面の③で <span class="ui-name">SHAPも計算する</span> にチェックがあると、各モデルの学習後に先頭最大1000行で SHAP を計算します（評価指標は全行）。背景データは原仕様どおりモデル内の学習データです。計算を省いた場合や失敗した場合は、④で対象の行を選び <span class="ui-name">選択モデルのSHAPを計算</span> を押すと、その1モデルだけ計算します。MAT を保存する必要はありません。SHAP はモデルの予測への寄与を示す値で、因果関係を証明するものではありません。</p>
-<h3>10-B　別のデータでSHAPを確認する（6 SHAP 解析）</h3><ol><li>「6 SHAP 解析」を開き、①でモデルを選びます。MAT を開くほか、起動中に学習したモデルも保存せずに選べます。</li><li>②でデータを開き、③で「SHAP依存確認」を選んで、説明変数ごとに列を割り当てます。</li><li>必要なら評価用の実測列を選び、<span class="ui-name">列の割当を確認</span> → <span class="ui-name">④ SHAPを計算</span> を押します。</li></ol><p>結果の「SHAP値」の表に行ごとの値を、「グラフ」に SHAP 分布と、説明変数ごとの依存図を表示します。分布は shapley の計算結果を標準の swarmchart で描きます。行数が多いと時間がかかります。</p>
+<h3>10-B　別のデータでSHAPを確認する（6 SHAP 解析）</h3><ol><li>「6 SHAP 解析」を開き、①でモデルを選びます。MAT を開くほか、起動中に学習したモデルも保存せずに選べます。</li><li>②でデータを開き、③で「SHAP依存確認」を選んで、説明変数ごとに列を割り当てます。</li><li>必要なら評価用の実測列を選び、<span class="ui-name">列の割当を確認</span> → <span class="ui-name">④ SHAPを計算</span> を押します。</li></ol><p>結果の「出力（入力・予測・SHAPを並べた表）」に、元データの説明変数と予測値、行ごとの SHAP 値（SHAP_変数名）を並べて、「グラフ」に SHAP 分布と、説明変数ごとの依存図を表示します。分布は shapley の計算結果を標準の swarmchart で描きます。行数が多いと時間がかかります。</p>
 ${shot('62-shap-page','SHAP 解析：起動中に学習したモデルを選び、別のデータで SHAP を確認する','R2022b のため SHAP は代替計算で描いた参考画面です。')}
 <h3>10-C　ノイズ除去用SHAP</h3><p>③の処理の種類を「ノイズ除去用SHAP」にすると、Swing Curve モデル（最後の説明変数が RESIST_TH）について、膜厚の SHAP 値だけを <code>shap_resist</code> として出力します。膜厚1列だけのモデルにも対応します。</p>
 <h3>10-D　Pro版：Swing Curve近似・極値膜厚・山間／谷間の傾き</h3><p>このカーブ評価と近似残差診断はPro版限定です。通常版はSHAP分布・依存図まで利用できます。APC学習画面にはPro版でもSwing Curve評価を表示しません。</p>
@@ -232,7 +219,7 @@ ${shot('68-help','Help：用語の説明と、公式の関数ヘルプへの入�
 `);
 
 add('export','結果・グラフ・ログを保存する','USER · OUTPUTS',`
-${step('12-1','表を CSV / Excel に保存する',`<p>保存したい表のタブを開き、結果の右下の <span class="ui-name">表を保存（CSV / Excel）</span> を押します。学習画面のモデルの一覧は <span class="ui-name">一覧を保存</span> で保存できます。</p>`)}
+${step('12-1','表を CSV / Excel に保存する',`<p>保存したい表のタブを開き、結果の右下の <span class="ui-name">表を保存（CSV / Excel）</span> を押します。学習画面のモデルの一覧は <span class="ui-name">一覧を保存</span> で保存できます。予測値・残差・SHAP 値は、元データの説明変数・目的変数と並べた1つの表で出力します。CSV は Windows の Excel で日本語が文字化けしないよう、BOM 付きの UTF-8 で保存します。</p>`)}
 ${step('12-2','グラフを PNG に保存する',`<p><span class="ui-name">グラフをPNG保存</span> を押します。表示中のグラフがあればそれを、なければ一覧から選んで保存します（150dpi）。</p>`)}
 ${step('12-3','グラフをクリップボードへコピーする',`<p><span class="ui-name">グラフをコピー</span> を押すと、グラフを画像としてクリップボードへ入れます。Excel や PowerPoint へそのまま貼り付けできます。</p>`)}
 ${step('12-4','学習ログを確認する',`<p>ログは作成・利用した環境の <code>prefdir</code> の下、<code>StandaloneAnalysisApp/logs/training.jsonl</code> に追記します。日時、機能、入力ファイル名、行数、kernel、fit_method、保存先、検証結果、説明変数名、処理時間を記録します。<strong>測定値そのものは記録しません。</strong></p>${code('MATLAB コマンドウィンドウ（ログの場所）',`fullfile(prefdir, 'StandaloneAnalysisApp', 'logs', 'training.jsonl')`)}`)}
@@ -288,29 +275,19 @@ add('troubleshooting','困ったとき','TROUBLESHOOTING',`
 add('references','参考資料と、この資料の確認範囲','SOURCES AND SCOPE',`
 <h3>機能評価用サンプル</h3><p><a href="../../samples/ProcessInsight_Samples.xlsx">サンプルExcel（9シート）</a>と<a href="../../samples/README.md">列指定・使い方</a>を同梱しています。APC、Swing Curve両モード、汎用回帰のGPR・重回帰・PLS、推定・SHAP、2Runの炉内補間、拡張計画、ワードクラウドを試せます。全データは合成で、各データシートのヘッダー行は1です。予測・SHAP用MATはアプリでモデルを作成してから保存します。</p><h3>プロジェクト内の正本</h3><ul class="source-list"><li><a href="../../README.md">README.md</a><small>構成、入力と保存仕様、起動方法。</small></li><li><a href="../windows-build.md">Windows ビルド手順（Markdown）</a></li><li><a href="../specification.md">原仕様</a><small>MR-01〜MR-09、T-01〜T-10、Q-01〜Q-11 の正本。</small></li><li><a href="../../verification.md">検証記録</a> / <a href="../../issues.md">残課題</a></li></ul>
 <h3>MathWorks 公式資料</h3><ul class="source-list"><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-startup-function.html">startupFcn の追加と起動時の処理</a><small>アプリノードの Callbacks メニュー、StartupFcn コールバック。</small></li><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-code-generation.html">App Designer Code View のコード管理</a><small>プロパティ・コールバックの追加。最新ページには R2026b の新仕様もあるため、R2025b の .mlapp 手順を使用。</small></li><li><a href="https://www.mathworks.com/help/compiler/compiler.build.standalonewindowsapplication.html">compiler.build.standaloneWindowsApplication</a><small>Windows でのビルド、出力ファイル、Runtime を含まないこと。</small></li><li><a href="https://www.mathworks.com/help/compiler/standalone-application-target.html">スタンドアローンアプリの配布</a><small>ビルドと配布先の OS、配布するファイル。</small></li><li><a href="https://www.mathworks.com/products/compiler/matlab-runtime.html">MATLAB Runtime の入手</a></li><li><a href="https://www.mathworks.com/help/matlab/ref/exportapp.html">exportapp</a><small>参考 UI 画像の書出しに使用。</small></li></ul>
-<h3>画像と文書の確認範囲</h3><p>アプリ画面は、R2022b / macOS で開発用の例外（環境変数 <code>PROCESS_INSIGHT_DEV_RELEASE=allow</code> を指定した MATLAB 上だけで有効。配布版では使えません）により起動し、同梱の合成サンプルを実際に学習して撮影しました（<code>docs/user-guide/_src/capture_app_screens.m</code>）。GPR の学習・MAT 保存・保存後検証は実際に実行しています。SHAP の計算だけは R2025b 専用のため、代替計算で描いています。10章の Pro 版カーブ評価の画像6枚は、作り直す前の画面で合成 SHAP 値を使って撮影したものです。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
-<p class="privacy-note">この資料の更新日：2026-11-16（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
+<h3>画像と文書の確認範囲</h3><p>アプリの使い方だけを知りたい利用者向けには、<a href="user-manual.html">利用者向け手順書</a>もあります。</p><p>アプリ画面は、R2022b / macOS で開発用の例外（環境変数 <code>PROCESS_INSIGHT_DEV_RELEASE=allow</code> を指定した MATLAB 上だけで有効。配布版では使えません）により起動し、同梱の合成サンプルを実際に学習して撮影しました（<code>docs/user-guide/_src/capture_app_screens.m</code>）。GPR の学習・MAT 保存・保存後検証は実際に実行しています。SHAP の計算だけは R2025b 専用のため、代替計算で描いています。10章の Pro 版カーブ評価の画像6枚は、作り直す前の画面で合成 SHAP 値を使って撮影したものです。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
+<p class="privacy-note">この資料の更新日：2026-11-17（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
 `);
 
-const nav = `<aside id="sidebar" class="sidebar" aria-label="目次"><div class="sidebar-header"><p class="eyebrow">PROCESS INSIGHT TOOL</p><p class="sidebar-title">ビルド・利用手順書</p><p class="sidebar-subtitle">Windows 64bit · R2025b</p></div><nav><ol class="toc-list">${sections.map((s,i)=>`${[0,3,6,12].includes(i)?`<li class="toc-group">${i===0?'はじめに':i===3?'作成・配布担当者':i===6?'アプリ利用者':'確認と対処'}</li>`:''}<li><a href="#${s.id}">${i+1}. ${s.title}</a></li>`).join('')}</ol></nav><div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>更新 2026-11-16 · PC閲覧用</div></aside>`;
-const main = `<main id="main-content" class="main-content"><header class="hero"><div class="hero-content"><p class="eyebrow">BUILD &amp; OPERATING GUIDE</p><h1>Process Insight Tool<br><span>ビルド・利用手順書</span></h1><p class="hero-lead">ソースからの起動確認、Windows 配布、8機能と設定・Helpの操作、出力確認まで。</p><div class="hero-badges"><span>対象：Windows 64bit / R2025b</span><span>画像：R2022b の参考撮影</span><span>更新：2026-11-16</span></div></div></header><p class="guide-status"><strong>現在の到達点：</strong>画面を作り直したソースを作成済み。R2025b での通し確認と全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。</p>${sections.map((s,i)=>`<section id="${s.id}" class="content-section"><div class="section-heading"><span class="section-number">${String(i+1).padStart(2,'0')}</span><div><p class="section-kicker">${s.kicker}</p><h2>${s.title}</h2></div></div>${s.body}</section>`).join('\n')}<footer class="page-footer"><p>Process Insight Tool · ビルド・利用手順書</p><p>2026-11-16 · 画像は参考プレビュー / 対象環境での確認は未完了</p></footer></main>`;
-let skeleton = `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Process Insight Toolの操作手順書"><title>Process Insight Toolの手順書</title>
-<link rel="icon" href="data:,"><link rel="stylesheet" href="procedure-guide.css"><script src="procedure-guide.js" defer></script>
-</head><body id="top"><a class="skip-link" href="#main-content">本文へ移動</a>
-<button id="toc-toggle" class="toc-toggle" type="button" aria-controls="sidebar" aria-expanded="false"><span aria-hidden="true">☰</span> 目次</button>
-<aside id="sidebar" class="sidebar"></aside><div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
-<main id="main-content" class="main-content"></main>
-<button id="back-to-top" class="back-to-top" type="button" aria-label="ページ上部へ戻る"><span aria-hidden="true">↑</span> トップへ戻る</button>
-</body></html>`;
-skeleton = skeleton.replace(/<title>[\s\S]*?<\/title>/,'<title>Process Insight Tool｜ビルド・利用手順書</title>');
-skeleton = skeleton.replace(/<meta name="description"[^>]*>/,'<meta name="description" content="Process Insight Tool（MATLAB R2025b）のWindowsビルド・配布・利用を、参考スクリーンショットとともに説明する手順書。">');
-skeleton = skeleton.replace(/<aside id="sidebar"[\s\S]*?<\/aside>/,nav);
-skeleton = skeleton.replace(/<main id="main-content"[\s\S]*?<\/main>/,main);
-skeleton = skeleton.replace(/\s*<link rel="stylesheet" href="guide-extra.css">/g,'').replace(/\s*<script src="guide-extra.js" defer><\/script>/g,'');
-skeleton = skeleton.replace('</head>','  <link rel="stylesheet" href="guide-extra.css">\n  <script src="guide-extra.js" defer></script>\n</head>');
-skeleton = skeleton.replace(/\s*<dialog id="image-dialog"[\s\S]*?<\/dialog>/g,'');
-skeleton = skeleton.replace('</body>','<dialog id="image-dialog" class="lightbox" aria-labelledby="dialog-caption"><div class="lightbox-bar"><p id="dialog-caption"></p><button id="dialog-close" class="lightbox-close" type="button">閉じる（Esc）</button></div><img id="dialog-image" alt=""></dialog>\n</body>');
-fs.writeFileSync(pagePath,skeleton);
-console.log(JSON.stringify({page:pagePath,sections:sections.length,figures:figureCount,codeBlocks:(skeleton.match(/class="code-block"/g)||[]).length,bytes:Buffer.byteLength(skeleton)}));
+const html = renderPage({
+  sections, groups: {0: 'はじめに', 3: '作成・配布担当者', 6: 'アプリ利用者', 12: '確認と対処'},
+  sidebarTitle: 'ビルド・利用手順書', sidebarSubtitle: 'Windows 64bit · R2025b', updated: '2026-11-17',
+  heroEyebrow: 'BUILD &amp; OPERATING GUIDE', heroTitle: 'Process Insight Tool', heroSubtitle: 'ビルド・利用手順書',
+  heroLead: 'ソースからの起動確認、Windows 配布、8機能と設定・Helpの操作、出力確認まで。',
+  badges: ['対象：Windows 64bit / R2025b', '画像：R2022b の参考撮影', '更新：2026-11-17'],
+  status: '<strong>現在の到達点：</strong>画面を作り直したソースを作成済み。R2025b での通し確認と全テスト・Windows exe 生成・Runtime 動作確認は後工程です。この資料は、その作業を進めるための手順書です。',
+  footer: ['Process Insight Tool · ビルド・利用手順書', '2026-11-17 · 画像は参考プレビュー / 対象環境での確認は未完了'],
+  title: 'Process Insight Tool｜ビルド・利用手順書', description: 'Process Insight Tool（MATLAB R2025b）のWindowsビルド・配布・利用を、参考スクリーンショットとともに説明する手順書。'
+});
+fs.writeFileSync(pagePath, html);
+console.log(JSON.stringify({page:pagePath,sections:sections.length,figures:figureTotal(),codeBlocks:(html.match(/class="code-block"/g)||[]).length,bytes:Buffer.byteLength(html)}));

@@ -10,8 +10,10 @@ classdef TestProductEnhancements < matlab.unittest.TestCase
     methods (Test)
         function opticalDefaultsAndExplicitBounds(testCase)
             options = swing_period_options();
-            testCase.verifyEqual(options.ReferencePeriod, 248/1.77, 'AbsTol', 1e-12);
-            testCase.verifyEqual(options.PeriodBounds, 248/1.77*[0.75, 1.25], 'AbsTol', 1e-12);
+            % Swing Curve の周期は λ/(2n)。既定 248 ÷ 1.77 ÷ 2 ≒ 70.06 nm（2026-11-17 のユーザー指示）。
+            testCase.verifyEqual(options.ReferencePeriod, 248/1.77/2, 'AbsTol', 1e-12);
+            testCase.verifyEqual(options.ReferencePeriod, 70.056, 'AbsTol', 1e-3);
+            testCase.verifyEqual(options.PeriodBounds, 248/1.77/2*[0.75, 1.25], 'AbsTol', 1e-12);
             custom = swing_period_options(248, 1.77, [100, 160]);
             testCase.verifyEqual(custom.PeriodBounds, [100, 160]);
             testCase.verifyError(@() swing_period_options(248, 1.77, [160, 100]), 'swing_period_options:bounds');

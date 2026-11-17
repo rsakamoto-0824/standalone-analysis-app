@@ -5,8 +5,9 @@ classdef HelpPage < AppPage
             page@AppPage(app, parent);
             % Help は処理を行わないため、下部の状況欄を使わない。
             page.Root.RowHeight = {'1x', 0}; page.Status.Visible = 'off';
-            guide = app.resourcePath('docs', 'user-guide', 'procedure-guide.html');
-            create_app_help(page.Body, guide, app.Edition);
+            guides = {app.resourcePath('docs', 'user-guide', 'user-manual.html'), ...
+                app.resourcePath('docs', 'user-guide', 'procedure-guide.html')};
+            create_app_help(page.Body, guides, app.Edition);
         end
     end
 end

@@ -88,7 +88,8 @@ classdef FurnacePage < AppPage
                 entry.InputFile = page.Source.fileName(); entry.Rows = numel(data.Slots); entry.Kernel = strjoin(methods_selected, ',');
                 entry.FitMethod = options.FitMethod;
                 dialog = page.App.startProgress('炉内補間', 'バッチごとの計測データを準備しています。', true);
-                report = interpolate_furnace_batches(data, query, methods_selected, options, @(event) page.reportProgress(dialog, event));
+                progress_started = tic;
+                report = interpolate_furnace_batches(data, query, methods_selected, options, @(event) page.reportProgress(dialog, event, progress_started));
                 AnalysisController.closeProgress(dialog);
                 page.ReportSource = page.Source.Data;
                 page.showReport(report); entry.Status = 'completed';
@@ -282,8 +283,12 @@ classdef FurnacePage < AppPage
             options = struct('RBFWidth', settings.RBFWidth, 'RBFRidge', settings.RBFRidge, 'FitMethod', settings.FitMethod, ...
                 'AllowExtrapolation', page.Extrapolate.Value, 'Bins', settings.Bins);
         end
-        function reportProgress(~, dialog, event)
-            dialog.Message = sprintf('バッチ %d / %d：%s\n%s / %s\n%s（学習 %d / 最大%d）', ...
+        function reportProgress(~, dialog, event, started)
+            % バッチの順番と、そのバッチ内の学習回数から全体の進み具合を求める。
+            within = 0; if event.Total > 0, within = min(event.Index / event.Total, 1); end
+            [fraction, summary] = format_progress((event.BatchIndex - 1) + within, event.BatchCount, toc(started));
+            dialog.Indeterminate = 'off'; dialog.Value = fraction;
+            dialog.Message = sprintf('%s\nバッチ %d / %d：%s / %s / %s\n%s（学習 %d / 最大%d）', summary, ...
                 event.BatchIndex, event.BatchCount, event.Batch, event.Target, event.Method, event.Stage, event.Index, event.Total);
             drawnow;
             if dialog.CancelRequested, error('AnalysisApp:cancelled', '炉内補間を中止しました。今回の結果は表示しません。'); end

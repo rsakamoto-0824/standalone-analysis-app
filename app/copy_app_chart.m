@@ -11,7 +11,10 @@ if numel(visible) == 1
 elseif numel(charts) == 1
     choice = 1;
 else
-    [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', 'コピーするグラフ');
+    % 表示中の図を先に選んだ状態で一覧を出す（並べた図があればそれが先頭）。
+    initial = 1; if ~isempty(visible), initial = visible(1); end
+    [choice, accepted] = listdlg('ListString', names, 'SelectionMode', 'single', 'PromptString', 'コピーするグラフ', ...
+        'ListSize', [360, 240], 'InitialValue', initial);
     if ~accepted, return; end
 end
 chart = charts{choice}; container = chart.Parent;
