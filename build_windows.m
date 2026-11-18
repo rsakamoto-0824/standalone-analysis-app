@@ -32,6 +32,11 @@ additional = {fullfile(staging, 'core'), fullfile(staging, 'app'), fullfile(proj
     fullfile(project_root, 'README.md'), fullfile(project_root, 'verification.md'), fullfile(project_root, 'issues.md')};
 result = compiler.build.standaloneWindowsApplication(fullfile(staging, 'app', entry_name), ...
     'ExecutableName', executable, 'OutputDir', output, 'AdditionalFiles', additional, 'Verbose', 'on');
+% 利用者がすぐ使えるよう、サンプルと手順書（HTML）を exe と同じフォルダへ置く。手順書の生成用ファイルは除く。
+copyfile(sample_folder, fullfile(output, 'samples'));
+guide_output = fullfile(output, 'docs', 'user-guide'); mkdir(guide_output);
+copyfile(fullfile(project_root, 'docs', 'user-guide'), guide_output);
+if isfolder(fullfile(guide_output, '_src')), rmdir(fullfile(guide_output, '_src'), 's'); end
 file = fopen(fullfile(output, 'edition-manifest.json'), 'w', 'n', 'UTF-8');
 if file < 0, error('build_windows:manifest', '版の確認ファイルを保存できません。'); end
 file_cleanup = onCleanup(@() fclose(file)); fprintf(file, '%s', jsonencode(manifest, 'PrettyPrint', true));

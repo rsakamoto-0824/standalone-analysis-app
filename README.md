@@ -26,7 +26,7 @@
 - **MATLAB R2025b / Windows での確認、SHAP の実計算、Windows exe の生成、Runtime だけの端末での起動確認は未実施です。** [Windows での確認・ビルド手順](docs/windows-build.md)に従って確認してください。
 - 製品アプリと学習処理は R2025b 以外では停止します。
 
-画面の使い方は[利用者向け手順書（HTML）](docs/user-guide/user-manual.html)、ビルド・配布を含む詳細は[ビルド・利用手順書（HTML）](docs/user-guide/procedure-guide.html)を参照してください。GitHub では HTML のソースが表示されるため、**Code → Download ZIP で取得・展開し、`docs/user-guide/user-manual.html`（または `procedure-guide.html`）を PC のブラウザで開きます。** 画像やスタイルも必要なので、`docs/user-guide/` のフォルダ一式を保持してください。
+手順書（HTML）は3つあります。配布版（通常版）を Windows で使う方は[利用手順書](docs/user-guide/user-manual.html)、通常版と Pro 版の exe を作る担当者は[ビルド手順書](docs/user-guide/build-guide.html)、Pro 版だけの機能や計算の詳しい説明は[ビルド・利用手順書（詳細）](docs/user-guide/procedure-guide.html)を参照してください。GitHub では HTML のソースが表示されるため、**Code → Download ZIP で取得・展開し、`docs/user-guide/user-manual.html`（または `build-guide.html`・`procedure-guide.html`）を PC のブラウザで開きます。** 画像やスタイルも必要なので、`docs/user-guide/` のフォルダ一式を保持してください。
 
 音声・字幕付きの[アプリ解説動画（MP4、約3分27秒）](docs/video/app-overview/app-overview-ja.mp4)は、**作り直す前の画面**で作成したものです。機能の概要の参考にしてください。[動画の閲覧方法](docs/video/app-overview/README.md)を参照してください。
 
@@ -50,7 +50,7 @@ results = run_app_flow_check;          % 同梱サンプルで全機能を通す
 results = run_tests;                   % 全単体テスト。失敗時はエラー
 ```
 
-配布用の exe は `build_windows('standard')` / `build_windows('pro')` で作成します。入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。
+配布用の exe は `build_windows('standard')` / `build_windows('pro')` で作成します。入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。exe と同じフォルダに、サンプル（`samples`）と手順書（`docs\user-guide`）も置きます。手順は[ビルド手順書](docs/user-guide/build-guide.html)を参照してください。
 
 ## 基本操作（学習：1〜3）
 
