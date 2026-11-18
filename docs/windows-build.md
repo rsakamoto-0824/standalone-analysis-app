@@ -1,6 +1,6 @@
 # Process Insight Tool — Windows R2025b での確認・ビルド
 
-この文書は、作成済みの MATLAB ソースを会社の Windows PC 等へ移し、MATLAB R2025b で確認・配布するための手順です。会社側で Codex / Claude Code を使う必要はありません。GitHub Copilot の利用も不要です。画像付きの説明は [HTML手順書](user-guide/procedure-guide.html) を参照してください。
+この文書は、作成済みの MATLAB ソースを会社の Windows PC 等へ移し、MATLAB R2025b で確認・配布するための手順です。会社側で Codex / Claude Code を使う必要はありません。GitHub Copilot の利用も不要です。同じ内容を読みやすくまとめた [ビルド手順書（HTML）](user-guide/build-guide.html) と、利用者へ渡す [利用手順書（配布版・Windows）](user-guide/user-manual.html) もあります。Pro版だけの機能の使い方は [ビルド・利用手順書（詳細）](user-guide/procedure-guide.html) を参照してください。
 
 ## 1. 環境を確認する
 
@@ -76,7 +76,7 @@ standard = build_windows('standard'); % 通常版
 pro = build_windows('pro');           % Pro版
 ```
 
-実行環境と必要製品を確認し、全テスト成功後に `build/windows/standard/ProcessInsightTool.exe` または `build/windows/pro/ProcessInsightToolPro.exe` と付随ファイルを生成します。**入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。** 画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。`core/`、`app/`、HTML手順書と `samples/` を同梱します。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
+実行環境と必要製品を確認し、全テスト成功後に `build/windows/standard/ProcessInsightTool.exe` または `build/windows/pro/ProcessInsightToolPro.exe` と付随ファイルを生成します。**入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。** 画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。`core/`、`app/`、HTML手順書と `samples/` を同梱し、さらに exe と同じフォルダへ `samples` と `docs\user-guide`（手順書。生成用の `_src` を除く）を置きます。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
 
 通常版は Pro 専用の SHAP カーブ近似・残差診断の7ファイルを隔離ソースから除外してコンパイルします。Pro版にはそれらを含めます。ビルド後の `edition-manifest.json` で Edition とファイル一覧を確認してください。実行時の設定や引数で版を変更する機能はありません。
 

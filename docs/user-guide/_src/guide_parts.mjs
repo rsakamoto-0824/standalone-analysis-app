@@ -11,13 +11,13 @@ export const check = (text) => `<label><input type="checkbox"> <span>${text}</sp
 export const DEFAULT_SHOT_DETAIL = 'R2022b / macOS で、同梱の合成サンプルを実際に学習して撮影した参考画面です（SHAPだけ代替計算）。R2025b / Windows の画面とは細部が異なる場合があります。';
 
 // 図番号は手順書ごとに数えるため、画像の部品は手順書ごとに作る。
-export function createShots(guideRoot) {
+export function createShots(guideRoot, { tag = '参考撮影 · R2022b / macOS', defaultDetail = DEFAULT_SHOT_DETAIL } = {}) {
   let count = 0;
-  const shot = (name, caption, detail=DEFAULT_SHOT_DETAIL) => {
+  const shot = (name, caption, detail=defaultDetail) => {
     count += 1;
     const png = fs.readFileSync(path.join(guideRoot, 'images', `${name}.png`));
     const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
-    return `<figure class="screenshot"><button type="button" class="image-open" aria-label="${escape(caption)}を拡大"><img src="images/${name}.png" alt="${escape(caption)}" loading="lazy" width="${width}" height="${height}"></button><figcaption><span class="shot-tag">参考撮影 · R2022b / macOS</span><span class="shot-zoom">クリックで拡大 / Escで閉じる</span><strong>図${count}　${caption}</strong><span class="shot-note">${detail}</span></figcaption></figure>`;
+    return `<figure class="screenshot"><button type="button" class="image-open" aria-label="${escape(caption)}を拡大"><img src="images/${name}.png" alt="${escape(caption)}" loading="lazy" width="${width}" height="${height}"></button><figcaption><span class="shot-tag">${tag}</span><span class="shot-zoom">クリックで拡大 / Escで閉じる</span><strong>図${count}　${caption}</strong><span class="shot-note">${detail}</span></figcaption></figure>`;
   };
   return { shot, count: () => count };
 }

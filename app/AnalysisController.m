@@ -137,8 +137,9 @@ classdef AnalysisController < handle
         end
         function path = resourcePath(app, varargin)
             % 同梱ファイル（samples、docs）の場所。ソース実行と配布版で置き場所が異なるため順に探す。
+            % 配布版では、exe と同じフォルダ（起動時の現在のフォルダ）に置いた samples・docs も探す。
             relative = fullfile(varargin{:}); roots = {app.ProjectRoot};
-            if isdeployed, roots = [roots, {ctfroot, fileparts(app.ProjectRoot)}]; end
+            if isdeployed, roots = [roots, {pwd, ctfroot, fileparts(app.ProjectRoot)}]; end
             path = fullfile(roots{1}, relative);
             for index = 1:numel(roots)
                 candidate = fullfile(roots{index}, relative);

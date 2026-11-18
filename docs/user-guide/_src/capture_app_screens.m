@@ -1,19 +1,27 @@
-function capture_app_screens()
+function capture_app_screens(edition)
 % 手順書用の画面画像を、実際のアプリを同梱サンプルで操作して撮影する。
+%   capture_app_screens            配布版（通常版）の画面を撮る（利用手順書・ビルド利用手順書で使用）
+%   capture_app_screens('pro')     Pro版の画面で撮る（Pro専用の 70-expanded-pro-fit も撮る）
+% 利用環境は Windows のため、Mac 特有の表示を画像に含めない。
+%   ・exportapp はアプリの中身だけを書き出し、ウィンドウの枠（タイトルバー・閉じるボタン）を含まない。
+%   ・開発用の例外で起動したときの「検証用 R2022b」の注意は、利用者の Windows 画面には出ないため撮影前に除く。
+%   ・端末のフォルダ名が写る欄は、Windows の例の値に置き換えて撮る。
 % 学習は実際の fitrgp を使う。R2025b 以外では SHAP だけ代替計算へ差し替える（tests/approximate_shap_for_check.m）。
 % 設定とログは一時フォルダへ保存し、利用者の設定を変更しない。
 source_folder = fileparts(mfilename('fullpath'));
 root = fileparts(fileparts(fileparts(source_folder)));
 images = fullfile(fileparts(source_folder), 'images');
 addpath(fullfile(root, 'core'), fullfile(root, 'app'), fullfile(root, 'tests'));
+if nargin < 1, edition = 'standard'; end
 PAUSE_SECONDS = 1.2;
+DEVELOPMENT_ONLY_TEXT = '検証用';
 EXAMPLE_FOLDER = 'C:\work\analysis';
 EXAMPLE_SETTINGS_TEXT = '設定ファイル: C:\Users\(ユーザー名)\AppData\...\StandaloneAnalysisApp\settings.json';
 work = tempname; mkdir(work); cleanup_work = onCleanup(@() rmdir(work, 's'));
 sample = fullfile(root, 'samples', 'ProcessInsight_Samples.xlsx');
 window = uifigure('Position', [40, 40, AnalysisController.WINDOW_SIZE], 'Visible', 'on');
 cleanup_window = onCleanup(@() delete(window));
-app = AnalysisController(window, 'pro', work);
+app = AnalysisController(window, edition, work);
 app.AlertFcn = @(text, title_text, icon) fprintf('%s [%s] %s\n', title_text, icon, text);
 if ~app.IsTargetRelease
     services = app.Services; services.Shap = @approximate_shap_for_check; services.Denoise = @approximate_denoise_for_check;
@@ -45,9 +53,12 @@ swing.Steps.SelectedTab = swing.StepTabs.Conditions; snap('56-conditions-swing')
 swing.Source.open(sample, 'Swing_NoBase', 1); swing.selectTargets({'CD_X'});
 swing.setSwingVariables(swing.MODE_WITHOUT, 'RESIST_TH'); swing.confirm(); swing.runModeling();
 chart_tabs = swing.Result.ChartTabs.Children; swing.Result.ChartTabs.SelectedTab = chart_tabs(startsWith({chart_tabs.Title}, '周期探索')); snap('60-period-search');
-swing.ExpandButton.Value = true; swing.ExpandButton.ValueChangedFcn([], []);
-swing.Result.ChartTabs.SelectedTab = chart_tabs(contains({chart_tabs.Title}, 'RESIST_TH')); snap('70-expanded-pro-fit');
-swing.ExpandButton.Value = false; swing.ExpandButton.ValueChangedFcn([], []);
+if strcmp(edition, 'pro')
+    % Pro版だけの画面（レジスト膜厚のSHAPのカーブ評価）。
+    swing.ExpandButton.Value = true; swing.ExpandButton.ValueChangedFcn([], []);
+    swing.Result.ChartTabs.SelectedTab = chart_tabs(contains({chart_tabs.Title}, 'RESIST_TH')); snap('70-expanded-pro-fit');
+    swing.ExpandButton.Value = false; swing.ExpandButton.ValueChangedFcn([], []);
+end
 
 % --- 汎用回帰 ---
 app.selectPage('generic'); generic = app.page('generic'); generic.openSample();
@@ -86,6 +97,8 @@ settings_page.Fields.Theme.Value = 'ダーク'; settings_page.save();
 app.selectPage('apc'); snap('69-dark-theme');
 
     function snap(name)
+        page = app.page(app.Navigation.SelectedKey); lines = page.Status.Value;
+        page.Status.Value = lines(~contains(lines, DEVELOPMENT_ONLY_TEXT));
         drawnow; pause(PAUSE_SECONDS);
         exportapp(window, fullfile(images, [name '.png']));
         fprintf('saved %s\n', name);

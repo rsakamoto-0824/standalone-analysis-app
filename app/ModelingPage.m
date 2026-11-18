@@ -259,7 +259,7 @@ classdef ModelingPage < AppPage
             left = AppPage.section(grid, '目的変数（予測したい列）');
             left_grid = uigridlayout(left, [2, 1]); left_grid.RowHeight = {62, '1x'};
             AppPage.hint(left_grid, sprintf(['複数選ぶと、列ごとに別のモデルを作ります（最大%d列）。' ...
-                '複数選択は Ctrl（Mac は Command）を押しながらクリックします。'], page.App.Constants.MAX_TARGETS));
+                '複数選択は Ctrl キーを押しながらクリックします。'], page.App.Constants.MAX_TARGETS));
             page.Targets = uilistbox(left_grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', 'Enable', 'off', ...
                 'ValueChangedFcn', @(~, ~) page.variablesChanged());
             right = AppPage.section(grid, '説明変数（モデルへの入力）');
@@ -302,13 +302,13 @@ classdef ModelingPage < AppPage
             uilabel(row, 'Text', 'レジスト膜厚の列（nm）');
             page.ResistColumn = uidropdown(row, 'Items', {ColumnMapper.NONE}, 'Enable', 'off', ...
                 'ValueChangedFcn', @(~, ~) page.variablesChanged());
-            uilabel(grid, 'Text', '下地の説明変数（「下地あり」のとき選択。複数選択は Ctrl / Command）');
+            uilabel(grid, 'Text', '下地の説明変数（「下地あり」のとき選択。複数選択は Ctrl キーを押しながらクリック）');
             page.Underlayers = uilistbox(grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', 'Enable', 'off', ...
                 'ValueChangedFcn', @(~, ~) page.variablesChanged());
         end
         function grid = buildGenericVariables(page, parent)
             grid = uigridlayout(parent, [5, 1]); grid.RowHeight = {44, 130, 22, '1x', 30};
-            AppPage.hint(grid, ['モデルの入力に使う列を選びます（複数選択は Ctrl / Command）。' ...
+            AppPage.hint(grid, ['モデルの入力に使う列を選びます（複数選択は Ctrl キーを押しながらクリック）。' ...
                 'GPRのMATは列名を持たないため、下の表の順序（1列目、2列目…）で入力と対応します。']);
             page.Predictors = uilistbox(grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', 'Enable', 'off', ...
                 'ValueChangedFcn', @(~, ~) page.variablesChanged());
@@ -341,7 +341,7 @@ classdef ModelingPage < AppPage
                 page.PlsComponents.Enable = 'off'; page.PlsComponents.ValueChangedFcn = @(~, ~) page.conditionsChanged();
                 uilabel(row, 'Text', '（説明変数の数以下。PLSを選ぶと入力できます）');
             end
-            uilabel(grid, 'Text', 'GPRのカーネル（複数選ぶと比較します。Ctrl / Command で複数選択）', 'FontWeight', 'bold');
+            uilabel(grid, 'Text', 'GPRのカーネル（複数選ぶと比較します。Ctrl キーを押しながら複数選択）', 'FontWeight', 'bold');
             page.Kernels = uilistbox(grid, 'Items', kernels, 'Value', {default_kernel}, 'Multiselect', 'on', ...
                 'ValueChangedFcn', @(~, ~) page.conditionsChanged());
             page.FitInfo = AppPage.hint(grid, page.fitMethodText());

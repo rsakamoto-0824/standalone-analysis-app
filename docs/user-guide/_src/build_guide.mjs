@@ -14,7 +14,7 @@ const add = (id,title,kicker,body) => sections.push({id,title,kicker,body});
 
 add('overview','目的と対象','START HERE',`
 <p>この手順書は、<strong>Process Insight Tool（MATLAB R2025b 向け）を Windows でビルドし、MATLAB 本体のない端末へ配布して利用する</strong>までの操作を説明します。左の目次から必要な章へ移動でき、画像はクリックして拡大できます。コードは「コピー」ボタンでコピーできます。</p>
-${note('アプリの使い方だけを知りたい方へ','画面の操作だけをまとめた<a href="user-manual.html">利用者向け手順書</a>があります。この手順書は、ビルド・配布を含む作成担当者向けの内容も含みます。')}
+${note('目的に合った手順書','配布版（通常版）を Windows で使う方は<a href="user-manual.html">利用手順書</a>、通常版と Pro 版の exe を作る担当者は<a href="build-guide.html">ビルド手順書</a>が簡潔です。この手順書は、Pro 版だけの機能や計算の詳しい説明を含む詳細版です。')}
 <div class="card-grid three-columns"><article class="feature-card"><span class="card-label">作成担当者</span><h3>初回の確認とビルド</h3><p>2〜6章で環境を確認し、ソースからの起動、通し確認、テスト、exe、Runtime を用意します。</p></article><article class="feature-card"><span class="card-label">利用者</span><h3>データを解析</h3><p>アプリを受け取ったら、6章の起動確認と7〜12章の操作を参照します。</p></article><article class="feature-card"><span class="card-label">保守担当者</span><h3>結果と問題を確認</h3><p>13章の完了確認、14章の対処表、15章のソースと公式資料を参照します。</p></article></div>
 ${table(['項目','現在の状態'],[
 ['画面・計算・テストのソース','作成済み。2026-11-17 に画面を作り直しました（4ステップで進む学習画面、ホーム、画面内でのシート・ヘッダー行の指定、常に見える選択欄での列の割当）。'],

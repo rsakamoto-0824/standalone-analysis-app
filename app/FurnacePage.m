@@ -157,7 +157,7 @@ classdef FurnacePage < AppPage
             AppPage.fillLastRow(left_grid);
             right = AppPage.section(grid, '目的変数（補間したい計測値の列）');
             right_grid = uigridlayout(right, [2, 1]); right_grid.RowHeight = {44, '1x'};
-            AppPage.hint(right_grid, sprintf('複数選択は Ctrl（Mac は Command）を押しながらクリックします。各バッチ・各項目で%d点以上の計測Slotが必要です。', ...
+            AppPage.hint(right_grid, sprintf('複数選択は Ctrl キーを押しながらクリックします。各バッチ・各項目で%d点以上の計測Slotが必要です。', ...
                 page.Constants.MinimumMeasuredSlots));
             page.Targets = uilistbox(right_grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', 'Enable', 'off');
             fields = {page.Wafer, page.Batch, page.Targets};
@@ -174,7 +174,7 @@ classdef FurnacePage < AppPage
             grid = uigridlayout(tab, [2, 2]); grid.RowHeight = {'1x', 44}; grid.ColumnWidth = {'1x', '1x'};
             left = AppPage.section(grid, '比べる方式');
             left_grid = uigridlayout(left, [3, 1]); left_grid.RowHeight = {44, 150, '1x'};
-            AppPage.hint(left_grid, '複数選ぶと、内部Slotを1点ずつ外した検証で比べます（Ctrl / Command で複数選択）。GPRだけが予測区間を表示できます。');
+            AppPage.hint(left_grid, '複数選ぶと、内部Slotを1点ずつ外した検証で比べます（Ctrl キーを押しながら複数選択）。GPRだけが予測区間を表示できます。');
             page.Methods = uilistbox(left_grid, 'Items', page.Constants.Labels, 'ItemsData', page.Constants.Methods, ...
                 'Value', page.Constants.Methods, 'Multiselect', 'on', 'ValueChangedFcn', @(~, ~) page.inputsChanged());
             page.SettingInfo = AppPage.hint(left_grid, page.settingText());
