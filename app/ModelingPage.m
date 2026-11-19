@@ -16,8 +16,7 @@ classdef ModelingPage < AppPage
         Order = {}
         OrderInfo = []
         MappingTable
-        ConfirmState
-        Confirmed = false
+        SelectionState
         Regressors = struct()
         PlsComponents = []
         Kernels
@@ -25,7 +24,7 @@ classdef ModelingPage < AppPage
         Period = struct()
         Folds
         Seed
-        AlwaysValidate
+        UseCrossValidation
         ComputeShap
         Plan
         RunButton
@@ -62,7 +61,7 @@ classdef ModelingPage < AppPage
             page.Kind = kind;
             page.Steps = uitabgroup(page.Body);
             page.buildDataStep(); page.buildVariableStep(); page.buildConditionStep(); page.buildResultStep();
-            page.updateConfirmState(); page.refreshPlan();
+            page.updateSelectionState(); page.conditionsChanged();
             page.message('「① データを開く」から始めます。手元にデータがない場合は「サンプルデータを開く」で試せます。');
         end
 
@@ -85,26 +84,19 @@ classdef ModelingPage < AppPage
             page.Order([row, target]) = page.Order([target, row]); page.SelectedOrderRow = target;
             page.variablesChanged();
         end
-        function confirm(page)
-            try
-                page.validateVariables();
-                page.Confirmed = true; page.updateConfirmState(); page.refreshPlan();
-                page.message('列対応を確認しました。「③ 条件を決めて実行」へ進めます。');
-            catch err
-                page.Confirmed = false; page.updateConfirmState(); page.showError(err);
-            end
-        end
 
         % ---------- ③ 実行 ----------
         function runModeling(page)
             dialog = [];
             try
-                if ~page.Confirmed
-                    page.Steps.SelectedTab = page.StepTabs.Variables;
-                    error('AnalysisApp:unconfirmed', '「② 変数を選ぶ」で列対応を確認してから実行してください。');
-                end
                 % ボタンを押したらすぐに進捗バーを表示する（入力の読取りにも時間がかかる場合があるため）。
                 dialog = page.App.startProgress('モデリング・SHAP評価', '入力データと条件を確認しています。', true);
+                % 列対応は実行のたびに自動で確認する（数値でない値・空欄・重複・目的変数との重なり）。
+                try
+                    page.validateVariables();
+                catch err
+                    page.goTo('Variables'); rethrow(err);
+                end
                 data = page.Source.Data; settings = page.settings();
                 if settings.Bins > 0, validate_bin_count(settings.Bins, 'AnalysisApp'); end
                 [inputs, responses, names, targets] = modeling_input_data(data, page.currentMapping(), page.Targets.Value);
@@ -279,11 +271,12 @@ classdef ModelingPage < AppPage
                 uibutton(row, 'Text', '▼ 下へ', 'ButtonPushedFcn', @(~, ~) page.moveOrder(1));
             end
             bottom = uigridlayout(grid, [1, 3]); bottom.Layout.Row = 2; bottom.Layout.Column = [1, 2];
-            bottom.Padding = [0, 0, 0, 0]; bottom.ColumnWidth = {'1x', 170, 240};
-            page.ConfirmState = AppPage.stateLabel(bottom);
-            uibutton(bottom, 'Text', '列対応を確認', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) page.confirm(), ...
-                'Tooltip', '選んだ列が数値か、重複や空欄がないかを調べます。確認するまで学習は実行できません。');
+            bottom.Padding = [0, 0, 0, 0]; bottom.ColumnWidth = {'1x', 240};
+            page.SelectionState = AppPage.stateLabel(bottom);
             AppPage.primaryButton(bottom, '次へ：③ 条件を決めて実行 ▶', @(~, ~) page.goTo('Conditions'));
+        end
+        function pro = isPro(page)
+            pro = strcmp(page.App.Edition, 'pro');
         end
         function grid = buildApcVariables(page, parent)
             grid = uigridlayout(parent, [4, 1]); grid.RowHeight = {44, 132, 22, '1x'};
@@ -326,7 +319,12 @@ classdef ModelingPage < AppPage
         function buildModelConditions(page, parent)
             settings = page.settings(); constants = page.App.Constants;
             kernels = constants.KERNELS; default_kernel = settings.Kernel;
-            if strcmp(page.Kind, 'swing'), kernels = constants.SWING_KERNELS; default_kernel = settings.SwingKernel; end
+            if strcmp(page.Kind, 'swing')
+                default_kernel = settings.SwingKernel;
+                % swingperiodic（周期カーネル）は Pro 版だけの選択肢。
+                if page.isPro(), kernels = constants.SWING_KERNELS; end
+            end
+            if ~any(strcmp(kernels, default_kernel)), default_kernel = constants.DEFAULT_KERNEL; end
             heights = {22, 190, 44};
             if strcmp(page.Kind, 'generic'), heights = [{22, 30, 30}, heights]; end
             grid = uigridlayout(parent, [numel(heights) + 1, 1]); grid.RowHeight = [heights, {'1x'}];
@@ -345,8 +343,8 @@ classdef ModelingPage < AppPage
             page.Kernels = uilistbox(grid, 'Items', kernels, 'Value', {default_kernel}, 'Multiselect', 'on', ...
                 'ValueChangedFcn', @(~, ~) page.conditionsChanged());
             page.FitInfo = AppPage.hint(grid, page.fitMethodText());
-            if strcmp(page.Kind, 'swing')
-                AppPage.hint(grid, ['swingperiodic はレジスト膜厚の周期を持つ Swing Curve 専用カーネルです。' ...
+            if strcmp(page.Kind, 'swing') && page.isPro()
+                AppPage.hint(grid, ['swingperiodic はレジスト膜厚の周期を持つ Swing Curve 専用カーネルです（Pro版）。' ...
                     '周期は右の「周期の探索範囲」の中から、当てはまり（周辺尤度）が最も良い値を自動で選びます。候補ごとに学習し直すため時間がかかります。']);
             else
                 AppPage.fillLastRow(grid);
@@ -354,21 +352,23 @@ classdef ModelingPage < AppPage
         end
         function buildEvaluationConditions(page, parent)
             heights = {60, 30, 30, 30, 30};
-            if strcmp(page.Kind, 'swing'), heights = [heights, {26, 30, 30, 26, 30, 30, 30}]; end
+            with_period = strcmp(page.Kind, 'swing') && page.isPro();
+            if with_period, heights = [heights, {26, 30, 30, 26, 30, 30, 30}]; end
             grid = uigridlayout(parent, [numel(heights) + 1, 2]); grid.RowHeight = [heights, {'1x'}]; grid.ColumnWidth = {'1.3x', '1x'};
-            label = AppPage.hint(grid, ['条件を2つ以上選ぶと、同じ分割の交差検証（学習に使っていない行での予測）で比べます。' ...
-                '条件が1つのときは学習データでの当てはまりを表示します。下のチェックで1条件でも交差検証できます。']);
+            label = AppPage.hint(grid, ['初期状態では交差検証を使わず、学習に使ったデータでの当てはまり（RMSE・R²）で評価します。' ...
+                '未知のデータに近い精度で比べたいときは、下のチェックを入れて交差検証（学習に使っていない行での予測）で評価します。']);
             label.Layout.Column = [1, 2];
+            page.UseCrossValidation = uicheckbox(grid, 'Text', '交差検証で評価する（学習の回数が「分割数＋1」倍になります）', 'Value', false);
+            page.UseCrossValidation.Layout.Column = [1, 2];
             [~, page.Folds] = AppPage.numberField(grid, '交差検証の分割数（2〜10）', page.DEFAULT_FOLDS, [2, 10], true);
             [~, page.Seed] = AppPage.numberField(grid, '分割の乱数seed', 0, [0, 2^32 - 1], true);
-            page.AlwaysValidate = uicheckbox(grid, 'Text', '条件が1つでも交差検証で評価する（時間は増えます）', 'Value', false);
-            page.AlwaysValidate.Layout.Column = [1, 2];
             page.ComputeShap = uicheckbox(grid, 'Text', sprintf('SHAPも計算する（先頭最大%d行。後から計算もできます）', page.App.Constants.MAX_SHAP_POINTS), ...
                 'Value', page.settings().ShowPlots);
             page.ComputeShap.Layout.Column = [1, 2];
-            fields = {page.Folds, page.Seed, page.AlwaysValidate, page.ComputeShap};
+            fields = {page.Folds, page.Seed, page.UseCrossValidation, page.ComputeShap};
             for index = 1:numel(fields), fields{index}.ValueChangedFcn = @(~, ~) page.conditionsChanged(); end
-            if strcmp(page.Kind, 'swing'), page.buildPeriodOptions(grid); end
+            % 周期の探索範囲は Pro 版だけ（swingperiodic と SHAP のカーブ評価で使う）。
+            if with_period, page.buildPeriodOptions(grid); end
             AppPage.fillLastRow(grid);
         end
         function buildPeriodOptions(page, grid)
@@ -446,7 +446,7 @@ classdef ModelingPage < AppPage
             end
             if strcmp(page.Kind, 'generic'), page.updateOrder(); end
             page.MappingTable.Data = page.currentMapping();
-            page.Confirmed = false; page.updateConfirmState(); page.refreshPlan();
+            page.updateSelectionState(); page.refreshPlan();
         end
         function mapping = currentMapping(page)
             % {順序, モデルの変数名, 入力ファイルの列} の表を作る。
@@ -512,19 +512,25 @@ classdef ModelingPage < AppPage
                 error('modeling:tooFewRows', 'APC学習には%d行以上のデータが必要です（現在 %d行）。', constants.MIN_TRAIN_ROWS, size(inputs, 1));
             end
         end
-        function updateConfirmState(page)
-            if page.Confirmed
-                page.setState(page.ConfirmState, sprintf('✓ 確認済み：目的変数 %d列 / 説明変数 %d列 / %d行', ...
-                    numel(page.Targets.Value), size(page.MappingTable.Data, 1), size(page.Source.Data.Cells, 1)), true);
-            elseif isempty(page.Source.Data)
-                page.setState(page.ConfirmState, '未確認：先に「① データを開く」でファイルを開いてください。', false);
+        function updateSelectionState(page)
+            % 確認ボタンはない。いまの選択を表示し、列の中身は実行時に自動で確認する。
+            if isempty(page.Source.Data)
+                page.setState(page.SelectionState, '先に「① データを開く」でファイルを開いてください。', false); return;
+            end
+            targets = numel(page.Targets.Value); mapping = page.MappingTable.Data;
+            assigned = 0; if ~isempty(mapping), assigned = sum(~strcmp(mapping(:, 3), ColumnMapper.NONE)); end
+            if targets == 0 || assigned == 0
+                page.setState(page.SelectionState, '目的変数と説明変数を選んでください。', false);
             else
-                page.setState(page.ConfirmState, '未確認：目的変数と説明変数を選び、「列対応を確認」を押してください。', false);
+                page.setState(page.SelectionState, sprintf(['選択中：目的変数 %d列 / 説明変数 %d列 / %d行。' ...
+                    '列の中身（数値・空欄・重複）は実行時に自動で確認します。'], targets, assigned, size(page.Source.Data.Cells, 1)), true);
             end
         end
 
         % ================= ③ 条件 =================
         function conditionsChanged(page)
+            enabled = matlab.lang.OnOffSwitchState(page.UseCrossValidation.Value);
+            page.Folds.Enable = enabled; page.Seed.Enable = enabled;
             if strcmp(page.Kind, 'generic')
                 page.PlsComponents.Enable = matlab.lang.OnOffSwitchState(page.Regressors.pls.Value);
                 page.Kernels.Enable = matlab.lang.OnOffSwitchState(page.Regressors.gpr.Value);
@@ -541,7 +547,7 @@ classdef ModelingPage < AppPage
         end
         function options = periodOptions(page)
             options = swing_period_options();
-            if ~strcmp(page.Kind, 'swing'), return; end
+            if ~strcmp(page.Kind, 'swing') || ~page.isPro(), return; end
             bounds = [];
             if page.Period.Custom.Value, bounds = [page.Period.Lower.Value, page.Period.Upper.Value]; end
             options = swing_period_options(page.Period.Wavelength.Value, page.Period.RefractiveIndex.Value, bounds);
@@ -557,6 +563,9 @@ classdef ModelingPage < AppPage
             if isempty(regressors), error('modeling:regressors', '回帰方式を1つ以上選んでください。'); end
             kernels = cellstr(string(page.Kernels.Value));
             if any(strcmp(regressors, 'gpr')) && isempty(kernels), error('modeling:kernels', 'GPRのカーネルを1つ以上選んでください。'); end
+            if ~page.isPro() && any(strcmpi(kernels, 'swingperiodic'))
+                error('modeling:proOnly', 'swingperiodic は Pro 版だけで使えるカーネルです。');
+            end
             components = 2;
             if strcmp(page.Kind, 'generic')
                 components = page.PlsComponents.Value;
@@ -570,9 +579,10 @@ classdef ModelingPage < AppPage
             regressors = page.selectedRegressors(); count = numel(regressors);
             if any(strcmp(regressors, 'gpr')), count = count - 1 + numel(page.Kernels.Value); end
         end
-        function folds = validationFolds(page, condition_count)
+        function folds = validationFolds(page, ~)
+            % 交差検証は利用者が選んだときだけ使う（条件の数によらない）。
             folds = 0;
-            if condition_count >= 2 || page.AlwaysValidate.Value, folds = page.Folds.Value; end
+            if page.UseCrossValidation.Value, folds = page.Folds.Value; end
         end
         function checkRowCount(page, rows, folds)
             % 交差検証では各分割の学習行が減るため、APCの最少行数を先に確認する。
@@ -580,7 +590,7 @@ classdef ModelingPage < AppPage
             minimum = page.App.Constants.MIN_TRAIN_ROWS; training_rows = rows - ceil(rows / folds);
             if training_rows < minimum
                 error('modeling:foldRows', ['APCは各分割の学習に%d行以上必要です（現在は %d行）。' ...
-                    '分割数を増やすか、条件を1つにして学習データで評価してください。'], minimum, training_rows);
+                    '分割数を増やすか、交差検証を使わずに評価してください。'], minimum, training_rows);
             end
         end
         function text = fitMethodText(page)
@@ -588,11 +598,12 @@ classdef ModelingPage < AppPage
         end
         function refreshPlan(page)
             if isempty(page.Plan), return; end
-            if ~page.Confirmed
-                page.setState(page.Plan, '「② 変数を選ぶ」で列対応を確認すると実行できます。', false); return;
+            targets = numel(page.Targets.Value);
+            if isempty(page.Source.Data) || targets == 0
+                page.setState(page.Plan, '「① データを開く」「② 変数を選ぶ」を済ませると実行できます。', false); return;
             end
-            targets = numel(page.Targets.Value); count = page.conditionCount(); folds = page.validationFolds(count);
-            evaluation = '学習データでの当てはまりを表示';
+            count = page.conditionCount(); folds = page.validationFolds(count);
+            evaluation = '交差検証は使わず、学習データでの当てはまりで評価';
             if folds >= 2, evaluation = sprintf('%d分割の交差検証で評価', folds); end
             shap = 'SHAPは計算しない'; if page.ComputeShap.Value, shap = 'SHAPも計算'; end
             page.setState(page.Plan, sprintf('目的変数 %d列 × 条件 %d = %d モデルを学習します。%s、%s。', ...

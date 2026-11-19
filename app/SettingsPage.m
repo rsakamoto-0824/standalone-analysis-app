@@ -36,7 +36,9 @@ classdef SettingsPage < AppPage
             page.label(grid, 'カーネルの初期値（APC・汎用回帰）');
             page.Fields.Kernel = uidropdown(grid, 'Items', constants.KERNELS); page.note(grid, '');
             page.label(grid, 'カーネルの初期値（Swing Curve）');
-            page.Fields.SwingKernel = uidropdown(grid, 'Items', constants.SWING_KERNELS); page.note(grid, '');
+            % swingperiodic（周期カーネル）は Pro 版だけの選択肢。
+            swing_kernels = constants.KERNELS; if strcmp(app.Edition, 'pro'), swing_kernels = constants.SWING_KERNELS; end
+            page.Fields.SwingKernel = uidropdown(grid, 'Items', swing_kernels); page.note(grid, '');
             page.label(grid, 'Fit method（すべてのGPRに共通）');
             page.Fields.FitMethod = uidropdown(grid, 'Items', constants.FIT_METHODS);
             page.note(grid, 'exact が標準。sd / sr / fic は行数が多いときの近似です。');
@@ -68,7 +70,12 @@ classdef SettingsPage < AppPage
         end
         function fill(page, values)
             names = fieldnames(page.Fields);
-            for index = 1:numel(names), page.Fields.(names{index}).Value = values.(names{index}); end
+            for index = 1:numel(names)
+                field = page.Fields.(names{index}); value = values.(names{index});
+                % 通常版で、Pro 版の設定（swingperiodic）が保存されていた場合は初期値に戻す。
+                if any(strcmp(names{index}, {'Kernel', 'SwingKernel'})) && ~any(strcmp(field.Items, value)), value = page.App.Constants.DEFAULT_KERNEL; end
+                field.Value = value;
+            end
         end
         function save(page)
             try

@@ -171,33 +171,8 @@ classdef ResultPanel < handle
             panel.Charts = panel.Charts(valid); panel.ChartNames = panel.ChartNames(valid);
         end
         function exportContainer(panel, container, path)
-            % 並べた図（パネル）を1枚のPNGにする。パネルを直接書き出せないリリースでは、
-            % 中の図を1枚ずつ書き出し、左から順に横へつなぐ。
-            try
-                exportgraphics(container, path, 'Resolution', panel.EXPORT_RESOLUTION); return;
-            catch
-                % 下で中の図をつなぐ方法に切り替える。
-            end
-            GAP_PIXELS = 24;
-            axes_list = findobj(container, 'Type', 'axes');
-            if isempty(axes_list), error('ResultPanel:noChart', '書き出す図がありません。'); end
-            positions = arrayfun(@(ax) getpixelposition(ax, true), axes_list, 'UniformOutput', false);
-            [~, order] = sort(cellfun(@(position) position(1), positions)); axes_list = axes_list(order);
-            images = cell(1, numel(axes_list));
-            for index = 1:numel(axes_list)
-                temporary = [tempname '.png']; cleanup = onCleanup(@() deleteFile(temporary));
-                exportgraphics(axes_list(index), temporary, 'Resolution', panel.EXPORT_RESOLUTION);
-                images{index} = imread(temporary); clear cleanup;
-            end
-            background = images{1}(1, 1, :); height = max(cellfun(@(image) size(image, 1), images));
-            pieces = {};
-            for index = 1:numel(images)
-                image = images{index};
-                filler = repmat(background, height - size(image, 1), size(image, 2));
-                pieces{end + 1} = [image; filler]; %#ok<AGROW>
-                if index < numel(images), pieces{end + 1} = repmat(background, height, GAP_PIXELS); end %#ok<AGROW>
-            end
-            imwrite([pieces{:}], path);
+            % 並べた図（パネル）は、中の図を1枚ずつ書き出して横につなぐ（パネルを直接書き出さない）。
+            imwrite(stitch_axes_image(container, panel.EXPORT_RESOLUTION), path);
         end
         function [chart, name] = chooseChart(panel, prompt)
             chart = []; name = '';
@@ -231,8 +206,4 @@ classdef ResultPanel < handle
             drawnow;
         end
     end
-end
-
-function deleteFile(path)
-if isfile(path), delete(path); end
 end
