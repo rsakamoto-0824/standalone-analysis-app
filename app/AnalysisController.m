@@ -136,14 +136,24 @@ classdef AnalysisController < handle
             end
         end
         function path = resourcePath(app, varargin)
-            % 同梱ファイル（samples、docs）の場所。ソース実行と配布版で置き場所が異なるため順に探す。
-            % 配布版では、exe と同じフォルダ（起動時の現在のフォルダ）に置いた samples・docs も探す。
+            % 同梱ファイル（samples、docs）の場所。ソース実行・ZIPで配った exe・インストーラーで入れた exe で
+            % 置き場所が異なるため、exe のフォルダ、起動時のフォルダ、展開先（ctfroot）の順に探す。
             relative = fullfile(varargin{:}); roots = {app.ProjectRoot};
-            if isdeployed, roots = [roots, {pwd, ctfroot, fileparts(app.ProjectRoot)}]; end
+            if isdeployed, roots = [roots, {deployed_app_folder(), pwd, ctfroot, fileparts(app.ProjectRoot)}]; end
+            roots = roots(~cellfun(@isempty, roots));
             path = fullfile(roots{1}, relative);
             for index = 1:numel(roots)
                 candidate = fullfile(roots{index}, relative);
                 if isfile(candidate), path = candidate; return; end
+            end
+            if ~isdeployed, return; end
+            % exe に含めたファイルは、展開先の下の階層に置かれる場合がある。名前とフォルダ名で探す。
+            [~, name, extension] = fileparts(relative); [parent, ~] = fileparts(relative);
+            [~, parent_name] = fileparts(parent);
+            found = dir(fullfile(ctfroot, '**', [name extension]));
+            for index = 1:numel(found)
+                [~, folder_name] = fileparts(found(index).folder);
+                if strcmp(folder_name, parent_name), path = fullfile(found(index).folder, found(index).name); return; end
             end
         end
         function text = releaseNotice(app)

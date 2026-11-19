@@ -10,8 +10,7 @@ classdef ModelUsePage < AppPage
         Mapper
         Actual
         ShowPlots = []
-        ConfirmState
-        Confirmed = false
+        SelectionState
         RunButton
         Views
         ResultTab
@@ -42,7 +41,7 @@ classdef ModelUsePage < AppPage
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
             page.buildInputs(); page.buildResults();
             page.ModelListener = addlistener(app.Models, 'Changed', @(~, ~) page.refreshModelChoices());
-            page.refreshModelChoices(); page.updateConfirmState();
+            page.refreshModelChoices(); page.updateSelectionState();
             if strcmp(kind, 'predict')
                 page.message('① 学習済みMATを開く（または起動中に学習したモデルを選ぶ）→ ② 推定したいデータを開く → ③ 列を割り当てて確認 → ④ 実行。');
             else
@@ -65,19 +64,11 @@ classdef ModelUsePage < AppPage
         function selectModel(page, id)
             page.refreshModelChoices(); page.ModelChoice.Value = id; page.modelChanged();
         end
-        function confirm(page)
-            try
-                page.validateInputs();
-                page.Confirmed = true; page.updateConfirmState();
-                page.message('列の割当を確認しました。「実行」を押してください。');
-            catch err
-                page.Confirmed = false; page.updateConfirmState(); page.showError(err);
-            end
-        end
         function run(page)
             dialog = [];
             try
-                if ~page.Confirmed, error('AnalysisApp:unconfirmed', '「列の割当を確認」を押してから実行してください。'); end
+                % 列の割当は実行のたびに自動で確認する（確認ボタンはない）。
+                page.validateInputs();
                 settings = page.settings();
                 if settings.Bins > 0, validate_bin_count(settings.Bins, 'AnalysisApp'); end
                 matrix = page.mappedInput(); rows = page.Source.Data.RowNumbers;
@@ -109,7 +100,7 @@ classdef ModelUsePage < AppPage
         % ================= 画面の作成 =================
         function buildInputs(page)
             left = uigridlayout(page.Body, [5, 1]); left.Padding = [0, 0, 0, 0];
-            left.RowHeight = {158, 104, '1x', 26, 36};
+            left.RowHeight = {158, 104, '1x', 30, 38};
             panel = AppPage.section(left, '① モデルを選ぶ');
             grid = uigridlayout(panel, [3, 2]); grid.RowHeight = {30, 30, '1x'}; grid.ColumnWidth = {150, '1x'};
             uibutton(grid, 'Text', '学習済みMATを開く', 'ButtonPushedFcn', @(~, ~) page.chooseModel());
@@ -140,11 +131,9 @@ classdef ModelUsePage < AppPage
                 page.ShowPlots.Layout.Column = [1, 2];
             end
 
-            page.ConfirmState = AppPage.stateLabel(left);
-            row = uigridlayout(left, [1, 2]); row.Padding = [0, 0, 0, 0];
-            uibutton(row, 'Text', '列の割当を確認', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) page.confirm());
+            page.SelectionState = AppPage.stateLabel(left);
             label = '④ 推定を実行'; if strcmp(page.Kind, 'shap'), label = '④ SHAPを計算'; end
-            page.RunButton = AppPage.primaryButton(row, label, @(~, ~) page.run());
+            page.RunButton = AppPage.primaryButton(left, label, @(~, ~) page.run());
         end
         function buildResults(page)
             page.Views = uitabgroup(page.Body);
@@ -225,17 +214,19 @@ classdef ModelUsePage < AppPage
             page.inputsChanged();
         end
         function inputsChanged(page)
-            page.Confirmed = false; page.updateConfirmState();
+            page.updateSelectionState();
         end
-        function updateConfirmState(page)
-            if page.Confirmed
-                page.setState(page.ConfirmState, sprintf('✓ 確認済み：%d行 × %d列', size(page.Source.Data.Cells, 1), numel(page.Mapper.Roles)), true);
-            elseif isempty(page.Model)
-                page.setState(page.ConfirmState, '未確認：①でモデルを選んでください。', false);
+        function updateSelectionState(page)
+            % 確認ボタンはない。準備の状況を表示し、列の中身は実行時に自動で確認する。
+            if isempty(page.Model)
+                page.setState(page.SelectionState, '①でモデルを選んでください。', false);
             elseif isempty(page.Source.Data)
-                page.setState(page.ConfirmState, '未確認：②でデータを開いてください。', false);
+                page.setState(page.SelectionState, '②でデータを開いてください。', false);
+            elseif any(strcmp(page.Mapper.selection(), ColumnMapper.NONE))
+                page.setState(page.SelectionState, '③で、すべての説明変数に入力列を選んでください。', false);
             else
-                page.setState(page.ConfirmState, '未確認：③で列を選び、「列の割当を確認」を押してください。', false);
+                page.setState(page.SelectionState, sprintf('準備ができました（%d行 × %d列）。列の中身は実行時に自動で確認します。', ...
+                    size(page.Source.Data.Cells, 1), numel(page.Mapper.Roles)), true);
             end
         end
         function validateInputs(page)

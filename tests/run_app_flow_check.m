@@ -24,7 +24,7 @@ names = {}; passed = []; notes = {};
 apc_path = fullfile(work, 'Train_Model_CD_X.mat');
 
 step('起動とホーム画面', @() app.selectPage('home'));
-step('APC：2カーネルの交差検証・SHAP・保存', @checkApc);
+step('APC：2カーネルを交差検証あり・なしで比較・SHAP・保存', @checkApc);
 step('Swing Curve：下地あり', @checkSwingWithBase);
 step('Swing Curve：下地なし・周期カーネル', @checkSwingPeriodic);
 step('汎用回帰：GPR・重回帰・PLSの比較と保存', @checkGeneric);
@@ -35,6 +35,7 @@ step('実験計画：D最適・I最適・直交表・拡張', @checkDesign);
 step('ワードクラウド', @checkWords);
 step('設定：テーマ変更で結果が消えない', @checkSettings);
 step('Help', @() app.selectPage('help'));
+step('通常版：swingperiodic と周期の探索範囲を出さない', @checkStandardEdition);
 step('細かい操作：並べ替え・書出し・CSV・ヘッダー行', @checkDetails);
 step('結果の表示と出力：横並びの散布図・SHAPの色・1ファイル出力・進捗', @checkOutputs);
 step('入力の誤りを分かる言葉で止める', @checkValidation);
@@ -83,13 +84,16 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         app.selectPage('apc'); page = app.page('apc');
         page.openSample(); assert(~isempty(page.Source.Data), 'サンプルを読み込めません。');
         assert(isequal(page.Mapper.selection(), app.Constants.PREDICTOR_NAMES), 'APCの4変数が列名で自動割当されていません。');
-        page.selectTargets({'CD_X'}); page.confirm(); assert(page.Confirmed, '列対応を確認できません。');
+        page.selectTargets({'CD_X'});
+        assert(~page.UseCrossValidation.Value && strcmp(page.Folds.Enable, 'off'), '初期状態では交差検証を使いません。');
+        % 列対応の確認ボタンはなく、実行時に自動で確認する。交差検証は選んだときだけ使う。
+        page.UseCrossValidation.Value = true; page.UseCrossValidation.ValueChangedFcn([], []);
         page.Kernels.Value = {'squaredexponential', 'matern52'}; page.runModeling();
         assert(numel(page.Records) == 2, 'モデルが2個できていません。');
         for index = 1:2
             record = page.Records{index};
             assert(strcmp(record.Status, '成功'), 'APC学習の失敗: %s', record.Note);
-            assert(strcmp(record.Scope, '5分割交差検証'), '2条件では交差検証で評価します。');
+            assert(strcmp(record.Scope, '5分割交差検証'), '交差検証を選んだときは交差検証で評価します。');
             assert(strcmp(record.ShapStatus, '成功'), 'SHAPの失敗: %s', record.Note);
             assert(isequal(record.Model.PredictorNames, app.Constants.PREDICTOR_NAMES), '説明変数の名前・順序が仕様と違います。');
         end
@@ -97,10 +101,15 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         report = page.saveSelectedTo(apc_path);
         assert(report.Success, '保存後検証に失敗しました。');
         variables = whos('-file', apc_path); assert(isequal({variables.name}, {'Train_Model'}), 'MATの変数が Train_Model だけではありません。');
-        page.ComputeShap.Value = false; page.Kernels.Value = {'squaredexponential'}; page.selectTargets({'CD_X', 'CD_Y'});
-        page.confirm(); page.runModeling();
+        % 交差検証を使わずに、2つの条件を比べる。
+        page.UseCrossValidation.Value = false; page.UseCrossValidation.ValueChangedFcn([], []);
+        page.ComputeShap.Value = false; page.Kernels.Value = {'squaredexponential', 'matern52'}; page.selectTargets({'CD_X'});
+        page.runModeling();
         assert(numel(page.Records) == 4, '以前の結果を残したまま、2モデルを追加します。');
-        assert(strcmp(page.Records{3}.Scope, '学習データ') && strcmp(page.Records{3}.ShapStatus, '未計算'), '1条件・SHAPなしの条件が反映されていません。');
+        for index = 3:4
+            assert(strcmp(page.Records{index}.Scope, '学習データ') && isempty(page.Records{index}.FoldId), '交差検証なしで比べられません。');
+            assert(strcmp(page.Records{index}.ShapStatus, '未計算'), 'SHAPなしの条件が反映されていません。');
+        end
         page.selectRow(3); page.computeShapForSelected();
         assert(strcmp(page.Records{3}.ShapStatus, '成功'), '後からのSHAP計算に失敗しました。');
     end
@@ -153,20 +162,19 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(strcmp(page.Underlayers.Enable, 'on'), '下地ありで、下地の一覧を選べません。');
         mapping = page.MappingTable.Data;
         assert(isequal(mapping(:, 2)', {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}), '下地ありの列順が違います: %s', strjoin(mapping(:, 2)', ','));
-        page.confirm(); page.runModeling();
+        page.runModeling();
         record = page.Records{end}; assert(strcmp(record.Status, '成功'), 'Swing学習の失敗: %s', record.Note);
         assert(strcmp(record.Model.PredictorNames{end}, 'RESIST_TH') && numel(record.Model.PredictorNames) == 4, '膜厚が最後の説明変数になっていません。');
         page.setSwingVariables(page.MODE_WITH, 'RESIST_TH', {'SIN_TH'});
         mapping = page.MappingTable.Data;
         assert(isequal(mapping(:, 2)', {'SIN_TH', 'RESIST_TH'}), '下地の選択変更が対応表へ反映されていません。');
-        assert(~page.Confirmed, '変数を変えたら確認をやり直します。');
     end
     function checkSwingPeriodic()
         page = app.page('swing');
         page.Source.open(sample, 'Swing_NoBase', 1); page.selectTargets({'CD_X'});
         page.setSwingVariables(page.MODE_WITHOUT, 'RESIST_TH');
         assert(strcmp(page.Underlayers.Enable, 'off'), '下地なしでは下地の一覧を使いません。');
-        page.confirm(); page.Kernels.Value = {'swingperiodic'}; page.runModeling();
+        page.Kernels.Value = {'swingperiodic'}; page.runModeling();
         record = page.Records{end}; assert(strcmp(record.Status, '成功'), '周期カーネルの失敗: %s', record.Note);
         assert(~isempty(record.Details) && isfinite(record.Details.Period), '周期の探索結果がありません。');
         bounds = record.PeriodOptions.PeriodBounds;
@@ -177,7 +185,7 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
     function checkGeneric()
         app.selectPage('generic'); page = app.page('generic');
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1', 'Y2'});
-        page.Regressors.linear.Value = true; page.Regressors.pls.Value = true; page.confirm();
+        page.Regressors.linear.Value = true; page.Regressors.pls.Value = true;
         page.runModeling();
         assert(numel(page.Records) == 6, '目的変数2 × 条件3 = 6モデルになりません。');
         labels = cellfun(@(record) modeling_condition_label(record.Condition), page.Records, 'UniformOutput', false);
@@ -194,7 +202,7 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         page.openSample();
         assert(strcmp(page.Wafer.Value, 'WaferId') && strcmp(page.Slot.Value, 'BoatSlot') && strcmp(page.Batch.Value, 'Batch'), '列の自動選択が違います。');
         assert(numel(page.Targets.Value) == 2, '膜厚・屈折率の2列を自動選択します。');
-        page.confirm(); assert(page.Confirmed, '炉内補間の列を確認できません。'); page.run();
+        page.run();
         assert(~isempty(page.Report), '炉内補間の結果がありません。');
         failed = page.Report.Comparison(page.Report.Comparison.Status ~= "成功", :);
         assert(isempty(failed), '失敗した方式: %s', strjoin(failed.Method + "=" + failed.Note, ' / '));
@@ -204,7 +212,7 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         app.selectPage('predict'); page = app.page('predict');
         page.openModel(apc_path); page.Source.open(sample, 'Predict_SHAP', 1);
         assert(isequal(page.Mapper.selection(), app.Constants.PREDICTOR_NAMES), '推定の列が自動で割り当たりません。');
-        page.Actual.Value = 'CD_X'; page.confirm(); page.run();
+        page.Actual.Value = 'CD_X'; page.run();
         output = page.Result.tableData(page.TABLE_OUTPUT);
         expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'CD_X', 'CD_X_予測値', 'CD_X_残差'}];
         assert(isequal(output.Properties.VariableNames, expected), '推定の出力の列が想定と違います: %s', strjoin(output.Properties.VariableNames, ', '));
@@ -214,7 +222,7 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
     function checkShapPage()
         app.selectPage('shap'); page = app.page('shap');
         [~, ids] = app.Models.list(); page.selectModel(ids(1));
-        page.Source.open(sample, 'Predict_SHAP', 1); page.confirm(); page.run();
+        page.Source.open(sample, 'Predict_SHAP', 1); page.run();
         output = page.Result.tableData(page.TABLE_OUTPUT);
         expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'予測値'}, strcat('SHAP_', app.Constants.PREDICTOR_NAMES)];
         assert(isequal(output.Properties.VariableNames, expected), 'SHAPの出力の列が想定と違います: %s', strjoin(output.Properties.VariableNames, ', '));
@@ -267,22 +275,41 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         succeeded = page.Source.open(text_path, '', 3);
         assert(succeeded && isequal(page.Source.Data.Headers, {'X1', 'X2', 'X3', 'Y1', 'Y2'}), 'ヘッダー行を指定したCSVを読み込めません。');
         assert(page.Source.Data.RowNumbers(1) == 4, '元ファイルの行番号がずれています。');
-        page.selectPredictors({'X1', 'X2'}); page.selectTargets({'Y1'}); page.confirm(); assert(page.Confirmed, 'CSVの列を確認できません。');
+        page.selectPredictors({'X1', 'X2'}); page.selectTargets({'Y1'}); before = numel(page.Records); page.runModeling();
+        assert(numel(page.Records) > before && strcmp(page.Records{end}.Status, '成功'), 'ヘッダー行を指定したCSVで学習できません。');
         furnace = app.page('furnace'); furnace.Source.open(sample, 'Generic', 1);
         assert(~isempty(furnace.Result.validCharts()), '別のファイルを開いても、炉内補間の結果表示を保ちます。');
         furnace.ColorColumn.Value = 'Batch'; furnace.ColorColumn.ValueChangedFcn([], []);
     end
+    function checkStandardEdition()
+        % 通常版（配布版）では、swingperiodic と周期の探索範囲を出さない（Pro 版だけの選択肢）。
+        standard_work = tempname; mkdir(standard_work); cleanup_folder = onCleanup(@() removeFolder(standard_work));
+        standard_window = uifigure('Visible', 'off'); cleanup_standard = onCleanup(@() deleteWindow(standard_window));
+        standard = AnalysisController(standard_window, 'standard', standard_work);
+        swing = standard.page('swing');
+        assert(~any(strcmp(swing.Kernels.Items, 'swingperiodic')), '通常版のカーネルに swingperiodic があります。');
+        assert(isempty(fieldnames(swing.Period)), '通常版に周期の探索範囲があります。');
+        assert(~any(strcmp(standard.page('settings').Fields.SwingKernel.Items, 'swingperiodic')), '通常版の設定に swingperiodic があります。');
+        pro_swing = app.page('swing');
+        assert(any(strcmp(pro_swing.Kernels.Items, 'swingperiodic')) && isfield(pro_swing.Period, 'Wavelength'), 'Pro版では swingperiodic と周期の探索範囲を使えます。');
+    end
     function checkValidation()
         app.selectPage('generic'); page = app.page('generic');
         page.selectPredictors({'X1', 'Y1'}); page.selectTargets({'Y1'});
-        expectAlert(@() page.confirm(), '目的変数を説明変数に含めることはできません');
+        % 確認ボタンはなく、実行時に自動で確認して、分かる言葉で止める。
+        before = numel(page.Records);
+        expectAlert(@() page.runModeling(), '目的変数を説明変数に含めることはできません');
+        assert(numel(page.Records) == before, '確認で止まったときは学習しません。');
+        assert(isequal(page.Steps.SelectedTab, page.StepTabs.Variables), '確認で止まったときは「② 変数を選ぶ」を開きます。');
         page.selectPredictors({'X1'}); page.selectTargets({});
-        expectAlert(@() page.confirm(), '目的変数');
-        expectAlert(@() page.runModeling(), '列対応を確認');
+        assert(contains(page.SelectionState.Text, '目的変数と説明変数を選んでください'), '選択の状態を表示していません: %s', page.SelectionState.Text);
+        expectAlert(@() page.runModeling(), '目的変数');
         swing = app.page('swing'); swing.setSwingVariables(swing.MODE_WITH, 'RESIST_TH', {});
-        expectAlert(@() swing.confirm(), '下地あり');
+        expectAlert(@() swing.runModeling(), '下地あり');
         predict_page = app.page('predict'); predict_page.Mapper.select({'SIN_TH', 'SIN_TH', 'NSG_TH', 'RESIST_TH'});
-        expectAlert(@() predict_page.confirm(), '同じ入力列');
+        expectAlert(@() predict_page.run(), '同じ入力列');
+        furnace = app.page('furnace'); furnace.Source.open(sample, 'Furnace', 1); furnace.Wafer.Value = furnace.NONE; furnace.Wafer.ValueChangedFcn([], []);
+        expectAlert(@() furnace.run(), 'WaferId');
     end
 end
 

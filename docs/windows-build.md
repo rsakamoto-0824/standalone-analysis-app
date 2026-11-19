@@ -32,14 +32,14 @@ addpath('tests');
 results = run_app_flow_check;
 ```
 
-アプリを実際に起動し、同梱サンプル（`samples/ProcessInsight_Samples.xlsx`）で次の14項目を、画面のボタンと同じ入口から順に実行します。数分かかります。設定とログは一時フォルダへ保存するため、利用者の設定は変わりません。
+アプリを実際に起動し、同梱サンプル（`samples/ProcessInsight_Samples.xlsx`）で次の16項目を、画面のボタンと同じ入口から順に実行します。数分かかります。設定とログは一時フォルダへ保存するため、利用者の設定は変わりません。
 
 | 項目 | 確認する内容 |
 |---|---|
 | 起動とホーム画面 | 起動できる |
-| APC | 2カーネルの交差検証、SHAP、保存、`Train_Model` だけの MAT、保存後検証、後からの SHAP 計算 |
+| APC | 2カーネルを交差検証あり・なしで比較、SHAP、保存、`Train_Model` だけの MAT、保存後検証、後からの SHAP 計算 |
 | Swing Curve（下地あり） | 下地の選択、膜厚が最後の説明変数、選択変更の反映 |
-| Swing Curve（下地なし・周期カーネル） | 周期の探索、探索範囲内の周期、保存後検証 |
+| Swing Curve（下地なし・周期カーネル、Pro版の画面） | 周期の探索、探索範囲内の周期、保存後検証 |
 | 汎用回帰 | GPR・重回帰・PLS の比較、`Regression_Model` と `Train_Model` の保存 |
 | 炉内補間 | 2 Run・6方式、`Furnace_Model` の保存 |
 | 保存モデルで推定 | MAT の読込、列の自動割当、評価指標 |
@@ -48,10 +48,12 @@ results = run_app_flow_check;
 | ワードクラウド | 単語の集計と図 |
 | 設定 | テーマ・Fit method の変更で学習結果が消えない |
 | Help | 表示できる |
+| 通常版の画面 | swingperiodic と周期の探索範囲が出ない（Pro版では出る） |
 | 細かい操作 | 説明変数の並べ替え、表・図の書出し、ヘッダー行を指定した CSV |
-| 入力の誤り | 目的変数の重なり・未選択・未確認・列の重複を、説明つきで止める |
+| 結果の表示と出力 | 横並びの散布図、SHAP依存図の色の変数、予測・SHAPの1ファイル出力（CSV は BOM 付き）、基準周期の表示 |
+| 入力の誤り（実行時の自動確認） | 目的変数の重なり・未選択・下地なし・列の重複・WaferId の未選択を、実行時に説明つきで止める（学習しない） |
 
-**14項目すべて成功（Passed が true）であること**を確認し、結果を `verification.md` に記録してください。R2025b では SHAP も実際の `shapley` で計算します。失敗した項目は Note の内容を記録します。
+**16項目すべて成功（Passed が true）であること**を確認し、結果を `verification.md` に記録してください。R2025b では SHAP も実際の `shapley` で計算します。失敗した項目は Note の内容を記録します。
 
 ## 4. 単体テストを実行する
 
@@ -69,20 +71,34 @@ comparison = compare_models('old.mat', 'new.mat', Xcheck);
 
 `Xcheck` は README の最終入力順で用意してください。差分がある場合は、旧・新の学習条件やデータの一致を確認します。乱数を使う学習方式は仕様どおり seed を固定していません。
 
-## 5. Windows 実行ファイルを作成する
+## 5. インストーラーを作成する（MATLAB Runtime 同梱）
+
+配布先のクライアント PC には MATLAB がない前提です。`build_windows` は exe を作ったあと、**MATLAB Runtime を同梱したインストーラー**を作ります（`compiler.package.installer` の `RuntimeDelivery` を `"installer"`）。利用者はインストーラーを1つ実行するだけで、アプリと MATLAB Runtime が入ります。MATLAB 本体とインストール時のインターネット接続は不要です。
+
+最初に1回、ビルドする PC に、使っている MATLAB と同じ更新版の MATLAB Runtime インストーラーを用意します。
 
 ```matlab
-standard = build_windows('standard'); % 通常版
+compiler.runtime.download   % インターネットに接続できる場合
+```
+
+接続できない場合は、このコマンドが表示する URL から別の PC でダウンロードして持ち込み、MATLAB の［設定］→［MATLAB Compiler］で場所を指定します。
+
+```matlab
+standard = build_windows('standard'); % 通常版（配布版）
 pro = build_windows('pro');           % Pro版
 ```
 
-実行環境と必要製品を確認し、全テスト成功後に `build/windows/standard/ProcessInsightTool.exe` または `build/windows/pro/ProcessInsightToolPro.exe` と付随ファイルを生成します。**入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。** 画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。`core/`、`app/`、HTML手順書と `samples/` を同梱し、さらに exe と同じフォルダへ `samples` と `docs\user-guide`（手順書。生成用の `_src` を除く）を置きます。このスクリプトは exe と付随ファイルを作成します。MATLAB Runtime やインストーラーは含みません。
+| 出力 | 内容 |
+|---|---|
+| `build/windows/<版>/installer/ProcessInsightTool_Installer.exe`（Pro版は `ProcessInsightToolPro_Installer.exe`） | **配布するもの**。MATLAB Runtime を同梱。サンプルと手順書もアプリと一緒にインストールされる |
+| `build/windows/<版>/application/` | exe 本体と付随ファイル、`samples`、`docs/user-guide`（Runtime を別に入れて ZIP で配る場合に使う） |
+| `build/windows/<版>/edition-manifest.json` | 版（Edition）、Pro 専用ファイル（ProFiles）、バージョン、インストーラーの有無 |
 
-通常版は Pro 専用の SHAP カーブ近似・残差診断の7ファイルを隔離ソースから除外してコンパイルします。Pro版にはそれらを含めます。ビルド後の `edition-manifest.json` で Edition とファイル一覧を確認してください。実行時の設定や引数で版を変更する機能はありません。
+**入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。** 画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。exe に同梱するのは `core/`、`app/`、サンプル、利用者向けの手順書（`docs/user-guide`、生成用の `_src` を除く）だけで、動画などの大きなファイルは含めません。インストーラーを作らず exe だけを作るときは `build_windows('standard', false)` とします。
 
-配布用の Runtime は [MathWorks の MATLAB Runtime 配布ページ](https://www.mathworks.com/products/compiler/matlab-runtime.html)から R2025b / Windows 64bit を取得します。会社の許可済み手順で、ビルド環境と対応する更新版をオフライン配布してください。アプリ自身がネットから Runtime を取得する処理はありません。
+通常版は Pro 専用の SHAP カーブ近似・残差診断の7ファイルを隔離ソースから除外してコンパイルし、Swing Curve の周期カーネル（swingperiodic）と周期の探索範囲の画面も表示しません。Pro版にはそれらを含めます。実行時の設定や引数で版を変更する機能はありません。
 
-`build/windows/` 内の exe だけを抜き出さず、生成された付随ファイルもまとめて配布します。出力の readme に追加の配布指示があれば従ってください。
+画像なしの詳しい手順は [ビルド手順書（HTML）](user-guide/build-guide.html) を参照してください。
 
 ### App Designer の入口を使いたい場合（任意）
 
@@ -92,17 +108,18 @@ pro = build_windows('pro');           % Pro版
 app.Controller = AnalysisController(app.UIFigure);
 ```
 
-## 6. MATLAB 本体のない端末で確認する
+## 6. MATLAB のない PC で確認する
 
-MATLAB Runtime R2025b だけを入れた Windows 64bit 端末で、以下を実施します。配布版では3章の通し確認を実行できないため、手で確認します。
+MATLAB も MATLAB Runtime も入っていない Windows 64bit の PC に、5章のインストーラーでインストールして、以下を実施します（インターネットに接続しない状態で行うと、利用者の環境に近くなります）。配布版では3章の通し確認を実行できないため、手で確認します。
 
 - [ ] 起動してホーム画面と左のメニューが表示される。ウィンドウを閉じるとアプリが終了する。
 - [ ] 学習画面の「サンプルデータを開く」で同梱サンプルが開く（開けない場合は、同梱ファイルの配置を確認する）。
 - [ ] 「10 Help」から HTML 手順書が開く。
-- [ ] Excel / CSV のシート・ヘッダー行の指定と、列の割当が動く。列対応の確認前は学習できず、変更後は再確認が必要。
+- [ ] インストーラーだけで、アプリと MATLAB Runtime が入る（MATLAB 本体なし）。
+- [ ] Excel / CSV のシート・ヘッダー行の指定と、列の割当が動く。確認のボタンはなく、実行時に列の中身が自動で確認され、問題があれば理由を表示して止まる。
 - [ ] APC の24行で停止、25〜149行で注意、150行以上で注意なし。
 - [ ] 学習3画面の GPR で `Train_Model` だけが保存され、保存後検証がすべて成功する。重回帰・PLS は `Regression_Model`、炉内補間は `Furnace_Model` で保存される。
-- [ ] 複数カーネルの交差検証、条件の比較グラフ、以前の結果を残した再実行、処理の中止、保存のキャンセルを確認する。
+- [ ] 複数カーネルを交差検証なし（初期状態）と交差検証ありで比べ、条件の比較グラフ、以前の結果を残した再実行、処理の中止、保存のキャンセルを確認する。
 - [ ] SHAP とノイズ除去用 SHAP が Runtime でも動き、分布・依存図を表示・PNG 保存・コピーできる。
 - [ ] swingperiodic で周期の自動探索、exact / sd / sr / fic、周期と尤度の表示を確認する。制御側の新しい MATLAB セッションで、アプリのソースをパスへ追加せずに `predict` できることも確認する。
 - [ ] 炉内補間で Run 分離、項目別の未計測、6方式、GPR の95%予測区間、外挿の破線、MAT 保存を確認する。

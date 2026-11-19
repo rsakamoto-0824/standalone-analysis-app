@@ -10,8 +10,7 @@ classdef FurnacePage < AppPage
         Slot
         Batch
         Targets
-        ConfirmState
-        Confirmed = false
+        SelectionState
         Methods
         Minimum
         Maximum
@@ -53,7 +52,7 @@ classdef FurnacePage < AppPage
             page.Constants = furnace_constants();
             page.Steps = uitabgroup(page.Body);
             page.buildDataStep(); page.buildColumnStep(); page.buildConditionStep(); page.buildResultStep();
-            page.updateConfirmState();
+            page.updateSelectionState();
             page.message('「① データを開く」から始めます。入力は WaferId・BoatSlot・計測値の列です。計測値の空欄は未計測として扱います。');
         end
 
@@ -63,26 +62,18 @@ classdef FurnacePage < AppPage
             page.Wafer.Value = wafer; page.Slot.Value = slot; page.Batch.Value = batch;
             page.Targets.Value = cellstr(string(targets(:)')); page.slotChanged();
         end
-        function confirm(page)
-            try
-                data = page.preparedData(); page.querySlots();
-                if isempty(page.Methods.Value), error('furnace:method', '「③ 条件を決めて実行」で、比べる方式を1つ以上選んでください。'); end
-                page.Confirmed = true; page.updateConfirmState();
-                page.message(sprintf('確認しました：%dバッチ（Run）・計測項目 %d個。各Runを別々に補間します。', ...
-                    numel(unique(data.Batch)), numel(data.TargetNames)));
-            catch err
-                page.Confirmed = false; page.updateConfirmState(); page.showError(err);
-            end
-        end
         function run(page)
             started = tic; dialog = []; entry = struct('Function', 'furnace_interpolation', 'Status', 'started');
             try
                 require_r2025b();
-                if ~page.Confirmed
-                    page.Steps.SelectedTab = page.StepTabs.Columns;
-                    error('furnace:unconfirmed', '「② 列を選ぶ」で列とバッチ区分を確認してから実行してください。');
+                % 列とバッチ区分は実行のたびに自動で確認する（確認ボタンはない）。
+                try
+                    data = page.preparedData();
+                catch err
+                    page.goTo('Columns'); rethrow(err);
                 end
-                data = page.preparedData(); query = page.querySlots(); options = page.evaluationOptions();
+                query = page.querySlots(); options = page.evaluationOptions();
+                page.message(sprintf('%dバッチ（Run）・計測項目 %d個を、Runごとに補間します。', numel(unique(data.Batch)), numel(data.TargetNames)));
                 methods_selected = cellstr(string(page.Methods.Value));
                 if isempty(methods_selected), error('furnace:method', '比べる方式を1つ以上選んでください。'); end
                 entry.InputFile = page.Source.fileName(); entry.Rows = numel(data.Slots); entry.Kernel = strjoin(methods_selected, ',');
@@ -164,9 +155,8 @@ classdef FurnacePage < AppPage
             for index = 1:numel(fields), fields{index}.ValueChangedFcn = @(~, ~) page.inputsChanged(); end
             page.Slot.ValueChangedFcn = @(~, ~) page.slotChanged();
             bottom = uigridlayout(grid, [1, 3]); bottom.Layout.Row = 2; bottom.Layout.Column = [1, 2];
-            bottom.Padding = [0, 0, 0, 0]; bottom.ColumnWidth = {'1x', 170, 240};
-            page.ConfirmState = AppPage.stateLabel(bottom);
-            uibutton(bottom, 'Text', '列・バッチ区分を確認', 'FontWeight', 'bold', 'ButtonPushedFcn', @(~, ~) page.confirm());
+            bottom.Padding = [0, 0, 0, 0]; bottom.ColumnWidth = {'1x', 240};
+            page.SelectionState = AppPage.stateLabel(bottom);
             AppPage.primaryButton(bottom, '次へ：③ 条件を決めて実行 ▶', @(~, ~) page.goTo('Conditions'));
         end
         function buildConditionStep(page)
@@ -248,17 +238,24 @@ classdef FurnacePage < AppPage
             page.inputsChanged();
         end
         function inputsChanged(page)
-            page.Confirmed = false; page.updateConfirmState();
+            page.updateSelectionState();
         end
-        function updateConfirmState(page)
-            if page.Confirmed
-                page.setState(page.ConfirmState, sprintf('✓ 確認済み：目的変数 %d列 / %d行', numel(page.Targets.Value), size(page.Source.Data.Cells, 1)), true);
+        function updateSelectionState(page)
+            % 確認ボタンはない。いまの選択を表示し、列の中身は実行時に自動で確認する。
+            ready = ~isempty(page.Source.Data) && ~strcmp(page.Wafer.Value, page.NONE) && ~strcmp(page.Slot.Value, page.NONE) ...
+                && ~isempty(page.Targets.Value);
+            if isempty(page.Source.Data)
+                page.setState(page.SelectionState, '先に「① データを開く」でファイルを開いてください。', false);
+            elseif ~ready
+                page.setState(page.SelectionState, 'WaferId・BoatSlot の列と、目的変数を選んでください。', false);
+            else
+                page.setState(page.SelectionState, sprintf('選択中：目的変数 %d列 / %d行。列の中身とバッチ区分は実行時に自動で確認します。', ...
+                    numel(page.Targets.Value), size(page.Source.Data.Cells, 1)), true);
+            end
+            if ready
                 page.setState(page.Plan, sprintf('方式 %d個で、バッチ・目的変数ごとに比べます。', numel(page.Methods.Value)), true);
             else
-                text = '未確認：列を選び、「列・バッチ区分を確認」を押してください。';
-                if isempty(page.Source.Data), text = '未確認：先に「① データを開く」でファイルを開いてください。'; end
-                page.setState(page.ConfirmState, text, false);
-                page.setState(page.Plan, '「② 列を選ぶ」で列とバッチ区分を確認すると実行できます。', false);
+                page.setState(page.Plan, '「① データを開く」「② 列を選ぶ」を済ませると実行できます。', false);
             end
         end
         function data = preparedData(page)

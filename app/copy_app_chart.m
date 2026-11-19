@@ -1,5 +1,6 @@
 function copied_name = copy_app_chart(charts, names)
 % 表示中の図を優先し、表の表示中などはコピー対象を選択する。
+COPY_RESOLUTION = 150;
 copied_name = '';
 valid = cellfun(@(chart) isgraphics(chart) && ...
     (~isa(chart, 'matlab.ui.control.UIAxes') || ~isempty(chart.Children)), charts);
@@ -32,7 +33,18 @@ while ~isempty(container)
     if isa(container, 'matlab.ui.Figure'), background = container.Color; break; end
     container = container.Parent;
 end
-copygraphics(chart, 'ContentType', 'image', 'Resolution', 150, 'BackgroundColor', background);
+if isa(chart, 'matlab.ui.container.Panel')
+    % 並べた図は、図を横につないだ画像を、見えない一時的な図に置いてからコピーする（パネルを直接渡さない）。
+    picture = stitch_axes_image(chart, COPY_RESOLUTION);
+    holder = uifigure('Visible', 'off', 'Position', [0, 0, size(picture, 2), size(picture, 1)]);
+    holder_cleanup = onCleanup(@() delete(holder));
+    ax = uiaxes(holder, 'Position', [0, 0, size(picture, 2), size(picture, 1)]);
+    image(ax, picture); axis(ax, 'image'); axis(ax, 'off');
+    copygraphics(ax, 'ContentType', 'image', 'Resolution', COPY_RESOLUTION);
+    clear holder_cleanup;
+else
+    copygraphics(chart, 'ContentType', 'image', 'Resolution', COPY_RESOLUTION, 'BackgroundColor', background);
+end
 copied_name = names{choice};
 end
 
