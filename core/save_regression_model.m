@@ -1,5 +1,5 @@
 function report=save_regression_model(model,path)
-if ~isa(model,'ProcessRegressionModel'), error('regression:modelClass','重回帰・PLSのモデルを選択してください。'); end
+if ~isa(model,'ProcessRegressionModel'), error('regression:modelClass','重回帰・PLS・ランダムフォレスト・バギング木のモデルを選択してください。'); end
 Regression_Model=model; save(path,'Regression_Model'); loaded=load_analysis_model(path);
 variables=whos('-file',path);
 checks={'変数名','Regression_Model',variables.name,strcmp(variables.name,'Regression_Model'); ...

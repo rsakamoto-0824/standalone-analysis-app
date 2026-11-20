@@ -46,6 +46,11 @@ end
 docs_folder = fullfile(staging, 'docs'); guide_folder = fullfile(docs_folder, 'user-guide'); mkdir(guide_folder);
 copyfile(fullfile(project_root, 'docs', 'user-guide'), guide_folder);
 if isfolder(fullfile(guide_folder, '_src')), rmdir(fullfile(guide_folder, '_src'), 's'); end
+% 通常版には利用者向けの手順書だけを入れる（Pro 版の機能を説明する手順書と画像を含めない）。
+if strcmp(edition, 'standard')
+    % ビルド中はプロジェクト直下をパスから外しているため、この関数を呼ぶ間だけ加える（exe には含めない）。
+    addpath(project_root, '-end'); keep_user_manual_only(guide_folder); rmpath(project_root);
+end
 
 additional = {fullfile(staging, 'core'), fullfile(staging, 'app'), sample_folder, docs_folder, fullfile(project_root, 'README.md')};
 result = compiler.build.standaloneWindowsApplication(fullfile(staging, 'app', entry_name), ...

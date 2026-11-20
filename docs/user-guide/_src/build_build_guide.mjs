@@ -8,7 +8,7 @@ import { table, code, note, step, check, renderPage } from './guide_parts.mjs';
 
 const guideRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pagePath = path.join(guideRoot, 'build-guide.html');
-const UPDATED = '2026-11-19';
+const UPDATED = '2026-11-20';
 const BACKSLASH = String.fromCharCode(92);
 const winPath = (...parts) => parts.join(BACKSLASH);
 const WORK = winPath('C:', 'work', 'StandaloneAnalysisApp');
@@ -26,7 +26,7 @@ const outputTree = (edition) => `<pre class="mini-path">${winPath(WORK, 'build',
     ${edition.exe}.exe             exe 本体（インストーラーの中身と同じ）
     readme.txt など                MATLAB Compiler が作る付随ファイル
     samples${BACKSLASH}                       合成サンプル
-    docs${BACKSLASH}user-guide${BACKSLASH}               利用手順書（user-manual.html）ほか
+    docs${BACKSLASH}user-guide${BACKSLASH}               ${edition.key === 'pro' ? '利用手順書（user-manual.html）・ビルド利用手順書ほか' : '利用手順書（user-manual.html）と、その画像だけ'}
   edition-manifest.json            版・含めたファイル・バージョンの一覧</pre>`;
 const sections = [];
 const add = (id, title, kicker, body) => sections.push({ id, title, kicker, body });
@@ -87,7 +87,7 @@ ${note('R2025b 以外では止まります', '製品のアプリと学習処理�
 
 add('tests', '全機能の通し確認とテスト', 'STEP 3', `
 ${step('3-1', '全機能の通し確認を実行する', `${code('MATLAB コマンドウィンドウ', `addpath('tests');
-results = run_app_flow_check;`)}<p>アプリを実際に起動し、同梱サンプルで、学習・比較・保存、炉内補間、推定、SHAP解析、実験計画、ワードクラウド、設定、結果の出力、通常版の画面（Pro 版だけの選択肢が出ないこと）、入力の誤りの自動確認を、画面のボタンと同じ入口から順に確かめます。R2025b では SHAP も実際に計算します。数分かかります。設定とログは一時フォルダへ保存するため、ふだんの設定は変わりません。</p>`,
+results = run_app_flow_check;`)}<p>アプリを実際に起動し、同梱サンプルで、学習・比較・保存、炉内補間、推定、SHAP解析、実験計画、ワードクラウド、設定、結果の出力、通常版の画面（Pro 版だけの選択肢・説明が出ないこと）、文字の大きさの変更、入力の誤りの自動確認を、画面のボタンと同じ入口から順に確かめます。R2025b では SHAP も実際に計算します。数分かかります。設定とログは一時フォルダへ保存するため、ふだんの設定は変わりません。</p>`,
   '最後に「確認 16 件中 16 件成功」と表示されること。失敗した項目は、表の Note の内容を記録します。')}
 ${step('3-2', '全テストを実行する', `${code('MATLAB コマンドウィンドウ', `results = run_tests;
 fprintf('Passed=%d, Failed=%d, Incomplete=%d\\n', ...
@@ -95,7 +95,7 @@ fprintf('Passed=%d, Failed=%d, Incomplete=%d\\n', ...
   '<code>Failed=0</code>、<code>Incomplete=0</code> であること（R2025b ではすべてのテストを実行します）。')}
 `);
 
-const buildSection = (edition, number) => step(`${number}-1`, 'ビルドを実行する', `${code('MATLAB コマンドウィンドウ', `${edition.key === 'pro' ? 'pro' : 'standard'} = build_windows('${edition.key}');`)}<p>次の順に自動で進みます。ビルドには十数分以上かかることがあります。途中のメッセージはコマンドウィンドウに表示されます。</p><ol><li>R2025b・Windows 64bit・必要な製品を確認します。</li><li>3章の全テストを実行します（失敗するとここで止まります）。</li><li>一時フォルダへソースを写し、${edition.key === 'pro' ? 'Pro 版だけの機能も含めて' : '<strong>Pro 版だけの7ファイルを除いて</strong>'}、版を「${edition.key === 'pro' ? 'Pro版' : '通常版'}」に固定します。</li><li>MATLAB Compiler で <code>${edition.exe}.exe</code> を作ります（<code>application</code> フォルダ）。サンプルと利用手順書も中に入れます。</li><li><strong>MATLAB Runtime を同梱したインストーラー</strong> <code>${edition.exe}_Installer.exe</code> を作ります（<code>installer</code> フォルダ）。サンプルと手順書もアプリと一緒にインストールされます。</li><li>版の確認用ファイル <code>edition-manifest.json</code> を書きます。</li></ol>`,
+const buildSection = (edition, number) => step(`${number}-1`, 'ビルドを実行する', `${code('MATLAB コマンドウィンドウ', `${edition.key === 'pro' ? 'pro' : 'standard'} = build_windows('${edition.key}');`)}<p>次の順に自動で進みます。ビルドには十数分以上かかることがあります。途中のメッセージはコマンドウィンドウに表示されます。</p><ol><li>R2025b・Windows 64bit・必要な製品を確認します。</li><li>3章の全テストを実行します（失敗するとここで止まります）。</li><li>一時フォルダへソースを写し、${edition.key === 'pro' ? 'Pro 版だけの機能も含めて' : '<strong>Pro 版だけの7ファイルを除いて</strong>'}、版を「${edition.key === 'pro' ? 'Pro版' : '通常版'}」に固定します。</li><li>MATLAB Compiler で <code>${edition.exe}.exe</code> を作ります（<code>application</code> フォルダ）。サンプルと利用手順書も中に入れます${edition.key === 'pro' ? '' : '（通常版は利用者向けの <code>user-manual.html</code> と、その画像・スタイルだけを入れ、Pro 版の機能を説明する手順書は入れません）'}。</li><li><strong>MATLAB Runtime を同梱したインストーラー</strong> <code>${edition.exe}_Installer.exe</code> を作ります（<code>installer</code> フォルダ）。サンプルと手順書もアプリと一緒にインストールされます。</li><li>版の確認用ファイル <code>edition-manifest.json</code> を書きます。</li></ol>`,
   `<code>${winPath(WORK, 'build', 'windows', edition.key, 'installer', `${edition.exe}_Installer.exe`)}</code> ができていること。`);
 
 add('build-standard', '通常版（配布版）をビルドする', 'STEP 4', `
@@ -107,14 +107,14 @@ ${note('インストーラーの作成で止まった場合', 'exe はできて�
 add('build-pro', 'Pro版をビルドする', 'STEP 5', `
 ${buildSection(EDITIONS[1], 5)}
 ${table(['Pro版だけに含めるファイル（通常版には含めない）'], PRO_FILES.map((file) => [`<code>${file}</code>`]))}
-<p>このほか、Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲の画面は、Pro 版でだけ表示されます。</p>
+<p>このほか、次の画面と説明は Pro 版でだけ表示されます。</p><ul><li>Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲</li><li>実験計画作成の拡張 D最適・拡張 I最適（既存の計画に点を追加）と「② 既存の計画」の欄</li><li>「10 Help」の Pro 版だけの用語・操作・関数のリンクと、ビルド・利用手順書（procedure-guide.html）を開くボタン</li></ul><p>Pro 版のインストーラーには、すべての手順書を入れます。</p>
 `);
 
 add('verify', '版の確認と、MATLAB のない PC での確認', 'STEP 6', `
 ${step('6-1', '版の確認用ファイルを見る', `<p>各フォルダの <code>edition-manifest.json</code> をメモ帳で開きます。</p>${table(['版', '確認すること'], [
   ['通常版', '<code>"Edition": "standard"</code>、<code>"ProFiles"</code> が空（<code>[]</code>）、<code>"Installer": true</code> であること。'],
   ['Pro版', '<code>"Edition": "pro"</code>、<code>"ProFiles"</code> に上の7ファイル、<code>"Installer": true</code> であること。']])}`)}
-${step('6-2', 'MATLAB の入っていない PC でインストールして確かめる', `<p>利用者と同じ条件で確かめるため、<strong>MATLAB も MATLAB Runtime も入っていない Windows PC</strong>（検証用の PC や仮想環境）を使います。インターネットに接続しない状態で行うと、利用者の環境に近くなります。</p><ol><li>インストーラーをダブルクリックし、案内に従ってインストールします（MATLAB Runtime も一緒に入ります）。</li><li>スタートメニューのショートカット（見つからない場合はインストール先の exe）から起動します。初回は時間がかかることがあります。</li><li>画面の題名とホームの見出しが、通常版は「Process Insight Tool（通常版）」、Pro版は「Process Insight Tool Pro（Pro版）」であることを確かめます。</li><li>「1 APC 学習」の ${ui('サンプルデータを開く')} でサンプルが開くこと、「10 Help」の ${ui('利用者向け手順書を開く')} で手順書が開くことを確かめます。</li><li>版の違い：「2 Swing Curve学習」の ③ で、<strong>Pro版だけ</strong>カーネルに swingperiodic があり、周期の探索範囲の欄が表示されることを確かめます。モデルを作った後の ④ の ${ui('SHAP 依存: RESIST_TH')} で、Pro版だけ膜厚のカーブ近似の設定が表示されます。</li><li>サンプルでモデルを学習し、MAT を保存して、保存後検証がすべて成功することを確かめます。</li><li>ウィンドウ右上の × で閉じると、アプリが終了することを確かめます。</li></ol>`,
+${step('6-2', 'MATLAB の入っていない PC でインストールして確かめる', `<p>利用者と同じ条件で確かめるため、<strong>MATLAB も MATLAB Runtime も入っていない Windows PC</strong>（検証用の PC や仮想環境）を使います。インターネットに接続しない状態で行うと、利用者の環境に近くなります。</p><ol><li>インストーラーをダブルクリックし、案内に従ってインストールします（MATLAB Runtime も一緒に入ります）。</li><li>スタートメニューのショートカット（見つからない場合はインストール先の exe）から起動します。初回は時間がかかることがあります。</li><li>画面の題名とホームの見出しが、通常版は「Process Insight Tool（通常版）」、Pro版は「Process Insight Tool Pro（Pro版）」であることを確かめます。</li><li>「1 APC 学習」の ${ui('サンプルデータを開く')} でサンプルが開くこと、「10 Help」の ${ui('利用者向け手順書を開く')} で手順書が開くことを確かめます。</li><li>版の違い：「2 Swing Curve学習」の ③ で、<strong>Pro版だけ</strong>カーネルに swingperiodic があり、周期の探索範囲の欄が表示されることを確かめます。モデルを作った後の ④ の ${ui('SHAP 依存: RESIST_TH')} で、Pro版だけ膜厚のカーブ近似の設定が表示されます。「7 実験計画作成」の方式に、Pro版だけ「拡張 D最適」「拡張 I最適」があることも確かめます。「10 Help」は、通常版では swingperiodic・拡張実験計画などの用語がなく、手順書のボタンが1つだけであることを確かめます。</li><li>サンプルでモデルを学習し、MAT を保存して、保存後検証がすべて成功することを確かめます。</li><li>ウィンドウ右上の × で閉じると、アプリが終了することを確かめます。</li></ol>`,
   'MATLAB のない PC で、インストールから学習・保存まで動くこと。')}
 `);
 

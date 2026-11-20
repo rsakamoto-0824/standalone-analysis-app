@@ -19,6 +19,7 @@ classdef ModelingPage < AppPage
         SelectionState
         Regressors = struct()
         PlsComponents = []
+        TreeCount = []
         Kernels
         FitInfo
         Period = struct()
@@ -326,18 +327,28 @@ classdef ModelingPage < AppPage
             end
             if ~any(strcmp(kernels, default_kernel)), default_kernel = constants.DEFAULT_KERNEL; end
             heights = {22, 190, 44};
-            if strcmp(page.Kind, 'generic'), heights = [{22, 30, 30}, heights]; end
+            if strcmp(page.Kind, 'generic'), heights = [{22, 30, 30, 30, 30}, heights]; end
             grid = uigridlayout(parent, [numel(heights) + 1, 1]); grid.RowHeight = [heights, {'1x'}];
             if strcmp(page.Kind, 'generic')
                 uilabel(grid, 'Text', '回帰方式（複数選ぶと比較します）', 'FontWeight', 'bold');
                 row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0];
-                page.Regressors.gpr = uicheckbox(row, 'Text', 'ガウス過程回帰（GPR）', 'Value', true, 'ValueChangedFcn', @(~, ~) page.conditionsChanged());
-                page.Regressors.linear = uicheckbox(row, 'Text', '重回帰', 'Value', false, 'ValueChangedFcn', @(~, ~) page.conditionsChanged());
-                page.Regressors.pls = uicheckbox(row, 'Text', 'PLS回帰', 'Value', false, 'ValueChangedFcn', @(~, ~) page.conditionsChanged());
+                page.Regressors.gpr = page.regressorBox(row, 'ガウス過程回帰（GPR）', true);
+                page.Regressors.linear = page.regressorBox(row, '重回帰', false);
+                page.Regressors.pls = page.regressorBox(row, 'PLS回帰', false);
+                row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0];
+                page.Regressors.forest = page.regressorBox(row, 'ランダムフォレスト', false);
+                page.Regressors.bagging = page.regressorBox(row, 'バギング木', false);
+                uilabel(row, 'Text', '');
                 row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, 90, '1x'};
                 [~, page.PlsComponents] = AppPage.numberField(row, 'PLSの成分数', 2, [1, 100], true);
                 page.PlsComponents.Enable = 'off'; page.PlsComponents.ValueChangedFcn = @(~, ~) page.conditionsChanged();
-                uilabel(row, 'Text', '（説明変数の数以下。PLSを選ぶと入力できます）');
+                uilabel(row, 'Text', '（説明変数の数以下）');
+                row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, 90, '1x'};
+                limits = ProcessRegressionModel.TREE_LIMITS;
+                [~, page.TreeCount] = AppPage.numberField(row, '木の本数', ProcessRegressionModel.DEFAULT_TREES, limits, true);
+                page.TreeCount.Enable = 'off'; page.TreeCount.ValueChangedFcn = @(~, ~) page.conditionsChanged();
+                uilabel(row, 'Text', sprintf('（%d〜%d。2方式で共通）', limits(1), limits(2)), ...
+                    'Tooltip', 'ランダムフォレスト・バギング木で共通の木の本数です。多いほど予測が安定し、学習に時間がかかります。');
             end
             uilabel(grid, 'Text', 'GPRのカーネル（複数選ぶと比較します。Ctrl キーを押しながら複数選択）', 'FontWeight', 'bold');
             page.Kernels = uilistbox(grid, 'Items', kernels, 'Value', {default_kernel}, 'Multiselect', 'on', ...
@@ -533,6 +544,7 @@ classdef ModelingPage < AppPage
             page.Folds.Enable = enabled; page.Seed.Enable = enabled;
             if strcmp(page.Kind, 'generic')
                 page.PlsComponents.Enable = matlab.lang.OnOffSwitchState(page.Regressors.pls.Value);
+                page.TreeCount.Enable = matlab.lang.OnOffSwitchState(page.Regressors.forest.Value || page.Regressors.bagging.Value);
                 page.Kernels.Enable = matlab.lang.OnOffSwitchState(page.Regressors.gpr.Value);
             end
             page.refreshPlan();
@@ -555,7 +567,7 @@ classdef ModelingPage < AppPage
         function regressors = selectedRegressors(page)
             regressors = {'gpr'};
             if ~strcmp(page.Kind, 'generic'), return; end
-            names = {'gpr', 'linear', 'pls'};
+            names = [{'gpr'}, ProcessRegressionModel.METHODS];
             regressors = names(cellfun(@(name) page.Regressors.(name).Value, names));
         end
         function conditions = conditions(page, predictor_count)
@@ -566,14 +578,14 @@ classdef ModelingPage < AppPage
             if ~page.isPro() && any(strcmpi(kernels, 'swingperiodic'))
                 error('modeling:proOnly', 'swingperiodic は Pro 版だけで使えるカーネルです。');
             end
-            components = 2;
+            components = 2; trees = ProcessRegressionModel.DEFAULT_TREES;
             if strcmp(page.Kind, 'generic')
-                components = page.PlsComponents.Value;
+                components = page.PlsComponents.Value; trees = page.TreeCount.Value;
                 if any(strcmp(regressors, 'pls')) && components > predictor_count
                     error('modeling:components', 'PLSの成分数（%d）は説明変数の数（%d）以下にしてください。', components, predictor_count);
                 end
             end
-            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components);
+            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components, trees);
         end
         function count = conditionCount(page)
             regressors = page.selectedRegressors(); count = numel(regressors);
@@ -592,6 +604,9 @@ classdef ModelingPage < AppPage
                 error('modeling:foldRows', ['APCは各分割の学習に%d行以上必要です（現在は %d行）。' ...
                     '分割数を増やすか、交差検証を使わずに評価してください。'], minimum, training_rows);
             end
+        end
+        function box = regressorBox(page, parent, text, value)
+            box = uicheckbox(parent, 'Text', text, 'Value', value, 'ValueChangedFcn', @(~, ~) page.conditionsChanged());
         end
         function text = fitMethodText(page)
             text = sprintf('GPRの Fit method: %s（変更は「9 設定」で行います。全GPR共通）', page.settings().FitMethod);

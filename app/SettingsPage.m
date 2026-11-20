@@ -9,6 +9,7 @@ classdef SettingsPage < AppPage
         LABEL_WIDTH = 300
         FIELD_WIDTH = 320
         THEMES = {'ライト', 'ダーク'}
+        FONT_SIZE_LIMITS = [8, 20]
         MAX_BINS = 1000
         MAX_FACTORS = 8
         MAX_RUNS = 300
@@ -21,8 +22,8 @@ classdef SettingsPage < AppPage
             % 保存ボタンは常に見える位置へ置き、項目の一覧だけをスクロールさせる。
             outer = uigridlayout(page.Body, [3, 1]); outer.RowHeight = {40, '1x', 36}; outer.Padding = [0, 0, 0, 0];
             AppPage.hint(outer, ['ここで保存した設定は次回の起動にも反映します。Fit method・KL/MIビン数・実験計画のseed・炉内補間のRBF条件は、' ...
-                'この画面だけで変更します。変更は次の実行から反映し、表示中の結果や学習済みモデルの一覧は消えません。']);
-            grid = uigridlayout(outer, [17, 3], 'Scrollable', 'on'); grid.RowHeight = repmat({28}, 1, 17); grid.RowSpacing = 6;
+                'この画面だけで変更します。テーマと文字の大きさは保存するとすぐ反映し、それ以外は次の実行から反映します。表示中の結果や学習済みモデルの一覧は消えません。']);
+            grid = uigridlayout(outer, [18, 3], 'Scrollable', 'on'); grid.RowHeight = repmat({28}, 1, 18); grid.RowSpacing = 6;
             grid.ColumnWidth = {page.LABEL_WIDTH, page.FIELD_WIDTH, '1x'};
             page.heading(grid, '共通');
             page.label(grid, 'ファイルの保存先（最初に開くフォルダ）');
@@ -32,6 +33,9 @@ classdef SettingsPage < AppPage
             page.note(grid, '');
             page.label(grid, 'カラーテーマ');
             page.Fields.Theme = uidropdown(grid, 'Items', page.THEMES); page.note(grid, '');
+            page.label(grid, sprintf('文字の大きさ（%d〜%d ポイント）', page.FONT_SIZE_LIMITS(1), page.FONT_SIZE_LIMITS(2)));
+            page.Fields.FontSize = uispinner(grid, 'Limits', page.FONT_SIZE_LIMITS, 'Step', 1, 'RoundFractionalValues', 'on');
+            page.note(grid, '標準は12。見出し・グラフも同じ比率で変わります。');
             page.heading(grid, 'ガウス過程回帰（GPR）');
             page.label(grid, 'カーネルの初期値（APC・汎用回帰）');
             page.Fields.Kernel = uidropdown(grid, 'Items', constants.KERNELS); page.note(grid, '');
@@ -50,7 +54,8 @@ classdef SettingsPage < AppPage
             page.heading(grid, '実験計画');
             page.label(grid, '因子数の初期値');
             page.Fields.Factors = page.integerField(grid, [1, page.MAX_FACTORS]); page.note(grid, '');
-            page.label(grid, '実験数の初期値（拡張では追加数）');
+            runs_label = '実験数の初期値'; if strcmp(app.Edition, 'pro'), runs_label = '実験数の初期値（拡張では追加数）'; end
+            page.label(grid, runs_label);
             page.Fields.Runs = page.integerField(grid, [1, page.MAX_RUNS]); page.note(grid, '');
             page.label(grid, '乱数seed');
             page.Fields.Seed = page.integerField(grid, [0, page.MAX_SEED]); page.note(grid, '同じseedなら同じ計画を再現できます。');

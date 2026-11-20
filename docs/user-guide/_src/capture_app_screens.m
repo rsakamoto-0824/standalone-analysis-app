@@ -1,8 +1,8 @@
 function capture_app_screens(edition, only)
 % 手順書用の画面画像を、実際のアプリを同梱サンプルで操作して撮影する。
 %   capture_app_screens            配布版（通常版）の画面を撮る（利用手順書・ビルド利用手順書で使用）
-%   capture_app_screens('pro', {'56-conditions-swing', '60-period-search', '70-expanded-pro-fit'})
-%                                  Pro版だけの画面（swingperiodic・周期の探索範囲・カーブ評価）を撮る。only に名前を渡すと、その画像だけ保存する
+%   capture_app_screens('pro', {'56-conditions-swing', '60-period-search', '70-expanded-pro-fit', '78-doe-pro'})
+%                                  Pro版だけの画面（swingperiodic・周期の探索範囲・カーブ評価・拡張計画）を撮る。only に名前を渡すと、その画像だけ保存する
 % 利用環境は Windows のため、Mac 特有の表示を画像に含めない。
 %   ・exportapp はアプリの中身だけを書き出し、ウィンドウの枠（タイトルバー・閉じるボタン）を含まない。
 %   ・開発用の例外で起動したときの「検証用 R2022b」の注意は、利用者の Windows 画面には出ないため撮影前に除く。
@@ -70,7 +70,8 @@ end
 app.selectPage('generic'); generic = app.page('generic'); generic.openSample();
 generic.selectPredictors({'X1', 'X2', 'X3'}); generic.selectTargets({'Y1'});
 generic.Steps.SelectedTab = generic.StepTabs.Variables; snap('54-variables-generic');
-generic.Regressors.linear.Value = true; generic.Regressors.pls.Value = true; generic.Regressors.pls.ValueChangedFcn([], []);
+generic.Regressors.linear.Value = true; generic.Regressors.pls.Value = true;
+generic.Regressors.forest.Value = true; generic.Regressors.bagging.Value = true; generic.Regressors.bagging.ValueChangedFcn([], []);
 generic.Steps.SelectedTab = generic.StepTabs.Conditions; snap('71-conditions-generic');
 generic.runModeling(); chart_tabs = generic.Result.ChartTabs.Children;
 generic.Result.ChartTabs.SelectedTab = chart_tabs(startsWith({chart_tabs.Title}, '条件の比較')); snap('72-results-generic');
@@ -91,6 +92,11 @@ shap_page.Source.open(sample, 'Predict_SHAP', 1); shap_page.run(); snap('62-shap
 
 % --- 実験計画・ワードクラウド・設定・Help ---
 app.selectPage('doe'); design = app.page('doe'); design.run(); design.Result.showCharts(); snap('65-doe');
+if strcmp(edition, 'pro')
+    % 既存の計画に点を追加する拡張計画は Pro 版だけ。
+    design.Method.Value = design.METHODS{4}; design.Method.ValueChangedFcn([], []);
+    design.Source.open(sample, 'DOE_Existing', 1); design.Runs.Value = 8; design.run(); snap('78-doe-pro');
+end
 app.selectPage('words'); words = app.page('words'); words.loadText(fullfile(root, 'samples', 'sample_wordcloud.txt')); words.run(); snap('66-wordcloud');
 % 設定画面の画像には、撮影した端末のフォルダ名を写さない（表示だけを例の値へ置き換える）。
 app.selectPage('settings'); settings_page = app.page('settings');
