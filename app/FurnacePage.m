@@ -200,7 +200,7 @@ classdef FurnacePage < AppPage
         end
         function text = settingText(page)
             settings = page.settings();
-            text = sprintf('RBFの幅: %.6g（0＝自動） / 正則化: %.6g / GPRの Fit method: %s\n変更は「9 設定」で行います。', ...
+            text = sprintf(['RBFの幅: %.6g（0＝自動） / 正則化: %.6g / GPRの Fit method: %s\n変更は「' AnalysisController.settingsTitle(page.App.Edition) '」で行います。'], ...
                 settings.RBFWidth, settings.RBFRidge, settings.FitMethod);
         end
         function goTo(page, step)

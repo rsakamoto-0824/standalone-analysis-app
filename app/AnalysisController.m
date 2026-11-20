@@ -73,10 +73,11 @@ classdef AnalysisController < handle
             app.addPage('shap', '6 SHAP 解析', @(parent) ModelUsePage(app, parent, 'shap'));
             app.Navigation.addHeading('計画・その他');
             app.addPage('doe', '7 実験計画作成', @(parent) DesignPage(app, parent));
-            app.addPage('words', '8 ワードクラウド', @(parent) WordCloudPage(app, parent));
+            % ワードクラウドは Pro 版だけ。通常版ではメニューに出さず、設定・Help の番号を詰める。
+            if strcmp(edition, 'pro'), app.addPage('words', '8 ワードクラウド', @(parent) WordCloudPage(app, parent)); end
             app.Navigation.addHeading('アプリ');
-            app.addPage('settings', '9 設定', @(parent) SettingsPage(app, parent));
-            app.addPage('help', '10 Help', @(parent) HelpPage(app, parent));
+            app.addPage('settings', AnalysisController.settingsTitle(edition), @(parent) SettingsPage(app, parent));
+            app.addPage('help', AnalysisController.helpTitle(edition), @(parent) HelpPage(app, parent));
             app.Navigation.SelectionChangedFcn = @(key) app.pageSelected(key);
             app.selectPage(app.HOME_KEY);
             if ~isempty(app.SettingsWarning)
@@ -167,6 +168,15 @@ classdef AnalysisController < handle
     methods (Static)
         function closeProgress(dialog)
             if ~isempty(dialog) && isvalid(dialog), close(dialog); end
+        end
+        function text = settingsTitle(edition)
+            % メニューの「設定」の名前。Pro 版は 8 ワードクラウドの次、通常版は 7 実験計画作成の次。
+            number = 8; if strcmp(edition, 'pro'), number = 9; end
+            text = sprintf('%d 設定', number);
+        end
+        function text = helpTitle(edition)
+            number = 9; if strcmp(edition, 'pro'), number = 10; end
+            text = sprintf('%d Help', number);
         end
     end
     methods (Access = private)

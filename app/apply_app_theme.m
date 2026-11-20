@@ -5,7 +5,7 @@ function apply_app_theme(window, theme, font_size)
 % 見出しなど最初から大きい文字も、比率を保って大きくなる。何度呼んでも大きさが積み重ならない。
 % font_size を省略したとき（一部の部品だけ配色を直すとき）は、文字の大きさを変えない。
 if nargin < 3, font_size = []; end
-ACCENT_TAG = 'accent'; STATE_TAG = 'state';
+ACCENT_TAG = 'accent'; STATE_TAG = 'state'; KEEP_COLOR_TAG = 'keep-color';
 ACCENT_COLOR = [0.12, 0.35, 0.58]; ACCENT_TEXT = [1, 1, 1];
 TAB_TEXT = [0.12, 0.17, 0.25];
 if strcmp(theme, 'ダーク')
@@ -18,6 +18,8 @@ objects = findall(window);
 for index = 1:numel(objects)
     item = objects(index);
     if ~isempty(font_size), scale_font(item, font_size); end
+    % 利用者が選んだ色（ワードクラウドの色など）や、背景に合わせた文字色（相関マトリックスの数値）は変えない。
+    if keeps_color(item, KEEP_COLOR_TAG), continue; end
     if isa(item, 'matlab.ui.control.UIAxes')
         item.Color = surface; item.XColor = text; item.YColor = text;
         item.Title.Color = text; item.XLabel.Color = text; item.YLabel.Color = text;
@@ -91,4 +93,9 @@ end
 function value = DESIGN_FONT_SIZE()
 % 各部品の大きさを決めたときの基準（MATLAB の画面の標準）。
 value = 12;
+end
+
+function keep = keeps_color(item, tag)
+% Tag が keep-color の部品、または appdata の KeepColor を持つ部品（Tag を変えられないワードクラウドなど）は色を変えない。
+keep = (isprop(item, 'Tag') && strcmp(item.Tag, tag)) || (isprop(item, 'ApplicationData') && isappdata(item, 'KeepColor'));
 end

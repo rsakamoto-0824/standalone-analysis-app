@@ -27,12 +27,7 @@ if fixed_count + runs < term_count
     error('doe:tooFewRuns', '選択モデルの項は%d個です。既存＋追加の実験数を%d以上にしてください。', term_count, term_count);
 end
 if fixed_count + runs > 500, error('doe:tooManyRuns', '既存＋追加は500行以下にしてください。'); end
-% 奇数次数の積分は0、偶数次数は 1/(次数+1)。数値積分誤差を持ち込まない。
-moments = zeros(term_count);
-for row = 1:term_count
-    combined = powers(row, :) + powers;
-    moments(row, :) = (prod(1 ./ (combined + 1), 2) .* all(mod(combined, 2) == 0, 2))';
-end
+moments = doe_moment_matrix(powers);
 candidate_levels = linspace(-1, 1, levels);
 best_score = Inf; design = [];
 STARTS = 4; MAX_PASSES = 12; IMPROVEMENT_TOLERANCE = 1e-9;
