@@ -5,6 +5,10 @@ function [explainer, values] = approximate_shap_for_check(model, inputs)
 explainer = [];
 reference = model.X; if istable(reference), reference = table2array(reference); end
 center = mean(reference, 1);
+% 質的変数（Pro 版の GPR）の列は水準の番号のため、平均ではなく最も多い水準に置き換える。
+if isa(model, 'ProcessRegressionModel') && isfield(model.GPOptions, 'Categorical') && ~isempty(model.GPOptions.Categorical)
+    for column = find(model.GPOptions.Categorical), center(column) = mode(reference(:, column)); end
+end
 baseline = predict(model, format_model_input(model, inputs));
 values = zeros(size(inputs));
 for column = 1:size(inputs, 2)

@@ -7,7 +7,13 @@ if ~isfield(condition,'Regressor'), return; end
 names=struct('linear','重回帰','forest','ランダムフォレスト','bagging','バギング木','ebm','EBM', ...
     'xgboost','XGBoost','lightgbm','LightGBM','catboost','CatBoost');
 switch condition.Regressor
-    case 'gpr', return;
+    case 'gpr'
+        % Pro 版の加法カーネル・質的変数の GPR は、方式の名前で表す。
+        categorical=isfield(condition,'Categorical') && ~isempty(condition.Categorical) && any(condition.Categorical.Mask);
+        if strcmp(condition.Kernel,'additive') || categorical
+            label=ProcessRegressionModel.proGprLabel(strcmp(condition.Kernel,'additive'),categorical);
+        end
+        return;
     case 'linear', label=names.linear; return;
     case 'pls', label=sprintf('PLS（%d成分）',condition.Components); return;
 end

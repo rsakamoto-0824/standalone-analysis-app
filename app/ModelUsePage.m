@@ -1,15 +1,15 @@
 classdef ModelUsePage < AppPage
-    % 学習済みモデルを使う画面（保存モデルで推定 / SHAP 解析）。
-    % 左で ① モデル → ② データ → ③ 列の割当 → ④ 実行 の順に進み、右に結果を表示する。
+    % 学習済みモデルを使う画面（保存モデルで推定・SHAP）。推定と SHAP 解析を1つにまとめた。
+    % 左で ① モデル → ② データ → ③ 列の割当 → ④ 実行 の順に進み、右に推定結果と SHAP（分布・依存図）を表示する。
+    % どの保存モデル（APC・Swing Curve・汎用回帰・面内）でも、SHAP 依存図を表示できる。
     properties (SetAccess = private)
-        Kind
         ModelChoice
         ModelInfo
         Source
         Mode
         Mapper
         Actual
-        ShowPlots = []
+        ComputeShap
         SelectionState
         RunButton
         Views
@@ -29,24 +29,19 @@ classdef ModelUsePage < AppPage
         NO_ACTUAL = '(実測値なし)'
         MODE_GENERAL = '汎用推定（APC・Swing Curve・汎用回帰のモデル）'
         MODE_IN_PLANE = '面内推定（既存の面内モデル。X・Y座標の2列）'
-        MODE_DEPENDENCE = 'SHAP依存確認（全説明変数のSHAP）'
         MODE_DENOISE = 'ノイズ除去用SHAP（Swing Curve：膜厚のSHAPだけを出力）'
         IN_PLANE_ROLES = {'X', 'Y'}
         TABLE_OUTPUT = '出力（入力・予測・SHAPを並べた表）'
     end
     methods
-        function page = ModelUsePage(app, parent, kind)
+        function page = ModelUsePage(app, parent)
             page@AppPage(app, parent);
-            page.Kind = kind;
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
             page.buildInputs(); page.buildResults();
             page.ModelListener = addlistener(app.Models, 'Changed', @(~, ~) page.refreshModelChoices());
             page.refreshModelChoices(); page.updateSelectionState();
-            if strcmp(kind, 'predict')
-                page.message('① 学習済みMATを開く（または起動中に学習したモデルを選ぶ）→ ② 推定したいデータを開く → ③ 列を割り当てて確認 → ④ 実行。');
-            else
-                page.message('① モデルを選ぶ（MATを保存していない学習直後のモデルも選べます）→ ② データを開く → ③ 列を割り当てて確認 → ④ 実行。');
-            end
+            page.message(['① 学習済みMATを開く（または起動中に学習したモデルを選ぶ）→ ② データを開く → ③ 列を割り当てる → ④ 実行。' ...
+                '「SHAPも計算する」を選ぶと、どのモデルでも SHAP の分布と依存図を表示します。']);
         end
         function delete(page)
             delete(page.ModelListener);
@@ -73,13 +68,12 @@ classdef ModelUsePage < AppPage
                 if settings.Bins > 0, validate_bin_count(settings.Bins, 'AnalysisApp'); end
                 matrix = page.mappedInput(); rows = page.Source.Data.RowNumbers;
                 page.Result.clear();
-                if strcmp(page.Kind, 'predict')
-                    dialog = page.App.startProgress('保存モデルで推定', '推定しています。');
-                    prediction = page.runPrediction(matrix, rows);
+                if strcmp(page.Mode.Value, page.MODE_DENOISE) || page.ComputeShap.Value
+                    dialog = page.App.startProgress('推定・SHAP', '推定と SHAP の計算をしています。行数が多いと時間がかかります。');
                 else
-                    dialog = page.App.startProgress('SHAP 解析', 'SHAP値を計算しています。行数が多いと時間がかかります。');
-                    prediction = page.runShap(matrix, rows);
+                    dialog = page.App.startProgress('推定', '推定しています。');
                 end
+                prediction = page.runModel(matrix, rows);
                 page.evaluate(matrix, prediction);
                 AnalysisController.closeProgress(dialog);
                 page.Views.SelectedTab = page.ResultTab; page.App.applyTheme();
@@ -88,8 +82,7 @@ classdef ModelUsePage < AppPage
                 AnalysisController.closeProgress(dialog); page.showError(err);
             end
         end
-        function onSettingsChanged(page)
-            if ~isempty(page.ShowPlots) && isempty(page.Result.Charts), page.ShowPlots.Value = page.settings().ShowPlots; end
+        function onSettingsChanged(~)
         end
         function onShown(page)
             page.refreshModelChoices();
@@ -116,24 +109,22 @@ classdef ModelUsePage < AppPage
             page.Source = DataSourceControl(page, grid); page.Source.LoadedFcn = @(data) page.dataLoaded(data);
 
             panel = AppPage.section(left, '③ 列を割り当てる');
-            rows = {30, '1x', 30}; if strcmp(page.Kind, 'shap'), rows{end + 1} = 26; end
+            rows = {30, '1x', 30, 26};
             grid = uigridlayout(panel, [numel(rows), 2]); grid.RowHeight = rows; grid.ColumnWidth = {150, '1x'};
             uilabel(grid, 'Text', '処理の種類');
-            modes = {page.MODE_GENERAL, page.MODE_IN_PLANE};
-            if strcmp(page.Kind, 'shap'), modes = {page.MODE_DEPENDENCE, page.MODE_DENOISE}; end
+            modes = {page.MODE_GENERAL, page.MODE_IN_PLANE, page.MODE_DENOISE};
             page.Mode = uidropdown(grid, 'Items', modes, 'ValueChangedFcn', @(~, ~) page.refreshRoles());
             holder = uigridlayout(grid, [1, 1]); holder.Padding = [0, 0, 0, 0]; holder.Layout.Column = [1, 2];
             page.Mapper = ColumnMapper(holder); page.Mapper.ChangedFcn = @() page.inputsChanged();
             uilabel(grid, 'Text', '評価用の実測列（任意）', 'Tooltip', '選ぶと、推定値との誤差（RMSE・R²など）も計算します。');
             page.Actual = uidropdown(grid, 'Items', {page.NO_ACTUAL}, 'Enable', 'off', 'ValueChangedFcn', @(~, ~) page.inputsChanged());
-            if strcmp(page.Kind, 'shap')
-                page.ShowPlots = uicheckbox(grid, 'Text', 'SHAPのグラフも表示する', 'Value', page.settings().ShowPlots);
-                page.ShowPlots.Layout.Column = [1, 2];
-            end
+            page.ComputeShap = uicheckbox(grid, 'Text', sprintf('SHAPも計算する（分布・依存図。先頭最大%d行）', page.App.Constants.MAX_SHAP_POINTS), ...
+                'Value', true, 'ValueChangedFcn', @(~, ~) page.inputsChanged(), ...
+                'Tooltip', 'どのモデルでも、各説明変数の SHAP 値と依存図を表示します。外すと推定だけを早く行います。');
+            page.ComputeShap.Layout.Column = [1, 2];
 
             page.SelectionState = AppPage.stateLabel(left);
-            label = '④ 推定を実行'; if strcmp(page.Kind, 'shap'), label = '④ SHAPを計算'; end
-            page.RunButton = AppPage.primaryButton(left, label, @(~, ~) page.run());
+            page.RunButton = AppPage.primaryButton(left, '④ 推定・SHAPを実行', @(~, ~) page.run());
         end
         function buildResults(page)
             page.Views = uitabgroup(page.Body);
@@ -253,39 +244,42 @@ classdef ModelUsePage < AppPage
                 end
                 extract_numeric_columns(page.Source.Data, {page.Actual.Value});
             end
-            matrix = assign_required_columns(page.Source.Data, mapping(:, 2), mapping(:, 3));
+            matrix = model_input_matrix(page.Source.Data, mapping, page.Model);
         end
 
         % ================= ④ 実行 =================
-        function prediction = runPrediction(page, matrix, rows)
-            extra = table();
+        function prediction = runModel(page, matrix, rows)
+            % 推定し、選んだときは SHAP も計算する。面内推定は X・Y から半径を求めてモデルへ渡すため、SHAP も3変数で計算する。
+            names = page.displayNames(); services = page.App.Services; extra = table();
+            shap_columns = {}; shap_values = []; explainer = []; values = []; shap_inputs = matrix;
+            limit = min(size(matrix, 1), page.App.Constants.MAX_SHAP_POINTS);
             if strcmp(page.Mode.Value, page.MODE_IN_PLANE)
                 [prediction, outside, warnings] = predict_in_plane(page.Model, matrix);
                 extra = table(outside, 'VariableNames', {'OutsideTrainingRange'});
                 page.showWarnings(warnings);
+                shap_inputs = [matrix, sqrt(matrix(:, 1).^2 + matrix(:, 2).^2)]; names = page.Model.PredictorNames;
             else
-                prediction = page.App.Services.Predictor(page.Model, matrix);
+                prediction = services.Predictor(page.Model, matrix);
             end
-            page.Result.setTable(page.TABLE_OUTPUT, page.outputTable(matrix, rows, prediction, extra, {}, []));
-        end
-        function prediction = runShap(page, matrix, rows)
-            names = page.displayNames(); services = page.App.Services;
-            prediction = services.Predictor(page.Model, matrix);
             if strcmp(page.Mode.Value, page.MODE_DENOISE)
                 [resist, explainer, values] = services.Denoise(page.Model, matrix(:, 1:end-1), matrix(:, end));
-                shap_columns = {'shap_resist'}; shap_values = resist;
-            else
-                [explainer, values] = services.Shap(page.Model, matrix);
-                shap_columns = strcat('SHAP_', names); shap_values = values;
+                shap_columns = {'shap_resist'}; shap_values = resist; shap_inputs = matrix;
+            elseif page.ComputeShap.Value
+                shap_inputs = shap_inputs(1:limit, :);
+                [explainer, values] = services.Shap(page.Model, shap_inputs);
+                shap_columns = strcat('SHAP_', cellstr(string(names))); shap_values = values;
+                if limit < size(matrix, 1)
+                    page.message(sprintf('SHAPは先頭%d行で計算しました（推定は全行）。それ以降の行のSHAPは出力で空欄です。', limit));
+                end
             end
-            page.Result.setTable(page.TABLE_OUTPUT, page.outputTable(matrix, rows, prediction, table(), shap_columns, shap_values));
-            if page.ShowPlots.Value
+            page.Result.setTable(page.TABLE_OUTPUT, page.outputTable(matrix, rows, prediction, extra, shap_columns, shap_values));
+            if ~isempty(values)
                 % APC学習で作ったモデルには、Swing Curveのカーブ評価を付けない。
                 allow_fit = ~strcmp(page.ModelEntry.Kind, 'apc'); period_options = swing_period_options();
                 record = page.ModelEntry.Record;
                 if ~isempty(record) && isfield(record, 'PeriodOptions'), period_options = record.PeriodOptions; end
                 options = struct('Edition', page.App.Edition, 'AllowSwingFit', allow_fit, 'PeriodOptions', period_options, 'Explainer', explainer);
-                [charts, chart_names] = plot_shap_figures(page.Result.ChartTabs, values, matrix, names, options);
+                [charts, chart_names] = plot_shap_figures(page.Result.ChartTabs, values, shap_inputs, cellstr(string(names)), options);
                 page.Result.registerCharts(charts, chart_names);
             end
         end

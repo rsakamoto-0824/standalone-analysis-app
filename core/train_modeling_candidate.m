@@ -20,6 +20,14 @@ switch kind
                     'SearchParameters', searched, 'BestParameters', parameters);
             end
             model=ProcessRegressionModel(inputs,response,names,condition.Regressor,condition.Components,trees,parameters); warnings=strings(0,1);
+        elseif strcmp(condition.Kernel, 'additive') || (isfield(condition, 'Categorical') && ~isempty(condition.Categorical) && any(condition.Categorical.Mask))
+            % Pro 版：加法カーネル、または質的変数を含む GPR。
+            options = struct('Additive', strcmp(condition.Kernel, 'additive'), 'FitMethod', condition.FitMethod, ...
+                'Categorical', false(1, size(inputs, 2)), 'Levels', {cell(1, size(inputs, 2))});
+            if isfield(condition, 'Categorical') && ~isempty(condition.Categorical)
+                options.Categorical = condition.Categorical.Mask; options.Levels = condition.Categorical.Levels;
+            end
+            model = ProcessRegressionModel(inputs, response, names, 'gpr_pro', 2, [], options); warnings = strings(0, 1);
         else
             [model, warnings] = train_generic_gpr_model(inputs, response, condition.Kernel, condition.FitMethod);
         end

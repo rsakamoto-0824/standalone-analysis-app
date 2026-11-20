@@ -23,6 +23,8 @@ classdef FurnacePage < AppPage
         ColorColumn
         Result
         Charts = {}
+        RmseAxes = {}
+        RmseTargets = strings(0, 1)
         Report = []
         ReportSource = []
     end
@@ -294,7 +296,9 @@ classdef FurnacePage < AppPage
         % ================= ④ 結果 =================
         function showReport(page, report)
             panel = page.Result; panel.clear(); page.Report = report; page.Charts = cell(1, numel(page.CHART_NAMES));
-            for index = 1:numel(page.CHART_NAMES), page.Charts{index} = panel.addAxes(page.CHART_NAMES{index}); end
+            page.Charts{1} = panel.addAxes(page.CHART_NAMES{1});
+            page.addRmseCharts(unique(report.Comparison.Target, 'stable'));
+            page.Charts{3} = panel.addAxes(page.CHART_NAMES{3});
             panel.setTable(page.TABLE_COMPARISON, display_metric_names(sortrows(report.Comparison, {'Batch', 'Target', 'Rank'})));
             panel.setTable(page.TABLE_PREDICTIONS, report.Predictions);
             panel.setTable(page.TABLE_METRICS, display_metric_names(report.Metrics));
@@ -348,15 +352,39 @@ classdef FurnacePage < AppPage
             color_column = page.ColorColumn.Value;
             if ~any(strcmp([{page.SINGLE_COLOR}, data.Headers], color_column)), color_column = page.SINGLE_COLOR; end
             page.drawProfiles(page.Charts{1}, item, source, color_column);
-            scores = sortrows(comparison(comparison.Batch == item.Batch & comparison.Target == item.Target & comparison.Status == "成功", :), 'Rank');
-            ax = page.Charts{2}; cla(ax, 'reset'); bar(ax, scores.RMSE);
-            ax.XTick = 1:height(scores); ax.XTickLabel = scores.Method; ax.XTickLabelRotation = 25; ax.TickLabelInterpreter = 'none';
-            ylabel(ax, '内部Slot検証のRMSE（小さいほど良い）'); grid(ax, 'on');
-            title(ax, char(item.Batch + " / " + item.Target), 'Interpreter', 'none');
+            page.drawRmseBars(comparison, item);
             ax = page.Charts{3}; cla(ax, 'reset'); colorbar(ax, 'off'); hold(ax, 'on');
             color_scatter(ax, item.Slots, item.Actual - item.ValidationPrediction, source, color_column); yline(ax, 0, '--');
             xlabel(ax, '検証したBoatSlot（両端を除く）'); ylabel(ax, '実測 − 検証予測'); grid(ax, 'on');
             page.App.applyTheme();
+        end
+        function addRmseCharts(page, targets)
+            % 目的変数ごとに RMSE の棒グラフを分け、1つのタブに横へ並べる（単位の違う目的変数を同じ軸に載せないため）。
+            tab = page.Result.addChartTab(page.CHART_NAMES{2}); holder = uigridlayout(tab, [1, 1]); holder.Padding = [4, 4, 4, 4];
+            container = uipanel(holder, 'BorderType', 'none');
+            plots = uigridlayout(container, [1, numel(targets)]); plots.Padding = [0, 0, 0, 0]; plots.ColumnSpacing = 12;
+            page.RmseTargets = targets(:); page.RmseAxes = cell(1, numel(targets));
+            names = cell(1, numel(targets));
+            for index = 1:numel(targets)
+                page.RmseAxes{index} = uiaxes(plots); names{index} = sprintf('%s：%s', page.CHART_NAMES{2}, targets(index));
+            end
+            page.Charts{2} = container;
+            page.Result.registerCharts([{container}, page.RmseAxes], [{sprintf('%s（目的変数ごとに並べた図）', page.CHART_NAMES{2})}, names]);
+        end
+        function drawRmseBars(page, comparison, item)
+            % 選択中の Run について、目的変数ごとに方式の RMSE を並べる。選択中の方式は濃い色にする。
+            for index = 1:numel(page.RmseTargets)
+                target = page.RmseTargets(index); ax = page.RmseAxes{index}; cla(ax, 'reset');
+                scores = sortrows(comparison(comparison.Batch == item.Batch & comparison.Target == target & comparison.Status == "成功", :), 'Rank');
+                if isempty(scores)
+                    title(ax, char(item.Batch + " / " + target + "（成功した方式なし）"), 'Interpreter', 'none'); continue;
+                end
+                bars = bar(ax, scores.RMSE, 'FaceColor', 'flat'); bars.CData = repmat([0.55, 0.70, 0.85], height(scores), 1);
+                if target == item.Target, bars.CData(scores.Method == item.Method, :) = repmat([0.12, 0.35, 0.58], sum(scores.Method == item.Method), 1); end
+                ax.XTick = 1:height(scores); ax.XTickLabel = scores.Method; ax.XTickLabelRotation = 25; ax.TickLabelInterpreter = 'none';
+                ylabel(ax, sprintf('内部Slot検証のRMSE（%s）', target), 'Interpreter', 'none'); grid(ax, 'on');
+                title(ax, char(item.Batch + " / " + target), 'Interpreter', 'none');
+            end
         end
         function drawProfiles(page, ax, item, source, color_column)
             cla(ax, 'reset'); colorbar(ax, 'off'); hold(ax, 'on');

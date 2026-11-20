@@ -63,21 +63,27 @@ classdef AnalysisController < handle
             app.PageBuilders = containers.Map('KeyType', 'char', 'ValueType', 'any');
             app.Navigation = AnalysisNavigation(window);
             app.addPage(app.HOME_KEY, 'ホーム（はじめに）', @(parent) HomePage(app, parent));
+            % メニューの番号は版で違う（Pro 版だけの画面を通常版では出さず、番号を詰める）。名前と番号は menuTitles で1か所にまとめる。
+            titles = AnalysisController.menuTitles(edition); pro = strcmp(edition, 'pro');
             app.Navigation.addHeading('モデルを作る');
-            app.addPage('apc', '1 APC 学習', @(parent) ModelingPage(app, parent, 'apc'));
-            app.addPage('swing', '2 Swing Curve学習', @(parent) ModelingPage(app, parent, 'swing'));
-            app.addPage('generic', '3 汎用回帰学習', @(parent) ModelingPage(app, parent, 'generic'));
-            app.addPage('furnace', '4 炉内補間', @(parent) FurnacePage(app, parent));
+            app.addPage('apc', titles.apc, @(parent) ModelingPage(app, parent, 'apc'));
+            app.addPage('swing', titles.swing, @(parent) ModelingPage(app, parent, 'swing'));
+            app.addPage('generic', titles.generic, @(parent) ModelingPage(app, parent, 'generic'));
+            app.addPage('furnace', titles.furnace, @(parent) FurnacePage(app, parent));
             app.Navigation.addHeading('モデルを使う・調べる');
-            app.addPage('predict', '5 保存モデルで推定', @(parent) ModelUsePage(app, parent, 'predict'));
-            app.addPage('shap', '6 SHAP 解析', @(parent) ModelUsePage(app, parent, 'shap'));
+            app.addPage('predict', titles.predict, @(parent) ModelUsePage(app, parent));
+            if pro, app.addPage('sobol', titles.sobol, @(parent) SobolPage(app, parent)); end
+            if pro
+                app.Navigation.addHeading('データを解析する（Pro版）');
+                app.addPage('causal', titles.causal, @(parent) CausalPage(app, parent));
+                app.addPage('bayes', titles.bayes, @(parent) BayesPage(app, parent));
+            end
             app.Navigation.addHeading('計画・その他');
-            app.addPage('doe', '7 実験計画作成', @(parent) DesignPage(app, parent));
-            % ワードクラウドは Pro 版だけ。通常版ではメニューに出さず、設定・Help の番号を詰める。
-            if strcmp(edition, 'pro'), app.addPage('words', '8 ワードクラウド', @(parent) WordCloudPage(app, parent)); end
+            app.addPage('doe', titles.doe, @(parent) DesignPage(app, parent));
+            if pro, app.addPage('words', titles.words, @(parent) WordCloudPage(app, parent)); end
             app.Navigation.addHeading('アプリ');
-            app.addPage('settings', AnalysisController.settingsTitle(edition), @(parent) SettingsPage(app, parent));
-            app.addPage('help', AnalysisController.helpTitle(edition), @(parent) HelpPage(app, parent));
+            app.addPage('settings', titles.settings, @(parent) SettingsPage(app, parent));
+            app.addPage('help', titles.help, @(parent) HelpPage(app, parent));
             app.Navigation.SelectionChangedFcn = @(key) app.pageSelected(key);
             app.selectPage(app.HOME_KEY);
             if ~isempty(app.SettingsWarning)
@@ -169,14 +175,23 @@ classdef AnalysisController < handle
         function closeProgress(dialog)
             if ~isempty(dialog) && isvalid(dialog), close(dialog); end
         end
+        function titles = menuTitles(edition)
+            % 左のメニューの名前（番号つき）。Pro 版だけの画面（Sobol感度解析・因果探索・階層ベイズ・ワードクラウド）は通常版に出さない。
+            keys = {'apc', 'swing', 'generic', 'furnace', 'predict', 'sobol', 'causal', 'bayes', 'doe', 'words', 'settings', 'help'};
+            names = {'APC 学習', 'Swing Curve学習', '汎用回帰学習', '炉内補間', '保存モデルで推定・SHAP', 'Sobol感度解析', ...
+                '因果探索', '階層ベイズ', '実験計画作成', 'ワードクラウド', '設定', 'Help'};
+            pro_only = {'sobol', 'causal', 'bayes', 'words'};
+            titles = struct(); number = 0;
+            for index = 1:numel(keys)
+                if ~strcmp(edition, 'pro') && ismember(keys{index}, pro_only), continue; end
+                number = number + 1; titles.(keys{index}) = sprintf('%d %s', number, names{index});
+            end
+        end
         function text = settingsTitle(edition)
-            % メニューの「設定」の名前。Pro 版は 8 ワードクラウドの次、通常版は 7 実験計画作成の次。
-            number = 8; if strcmp(edition, 'pro'), number = 9; end
-            text = sprintf('%d 設定', number);
+            titles = AnalysisController.menuTitles(edition); text = titles.settings;
         end
         function text = helpTitle(edition)
-            number = 9; if strcmp(edition, 'pro'), number = 10; end
-            text = sprintf('%d Help', number);
+            titles = AnalysisController.menuTitles(edition); text = titles.help;
         end
     end
     methods (Access = private)

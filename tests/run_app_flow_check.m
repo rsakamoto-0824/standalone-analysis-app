@@ -21,7 +21,7 @@ if ~real_shap
     app.Services = services;
 end
 names = {}; passed = []; notes = {};
-apc_path = fullfile(work, 'Train_Model_CD_X.mat');
+apc_path = fullfile(work, 'Train_Model_CD_X.mat'); pro_gpr_path = fullfile(work, 'GenericProGPR_Model_CD_X.mat');
 
 step('起動とホーム画面', @() app.selectPage('home'));
 step('APC：2カーネルを交差検証あり・なしで比較・SHAP・保存', @checkApc);
@@ -30,14 +30,18 @@ step('Swing Curve：下地なし・周期カーネル', @checkSwingPeriodic);
 step('データの傾向：単変量（質的・量的な色）と Pro 版の8種類のグラフ', @checkExplorer);
 step('汎用回帰：GPR・重回帰・PLS・ランダムフォレスト・バギング木の比較と保存', @checkGeneric);
 step('Pro版の回帰：EBM・XGBoost・LightGBM・CatBoost・ハイパーパラメータ探索・目的変数ごとの並べ替え', @checkBoosting);
-step('炉内補間：2Run・6方式・保存', @checkFurnace);
-step('保存モデルで推定：評価つき', @checkPredict);
-step('SHAP解析：起動中のモデルを使用', @checkShapPage);
+step('Pro版のGPR：加法カーネル・質的変数（Lot）・変数重要度（Permutation Importance・VIP）', @checkProGpr);
+step('炉内補間：2Run・6方式・目的変数ごとの棒グラフ・保存', @checkFurnace);
+step('保存モデルで推定・SHAP：評価つき・SHAP依存図', @checkPredict);
+step('保存モデルで推定・SHAP：起動中のモデル・質的変数のモデル', @checkShapPage);
+step('Sobol感度解析：保存モデルの範囲から1次・全効果', @checkSobol);
+step('因果探索：PCアルゴリズムと DirectLiNGAM', @checkCausal);
+step('階層ベイズ：Lot ごとの切片と傾き', @checkBayes);
 step('実験計画：D最適・I最適・直交表・拡張と評価指標', @checkDesign);
 step('ワードクラウド：形と色', @checkWords);
 step('設定：テーマ・文字の大きさの変更で結果が消えない', @checkSettings);
 step('Help', @() app.selectPage('help'));
-step('通常版：Pro版だけの機能（周期カーネル・拡張計画・データのグラフ・回帰方式・ワードクラウド）と説明を出さない', @checkStandardEdition);
+step('通常版：Pro版だけの機能（周期カーネル・拡張計画・データのグラフ・回帰方式・加法カーネル・質的変数・Sobol・因果探索・階層ベイズ・ワードクラウド）と説明を出さない', @checkStandardEdition);
 step('細かい操作：並べ替え・書出し・CSV・ヘッダー行', @checkDetails);
 step('結果の表示と出力：横並びの散布図・SHAPの色・1ファイル出力・進捗', @checkOutputs);
 step('入力の誤りを分かる言葉で止める', @checkValidation);
@@ -295,6 +299,8 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(~isempty(page.Report), '炉内補間の結果がありません。');
         failed = page.Report.Comparison(page.Report.Comparison.Status ~= "成功", :);
         assert(isempty(failed), '失敗した方式: %s', strjoin(failed.Method + "=" + failed.Note, ' / '));
+        % 内部Slot検証のRMSEは、目的変数（膜厚・屈折率）ごとに棒グラフを分けて並べる。
+        assert(all(ismember({'内部Slot検証のRMSE：膜厚_nm', '内部Slot検証のRMSE：屈折率'}, page.Result.ChartNames)), '目的変数ごとの RMSE の棒グラフがありません。');
         report = page.saveSelectedTo(fullfile(work, 'FurnaceInterpolation_Model.mat')); assert(report.Success, '炉内モデルの保存検証に失敗しました。');
     end
     function checkPredict()
@@ -303,20 +309,99 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(isequal(page.Mapper.selection(), app.Constants.PREDICTOR_NAMES), '推定の列が自動で割り当たりません。');
         page.Actual.Value = 'CD_X'; page.run();
         output = page.Result.tableData(page.TABLE_OUTPUT);
-        expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'CD_X', 'CD_X_予測値', 'CD_X_残差'}];
+        expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'CD_X', 'CD_X_予測値', 'CD_X_残差'}, strcat('SHAP_', app.Constants.PREDICTOR_NAMES)];
         assert(isequal(output.Properties.VariableNames, expected), '推定の出力の列が想定と違います: %s', strjoin(output.Properties.VariableNames, ', '));
         assert(height(output) == size(page.Source.Data.Cells, 1) && all(isfinite(output.("CD_X_予測値"))), '推定結果が不正です。');
         assert(~isempty(page.Result.tableData('評価指標')), '実測列を選んだときは評価指標を表示します。');
+        assert(any(startsWith(page.Result.ChartNames, 'SHAP 依存')), '推定と同時に SHAP 依存図を表示します。');
+        % SHAP を外すと推定だけを行い、SHAP の列とグラフを出さない。
+        page.ComputeShap.Value = false; page.run();
+        output = page.Result.tableData(page.TABLE_OUTPUT);
+        assert(~any(startsWith(output.Properties.VariableNames, 'SHAP_')) && ~any(startsWith(page.Result.ChartNames, 'SHAP')), 'SHAP を外しても SHAP を計算しています。');
+        page.ComputeShap.Value = true;
     end
     function checkShapPage()
-        app.selectPage('shap'); page = app.page('shap');
-        [~, ids] = app.Models.list(); page.selectModel(ids(1));
-        page.Source.open(sample, 'Predict_SHAP', 1); page.run();
+        % 起動中に学習したモデル（保存していない汎用回帰の重回帰）でも SHAP 依存図を表示する。
+        app.selectPage('predict'); page = app.page('predict');
+        [labels, ids] = app.Models.list(); chosen = ids(find(contains(labels, '重回帰'), 1));
+        page.selectModel(chosen); page.Source.open(sample, 'Generic', 1); page.run();
         output = page.Result.tableData(page.TABLE_OUTPUT);
-        expected = [{'SourceRow'}, app.Constants.PREDICTOR_NAMES, {'予測値'}, strcat('SHAP_', app.Constants.PREDICTOR_NAMES)];
-        assert(isequal(output.Properties.VariableNames, expected), 'SHAPの出力の列が想定と違います: %s', strjoin(output.Properties.VariableNames, ', '));
-        assert(height(output) == size(page.Source.Data.Cells, 1), 'SHAPの出力の行数が不正です。');
-        assert(~isempty(page.Result.validCharts()), 'SHAPのグラフがありません。');
+        assert(all(ismember(strcat('SHAP_', {'X1', 'X2', 'X3'}), output.Properties.VariableNames)), '重回帰のモデルで SHAP の列がありません。');
+        assert(any(startsWith(page.Result.ChartNames, 'SHAP 依存')), '重回帰のモデルで SHAP 依存図がありません。');
+        % 質的変数を持つ Pro 版の GPR：文字の列（Lot）を学習時の水準で番号に置き換えて推定する。
+        page.openModel(pro_gpr_path); page.Source.open(sample, 'APC', 1); page.Mapper.select({'SIN_TH', 'RESIST_TH', 'Lot'});
+        page.Actual.Value = 'CD_X'; page.run();
+        output = page.Result.tableData(page.TABLE_OUTPUT);
+        assert(all(isfinite(output.("CD_X_予測値"))) && any(strcmp(page.Result.ChartNames, 'SHAP 依存: Lot')), '質的変数のモデルで推定・SHAPができません。');
+    end
+    function checkProGpr()
+        app.selectPage('generic'); page = app.page('generic');
+        assert(any(strcmp(page.Kernels.Items, 'additive')) && ~isempty(page.Qualitative), 'Pro版の汎用回帰に加法カーネルと質的変数の欄がありません。');
+        % 加法カーネルと PLS（VIP）を Generic サンプルで学習する。
+        page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1'});
+        names = fieldnames(page.Regressors);
+        for index = 1:numel(names), page.Regressors.(names{index}).Value = false; end
+        page.Regressors.gpr.Value = true; page.Regressors.pls.Value = true; page.Regressors.pls.ValueChangedFcn([], []);
+        page.Kernels.Value = {'additive'}; page.Kernels.ValueChangedFcn([], []); page.ComputeShap.Value = false;
+        before = numel(page.Records); page.runModeling(); added = page.Records(before + 1:end);
+        labels = cellfun(@(record) modeling_condition_label(record.Condition), added, 'UniformOutput', false);
+        assert(isequal(sort(labels), sort({'GPR（加法カーネル）', 'PLS（2成分）'})) && all(cellfun(@(record) strcmp(record.Status, '成功'), added)), ...
+            '加法カーネルと PLS の学習に失敗しました: %s', strjoin(labels, ', '));
+        pls = before + find(strcmp(labels, 'PLS（2成分）')); page.selectRow(pls);
+        importance = page.Result.tableData(page.TABLE_IMPORTANCE);
+        assert(height(importance) == 3 && ismember('VIP', importance.Properties.VariableNames), 'PLS の変数重要度（VIP）がありません。');
+        assert(all(ismember({page.CHART_PERMUTATION, page.CHART_VIP}, page.Result.ChartNames)), 'Permutation Importance・VIP のグラフがありません。');
+        additive = before + find(strcmp(labels, 'GPR（加法カーネル）')); page.selectRow(additive);
+        importance = page.Result.tableData(page.TABLE_IMPORTANCE);
+        assert(~ismember('VIP', importance.Properties.VariableNames) && importance.("RMSEの増加")(1) > importance.("RMSEの増加")(2), ...
+            'GPR の Permutation Importance が想定と違います（X1 が最も効くはず）。');
+        % 質的変数：APC サンプルの文字の列 Lot を質的変数として GPR を学習し、保存する。
+        page.Source.open(sample, 'APC', 1); page.selectPredictors({'SIN_TH', 'RESIST_TH', 'Lot'}); page.selectTargets({'CD_X'});
+        page.Qualitative.Value = {'Lot'}; page.Qualitative.ValueChangedFcn([], []);
+        expectAlert(@() page.runModeling(), '回帰方式は GPR だけ');
+        page.Regressors.pls.Value = false; page.Regressors.pls.ValueChangedFcn([], []);
+        page.Kernels.Value = {'additive', 'matern52'}; page.Kernels.ValueChangedFcn([], []);
+        before = numel(page.Records); page.runModeling(); added = page.Records(before + 1:end);
+        labels = cellfun(@(record) modeling_condition_label(record.Condition), added, 'UniformOutput', false);
+        assert(isequal(sort(labels), sort({'GPR（加法カーネル・質的変数）', 'GPR（ARD二乗指数×質的変数）'})) && all(cellfun(@(record) strcmp(record.Status, '成功'), added)), ...
+            '質的変数の GPR の学習に失敗しました: %s', strjoin(labels, ', '));
+        page.selectRow(before + 1); report = page.saveSelectedTo(pro_gpr_path);
+        assert(report.Success, '質的変数の GPR の保存後検証に失敗しました。');
+        loaded = load_analysis_model(pro_gpr_path);
+        assert(isequal(loaded.GPOptions.Levels{3}, "Lot-" + string(1:6)'), '保存したモデルに Lot の水準がありません。');
+        page.Qualitative.Value = {}; page.Qualitative.ValueChangedFcn([], []); page.Kernels.Value = {'squaredexponential'}; page.Kernels.ValueChangedFcn([], []);
+        % 後の確認は Generic サンプルを使うため、開き直す（学習結果の一覧は残る）。
+        page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1'});
+    end
+    function checkSobol()
+        app.selectPage('sobol'); page = app.page('sobol');
+        [~, ids] = app.Models.list(); page.selectModel(ids(end));
+        assert(strcmp(page.Ranges.Data{3, 2}, '質的') && page.Ranges.Data{3, 4} == 6, '質的変数（Lot）の範囲が水準の番号になっていません。');
+        page.SampleSize.Value = 256; page.run();
+        indices = page.Result.tableData(page.TABLE_INDICES);
+        assert(height(indices) == 3 && all(indices.ST >= -0.05) && all(indices.ST <= 1.2), 'Sobol 指数の表が不正です。');
+        assert(any(strcmp(page.Result.ChartNames, page.CHART_INDICES)), 'Sobol 指数のグラフがありません。');
+        page.setRange(1, 5, 1); expectAlert(@() page.run(), '上限は下限以上');
+    end
+    function checkCausal()
+        app.selectPage('causal'); page = app.page('causal');
+        page.Source.open(sample, 'APC', 1); page.selectColumns({'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH', 'CD_X'});
+        for method = page.METHOD_CODES
+            page.Method.Value = method{1}; page.run();
+            edges = page.Result.tableData(page.TABLE_EDGES);
+            assert(~isempty(edges) && any(edges.("先") == "CD_X" | edges.("元") == "CD_X"), '%s で CD_X につながる辺がありません。', method{1});
+            assert(any(strcmp(page.Result.ChartNames, page.CHART_GRAPH)), '因果グラフがありません。');
+        end
+        assert(~isempty(page.Result.tableData(page.TABLE_ORDER)), 'DirectLiNGAM の因果の順序がありません。');
+    end
+    function checkBayes()
+        app.selectPage('bayes'); page = app.page('bayes');
+        page.Source.open(sample, 'APC', 1); page.selectColumns('CD_X', {'RESIST_TH'}, 'Lot');
+        page.Iterations.Value = 800; page.BurnIn.Value = 300; page.run();
+        groups = page.Result.tableData(page.TABLE_GROUPS);
+        assert(height(groups) == 12 && all(isfinite(groups.("事後平均"))), 'Lot 6個 × 2項のグループごとの係数がありません。');
+        assert(page.Report.MaxRhat < 1.2, 'R-hat が大きすぎます（%.3f）。', page.Report.MaxRhat);
+        page.selectColumns('CD_X', {'CD_X'}, 'Lot'); expectAlert(@() page.run(), '別の列');
     end
     function checkDesign()
         app.selectPage('doe'); page = app.page('doe');
@@ -421,7 +506,10 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         % ワードクラウドは Pro 版だけ。通常版では設定・Help の番号を詰める。
         assert(~any(strcmp(standard.Navigation.Keys, 'words')), '通常版のメニューにワードクラウドがあります。');
         settings_button = standard.Navigation.Buttons{strcmp(standard.Navigation.Keys, 'settings')};
-        assert(strcmp(settings_button.Text, '8 設定'), '通常版の設定の番号が違います: %s', settings_button.Text);
+        assert(strcmp(settings_button.Text, '7 設定'), '通常版の設定の番号が違います: %s', settings_button.Text);
+        assert(~any(ismember({'sobol', 'causal', 'bayes', 'shap'}, standard.Navigation.Keys)), '通常版のメニューに Pro 版の画面か古い SHAP 解析の画面があります。');
+        standard_generic = standard.page('generic');
+        assert(~any(strcmp(standard_generic.Kernels.Items, 'additive')) && isempty(standard_generic.Qualitative), '通常版に加法カーネルか質的変数の欄があります。');
         % データのグラフは単変量の傾向だけ、汎用回帰は5方式（木の本数欄あり、ハイパーパラメータ欄なし）。
         explorer = standard.page('apc').Explorer;
         assert(isequal(explorer.Kind.ItemsData, {'trend'}), '通常版のグラフに Pro 版の種類があります。');
@@ -444,7 +532,8 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         expectAlert(@() page.runModeling(), '目的変数');
         swing = app.page('swing'); swing.setSwingVariables(swing.MODE_WITH, 'RESIST_TH', {});
         expectAlert(@() swing.runModeling(), '下地あり');
-        predict_page = app.page('predict'); predict_page.Mapper.select({'SIN_TH', 'SIN_TH', 'NSG_TH', 'RESIST_TH'});
+        predict_page = app.page('predict'); predict_page.openModel(apc_path); predict_page.Source.open(sample, 'Predict_SHAP', 1);
+        predict_page.Mapper.select({'SIN_TH', 'SIN_TH', 'NSG_TH', 'RESIST_TH'});
         expectAlert(@() predict_page.run(), '同じ入力列');
         furnace = app.page('furnace'); furnace.Source.open(sample, 'Furnace', 1); furnace.Wafer.Value = furnace.NONE; furnace.Wafer.ValueChangedFcn([], []);
         expectAlert(@() furnace.run(), 'WaferId');

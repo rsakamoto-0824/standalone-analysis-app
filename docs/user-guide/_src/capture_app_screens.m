@@ -2,7 +2,8 @@ function capture_app_screens(edition, only)
 % 手順書用の画面画像を、実際のアプリを同梱サンプルで操作して撮影する。
 %   capture_app_screens            配布版（通常版）の画面を撮る（利用手順書・ビルド利用手順書で使用）
 %   capture_app_screens('pro', {'56-conditions-swing', '60-period-search', '70-expanded-pro-fit', '78-doe-pro', ...
-%       '81-data-pro-sets', '82-data-pro-pca', '83-conditions-generic-pro', '84-search-results', '85-ebm-shapes', '66-wordcloud'})
+%       '81-data-pro-sets', '82-data-pro-pca', '83-conditions-generic-pro', '84-search-results', '85-ebm-shapes', '66-wordcloud', ...
+%       '88-variables-qualitative', '89-sobol', '90-causal', '91-bayes'})
 %                                  Pro版だけの画面（swingperiodic・周期の探索範囲・カーブ評価・拡張計画・データのグラフ・
 %                                  ブースティングとハイパーパラメータ探索・ワードクラウド）を撮る。only に名前を渡すと、その画像だけ保存する
 % 利用環境は Windows のため、Mac 特有の表示を画像に含めない。
@@ -86,6 +87,10 @@ generic.Regressors.forest.Value = true; generic.Regressors.bagging.Value = true;
 generic.Steps.SelectedTab = generic.StepTabs.Conditions; snap('71-conditions-generic');
 generic.runModeling(); chart_tabs = generic.Result.ChartTabs.Children;
 generic.Result.ChartTabs.SelectedTab = chart_tabs(startsWith({chart_tabs.Title}, '条件の比較')); snap('72-results-generic');
+% 変数重要度：PLS の行を選び、Permutation Importance と VIP を表示する。
+regressors = cellfun(@(record) record.Condition.Regressor, generic.Records, 'UniformOutput', false);
+generic.selectRow(find(strcmp(regressors, 'pls'), 1, 'last')); chart_tabs = generic.Result.ChartTabs.Children;
+generic.Result.ChartTabs.SelectedTab = chart_tabs(strcmp({chart_tabs.Title}, generic.CHART_VIP)); snap('87-importance');
 if strcmp(edition, 'pro')
     % Pro 版：ブースティング系の方式と、XGBoost のハイパーパラメータのグリッドサーチ。
     for name = fieldnames(generic.Regressors)', generic.Regressors.(name{1}).Value = false; end
@@ -110,14 +115,32 @@ app.selectPage('furnace'); furnace = app.page('furnace'); furnace.openSample();
 furnace.Steps.SelectedTab = furnace.StepTabs.Columns; snap('63-furnace-columns');
 furnace.Steps.SelectedTab = furnace.StepTabs.Conditions; snap('73-furnace-conditions');
 furnace.run(); snap('64-furnace-results');
+chart_tabs = furnace.Result.ChartTabs.Children; furnace.Result.ChartTabs.SelectedTab = chart_tabs(strcmp({chart_tabs.Title}, '内部Slot検証のRMSE'));
+snap('86-furnace-rmse');
 
 % --- 推定・SHAP ---
 app.selectPage('predict'); predict_page = app.page('predict');
 predict_page.openModel(model_path); predict_page.Source.open(sample, 'Predict_SHAP', 1);
 predict_page.Actual.Value = 'CD_X'; predict_page.run(); snap('61-predict');
 predict_page.Result.showTable(predict_page.TABLE_OUTPUT); snap('76-predict-output');
-app.selectPage('shap'); shap_page = app.page('shap'); [~, ids] = app.Models.list(); shap_page.selectModel(ids(1));
-shap_page.Source.open(sample, 'Predict_SHAP', 1); shap_page.run(); snap('62-shap-page');
+% 推定と SHAP は1つの画面。起動中に学習したモデルでも、SHAP の分布と依存図を表示する。
+[~, ids] = app.Models.list(); predict_page.selectModel(ids(1)); predict_page.Actual.Value = '(実測値なし)'; predict_page.run();
+chart_tabs = predict_page.Result.ChartTabs.Children;
+predict_page.Result.ChartTabs.SelectedTab = chart_tabs(find(startsWith({chart_tabs.Title}, 'SHAP 依存'), 1)); snap('62-shap-page');
+if strcmp(edition, 'pro')
+    % Pro 版：質的変数（Lot）と加法カーネルの GPR、Sobol 感度解析・因果探索・階層ベイズ。
+    app.selectPage('generic'); generic.Source.open(sample, 'APC', 1); generic.selectPredictors({'SIN_TH', 'RESIST_TH', 'Lot'});
+    generic.selectTargets({'CD_X'}); generic.Qualitative.Value = {'Lot'}; generic.Qualitative.ValueChangedFcn([], []);
+    generic.Steps.SelectedTab = generic.StepTabs.Variables; snap('88-variables-qualitative');
+    for name = fieldnames(generic.Regressors)', generic.Regressors.(name{1}).Value = false; end
+    generic.Regressors.gpr.Value = true; generic.Kernels.Value = {'additive'}; generic.Kernels.ValueChangedFcn([], []);
+    generic.ComputeShap.Value = false; generic.runModeling();
+    app.selectPage('sobol'); sobol = app.page('sobol'); [~, ids] = app.Models.list(); sobol.selectModel(ids(end)); sobol.run(); snap('89-sobol');
+    app.selectPage('causal'); causal = app.page('causal'); causal.Source.open(sample, 'APC', 1);
+    causal.selectColumns({'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH', 'CD_X'}); causal.Method.Value = 'lingam'; causal.run(); snap('90-causal');
+    app.selectPage('bayes'); bayes = app.page('bayes'); bayes.Source.open(sample, 'APC', 1);
+    bayes.selectColumns('CD_X', {'RESIST_TH'}, 'Lot'); bayes.run(); snap('91-bayes');
+end
 
 % --- 実験計画・ワードクラウド・設定・Help ---
 app.selectPage('doe'); design = app.page('doe'); design.run(); design.Result.showCharts(); snap('65-doe');
