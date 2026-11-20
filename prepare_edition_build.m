@@ -3,8 +3,12 @@ function manifest = prepare_edition_build(project_root, edition, staging)
 if ~any(strcmp(edition, {'standard', 'pro'})), error('build:edition', 'standard または pro を指定してください。'); end
 if isfolder(staging) && numel(dir(staging)) > 2, error('build:staging', '隔離先は空のフォルダを指定してください。'); end
 if ~isfolder(staging), mkdir(staging); end
+% Pro 版だけの機能のファイル。通常版では呼ばれない（画面に出さず、呼ばれても require_pro_feature で止まる）ため、通常版の exe には含めない。
 pro_files = {'app/SwingCurveView.m', 'core/fit_swing_curve.m', 'core/fit_swing_spline.m', ...
-    'core/swing_curve_values.m', 'core/swing_curve_extrema.m', 'core/swing_spline_extrema.m', 'core/swing_residual_diagnostics.m'};
+    'core/swing_curve_values.m', 'core/swing_curve_extrema.m', 'core/swing_spline_extrema.m', 'core/swing_residual_diagnostics.m', ...
+    'core/GradientBoostedTrees.m', 'core/ExplainableBoostingModel.m', 'core/boosting_bins.m', 'core/search_hyperparameters.m', ...
+    'app/HyperparameterEditor.m', 'core/category_flow_layout.m', 'app/plot_category_flows.m', 'core/calc_anova_summary.m', ...
+    'core/calc_pca_summary.m', 'core/calc_cluster_summary.m', 'app/WordCloudPage.m', 'core/create_wordCloud.m'};
 files = {};
 for folder = {'app', 'core'}
     entries = dir(fullfile(project_root, folder{1}, '*'));

@@ -7,6 +7,8 @@ classdef ModelingPage < AppPage
         StepTabs = struct()
         Source
         Preview
+        DataTabs
+        Explorer
         Targets
         Mapper = []
         SwingMode = []
@@ -20,6 +22,7 @@ classdef ModelingPage < AppPage
         Regressors = struct()
         PlsComponents = []
         TreeCount = []
+        Hyper = []
         Kernels
         FitInfo
         Period = struct()
@@ -36,6 +39,8 @@ classdef ModelingPage < AppPage
         Records = {}
         SelectedRow = 0
         RunSequence = 0
+        % 一覧の表示順（表示の行 → Records の番号）。目的変数ごとに、実行・精度の順位の順で並べる。
+        RowOrder = []
     end
     properties (Access = private)
         SelectedOrderRow = 0
@@ -54,6 +59,14 @@ classdef ModelingPage < AppPage
         CHART_PERIOD = '周期探索（周辺尤度）'
         TABLE_VERIFICATION = '保存後検証'
         TABLE_OUTPUT = '予測・SHAPの出力（入力と並べた表）'
+        TABLE_SEARCH = 'ハイパーパラメータ探索'
+        TABLE_HYPERPARAMETERS = 'ハイパーパラメータ'
+        CHART_SEARCH_TRACE = '探索の推移'
+        CHART_SEARCH_EFFECT = 'パラメータと精度'
+        CHART_EBM_SHAPES = 'EBMの形（各変数の効果）'
+        REGRESSOR_LABELS = struct('gpr', 'ガウス過程回帰（GPR）', 'linear', '重回帰', 'pls', 'PLS回帰', 'forest', 'ランダムフォレスト', ...
+            'bagging', 'バギング木', 'ebm', 'EBM（GA2M）', 'xgboost', 'XGBoost', 'lightgbm', 'LightGBM', 'catboost', 'CatBoost')
+        MAX_SHAPE_CHARTS = 9
         OUTPUT_FILE_PREFIX = 'Prediction_SHAP'
     end
     methods
@@ -238,10 +251,15 @@ classdef ModelingPage < AppPage
             AppPage.hint(grid, ['学習に使う Excel（.xlsx）または CSV を開きます。1行目が列名でない場合は「ヘッダー行」を変更してください。' ...
                 '数値の列だけを学習に使用でき、空欄を含む行があると確認時にお知らせします。']);
             page.Source = DataSourceControl(page, grid);
-            page.Preview = uitable(grid, 'RowName', 'numbered');
+            % 読み込んだデータは、表で中身を確かめるタブと、グラフで傾向を確かめるタブに分けて表示する。
+            page.DataTabs = uitabgroup(grid);
+            table_tab = uitab(page.DataTabs, 'Title', 'データの表'); holder = uigridlayout(table_tab, [1, 1]); holder.Padding = [4, 4, 4, 4];
+            page.Preview = uitable(holder, 'RowName', 'numbered');
+            chart_tab = uitab(page.DataTabs, 'Title', 'グラフで傾向を見る');
+            page.Explorer = DataExplorer(page, chart_tab, page.isPro());
             page.Source.PreviewTable = page.Preview; page.Source.LoadedFcn = @(data) page.dataLoaded(data);
             row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {'1x', 190, 220};
-            uilabel(row, 'Text', sprintf('表は先頭%d行の表示です。学習には全行を使用します。', DataSourceControl.PREVIEW_ROWS));
+            uilabel(row, 'Text', sprintf('表は先頭%d行の表示です。学習には全行を使用します。「グラフで傾向を見る」で列の傾向を確認できます。', DataSourceControl.PREVIEW_ROWS));
             uibutton(row, 'Text', 'サンプルデータを開く', 'ButtonPushedFcn', @(~, ~) page.openSample(), ...
                 'Tooltip', '同梱の合成データ（samples フォルダ）を開いて操作を試せます。');
             AppPage.primaryButton(row, '次へ：② 変数を選ぶ ▶', @(~, ~) page.goTo('Variables'));
@@ -309,10 +327,20 @@ classdef ModelingPage < AppPage
         end
         function buildConditionStep(page)
             tab = uitab(page.Steps, 'Title', '③ 条件を決めて実行'); page.StepTabs.Conditions = tab;
+            with_hyper = strcmp(page.Kind, 'generic') && page.isPro();
             grid = uigridlayout(tab, [2, 2]); grid.RowHeight = {'1x', 44}; grid.ColumnWidth = {'1x', '1x'};
-            page.buildModelConditions(AppPage.section(grid, 'モデルの条件'));
+            if with_hyper, grid.RowHeight = {225, '1x', 44}; end
+            left = AppPage.section(grid, 'モデルの条件'); page.buildModelConditions(left);
             page.buildEvaluationConditions(AppPage.section(grid, '評価とSHAPの条件'));
-            bottom = uigridlayout(grid, [1, 2]); bottom.Layout.Row = 2; bottom.Layout.Column = [1, 2];
+            if with_hyper
+                % Pro 版の汎用回帰：木・ブースティング系の方式のハイパーパラメータを調整し、グリッド／ランダムサーチで探索する。
+                % 左の「モデルの条件」は上下いっぱいに使い、右の評価の条件の下にハイパーパラメータを置く。
+                left.Layout.Row = [1, 2];
+                section = AppPage.section(grid, 'ハイパーパラメータ（Pro版）');
+                section.Layout.Row = 2; section.Layout.Column = 2;
+                page.Hyper = HyperparameterEditor(page, section); page.Hyper.ChangedFcn = @() page.conditionsChanged();
+            end
+            bottom = uigridlayout(grid, [1, 2]); bottom.Layout.Row = numel(grid.RowHeight); bottom.Layout.Column = [1, 2];
             bottom.Padding = [0, 0, 0, 0]; bottom.ColumnWidth = {'1x', 280};
             page.Plan = AppPage.stateLabel(bottom);
             page.RunButton = AppPage.primaryButton(bottom, 'モデリング・SHAP評価を実行', @(~, ~) page.runModeling());
@@ -327,28 +355,39 @@ classdef ModelingPage < AppPage
             end
             if ~any(strcmp(kernels, default_kernel)), default_kernel = constants.DEFAULT_KERNEL; end
             heights = {22, 190, 44};
-            if strcmp(page.Kind, 'generic'), heights = [{22, 30, 30, 30, 30}, heights]; end
+            if strcmp(page.Kind, 'generic')
+                % 通常版：GPR・重回帰・PLS・ランダムフォレスト・バギング木（木の本数を入力）。
+                % Pro 版：さらに EBM・XGBoost・LightGBM・CatBoost。木の本数などは下の「ハイパーパラメータ」で調整する。
+                layout = {'gpr', 'linear', 'pls'; 'forest', 'bagging', ''};
+                if page.isPro(), layout = {'gpr', 'linear', 'pls'; 'forest', 'bagging', 'ebm'; 'xgboost', 'lightgbm', 'catboost'}; end
+                rows = size(layout, 1); extra = {30}; if ~page.isPro(), extra = {30, 30}; end
+                heights = [{22}, repmat({26}, 1, rows), extra, {22, '1x', 44}];
+            end
             grid = uigridlayout(parent, [numel(heights) + 1, 1]); grid.RowHeight = [heights, {'1x'}];
+            % 汎用回帰ではカーネルの一覧を残りの高さいっぱいに広げるため、最後の空き行は使わない。
+            if strcmp(page.Kind, 'generic'), grid.RowHeight{end} = 0; end
             if strcmp(page.Kind, 'generic')
                 uilabel(grid, 'Text', '回帰方式（複数選ぶと比較します）', 'FontWeight', 'bold');
-                row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0];
-                page.Regressors.gpr = page.regressorBox(row, 'ガウス過程回帰（GPR）', true);
-                page.Regressors.linear = page.regressorBox(row, '重回帰', false);
-                page.Regressors.pls = page.regressorBox(row, 'PLS回帰', false);
-                row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0];
-                page.Regressors.forest = page.regressorBox(row, 'ランダムフォレスト', false);
-                page.Regressors.bagging = page.regressorBox(row, 'バギング木', false);
-                uilabel(row, 'Text', '');
+                for line = 1:rows
+                    row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0];
+                    for column = 1:3
+                        name = layout{line, column};
+                        if isempty(name), uilabel(row, 'Text', ''); continue; end
+                        page.Regressors.(name) = page.regressorBox(row, page.REGRESSOR_LABELS.(name), strcmp(name, 'gpr'));
+                    end
+                end
                 row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, 90, '1x'};
                 [~, page.PlsComponents] = AppPage.numberField(row, 'PLSの成分数', 2, [1, 100], true);
                 page.PlsComponents.Enable = 'off'; page.PlsComponents.ValueChangedFcn = @(~, ~) page.conditionsChanged();
                 uilabel(row, 'Text', '（説明変数の数以下）');
-                row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, 90, '1x'};
-                limits = ProcessRegressionModel.TREE_LIMITS;
-                [~, page.TreeCount] = AppPage.numberField(row, '木の本数', ProcessRegressionModel.DEFAULT_TREES, limits, true);
-                page.TreeCount.Enable = 'off'; page.TreeCount.ValueChangedFcn = @(~, ~) page.conditionsChanged();
-                uilabel(row, 'Text', sprintf('（%d〜%d。2方式で共通）', limits(1), limits(2)), ...
-                    'Tooltip', 'ランダムフォレスト・バギング木で共通の木の本数です。多いほど予測が安定し、学習に時間がかかります。');
+                if ~page.isPro()
+                    row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, 90, '1x'};
+                    limits = ProcessRegressionModel.TREE_LIMITS;
+                    [~, page.TreeCount] = AppPage.numberField(row, '木の本数', ProcessRegressionModel.DEFAULT_TREES, limits, true);
+                    page.TreeCount.Enable = 'off'; page.TreeCount.ValueChangedFcn = @(~, ~) page.conditionsChanged();
+                    uilabel(row, 'Text', sprintf('（%d〜%d。2方式で共通）', limits(1), limits(2)), ...
+                        'Tooltip', 'ランダムフォレスト・バギング木で共通の木の本数です。多いほど予測が安定し、学習に時間がかかります。');
+                end
             end
             uilabel(grid, 'Text', 'GPRのカーネル（複数選ぶと比較します。Ctrl キーを押しながら複数選択）', 'FontWeight', 'bold');
             page.Kernels = uilistbox(grid, 'Items', kernels, 'Value', {default_kernel}, 'Multiselect', 'on', ...
@@ -441,7 +480,7 @@ classdef ModelingPage < AppPage
                     set(page.Predictors, 'Items', headers, 'Value', kept, 'Enable', 'on');
                     page.Order = page.Order(ismember(page.Order, kept));
             end
-            page.variablesChanged();
+            page.variablesChanged(); page.Explorer.setData(data);
             page.message(sprintf('%s を読み込みました（%d行）。次に「② 変数を選ぶ」で目的変数と説明変数を選びます。', ...
                 page.Source.fileName(), size(data.Cells, 1)));
         end
@@ -540,14 +579,21 @@ classdef ModelingPage < AppPage
 
         % ================= ③ 条件 =================
         function conditionsChanged(page)
-            enabled = matlab.lang.OnOffSwitchState(page.UseCrossValidation.Value);
+            if isempty(page.UseCrossValidation), return; end
+            % 分割数と乱数seedは、交差検証で評価するときと、ハイパーパラメータを探索するときに使う。
+            enabled = matlab.lang.OnOffSwitchState(page.UseCrossValidation.Value || page.isSearching());
             page.Folds.Enable = enabled; page.Seed.Enable = enabled;
             if strcmp(page.Kind, 'generic')
                 page.PlsComponents.Enable = matlab.lang.OnOffSwitchState(page.Regressors.pls.Value);
-                page.TreeCount.Enable = matlab.lang.OnOffSwitchState(page.Regressors.forest.Value || page.Regressors.bagging.Value);
+                if ~isempty(page.TreeCount)
+                    page.TreeCount.Enable = matlab.lang.OnOffSwitchState(page.Regressors.forest.Value || page.Regressors.bagging.Value);
+                end
                 page.Kernels.Enable = matlab.lang.OnOffSwitchState(page.Regressors.gpr.Value);
             end
             page.refreshPlan();
+        end
+        function searching = isSearching(page)
+            searching = ~isempty(page.Hyper) && ~strcmp(page.Hyper.mode(), 'none');
         end
         function periodChanged(page)
             % 表示も学習と同じ swing_period_options で求める（式を1か所にまとめる）。
@@ -568,6 +614,7 @@ classdef ModelingPage < AppPage
             regressors = {'gpr'};
             if ~strcmp(page.Kind, 'generic'), return; end
             names = [{'gpr'}, ProcessRegressionModel.METHODS];
+            names = names(cellfun(@(name) isfield(page.Regressors, name), names));
             regressors = names(cellfun(@(name) page.Regressors.(name).Value, names));
         end
         function conditions = conditions(page, predictor_count)
@@ -578,14 +625,20 @@ classdef ModelingPage < AppPage
             if ~page.isPro() && any(strcmpi(kernels, 'swingperiodic'))
                 error('modeling:proOnly', 'swingperiodic は Pro 版だけで使えるカーネルです。');
             end
-            components = 2; trees = ProcessRegressionModel.DEFAULT_TREES;
+            components = 2; trees = ProcessRegressionModel.DEFAULT_TREES; parameters = struct(); search = [];
             if strcmp(page.Kind, 'generic')
-                components = page.PlsComponents.Value; trees = page.TreeCount.Value;
+                components = page.PlsComponents.Value;
+                if ~isempty(page.TreeCount), trees = page.TreeCount.Value; end
                 if any(strcmp(regressors, 'pls')) && components > predictor_count
                     error('modeling:components', 'PLSの成分数（%d）は説明変数の数（%d）以下にしてください。', components, predictor_count);
                 end
+                if ~isempty(page.Hyper)
+                    tunable = intersect(regressors, ProcessRegressionModel.TUNABLE_METHODS, 'stable');
+                    for index = 1:numel(tunable), parameters.(tunable{index}) = page.Hyper.parameters(tunable{index}); end
+                    search = page.Hyper.searchSpec(page.Folds.Value, page.Seed.Value);
+                end
             end
-            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components, trees);
+            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components, trees, parameters, search);
         end
         function count = conditionCount(page)
             regressors = page.selectedRegressors(); count = numel(regressors);
@@ -609,7 +662,7 @@ classdef ModelingPage < AppPage
             box = uicheckbox(parent, 'Text', text, 'Value', value, 'ValueChangedFcn', @(~, ~) page.conditionsChanged());
         end
         function text = fitMethodText(page)
-            text = sprintf('GPRの Fit method: %s（変更は「9 設定」で行います。全GPR共通）', page.settings().FitMethod);
+            text = sprintf('GPRの Fit method: %s（変更は「%s」で行います。全GPR共通）', page.settings().FitMethod, AnalysisController.settingsTitle(page.App.Edition));
         end
         function refreshPlan(page)
             if isempty(page.Plan), return; end
@@ -621,8 +674,15 @@ classdef ModelingPage < AppPage
             evaluation = '交差検証は使わず、学習データでの当てはまりで評価';
             if folds >= 2, evaluation = sprintf('%d分割の交差検証で評価', folds); end
             shap = 'SHAPは計算しない'; if page.ComputeShap.Value, shap = 'SHAPも計算'; end
-            page.setState(page.Plan, sprintf('目的変数 %d列 × 条件 %d = %d モデルを学習します。%s、%s。', ...
-                targets, count, targets * count, evaluation, shap), true);
+            search = '';
+            if page.isSearching()
+                trials = cellfun(@(name) page.Hyper.trialCount(name), intersect(page.selectedRegressors(), ProcessRegressionModel.TUNABLE_METHODS));
+                if any(trials > 0)
+                    search = sprintf(' ハイパーパラメータは合計%d通りを%d分割の交差検証で探索します（時間がかかります）。', sum(trials), page.Folds.Value);
+                end
+            end
+            page.setState(page.Plan, sprintf('目的変数 %d列 × 条件 %d = %d モデルを学習します。%s、%s。%s', ...
+                targets, count, targets * count, evaluation, shap, search), true);
         end
         function reportProgress(~, dialog, event, started)
             [fraction, summary] = format_progress(event.Done, event.Total, toc(started));
@@ -708,18 +768,32 @@ classdef ModelingPage < AppPage
             end
         end
         function refreshModelTable(page)
+            % 目的変数ごとにまとめ、その中は実行の順、同じ実行の中は精度の順位（RMSEの小さい順。失敗は最後）で並べる。
             count = numel(page.Records); rows = cell(count, 14); ranks = page.ranks();
-            for index = 1:count
-                record = page.Records{index}; r2 = NaN; rmse = NaN;
+            page.RowOrder = page.displayOrder(ranks);
+            for position = 1:count
+                index = page.RowOrder(position); record = page.Records{index}; r2 = NaN; rmse = NaN;
                 if ~isempty(record.Metrics), r2 = record.Metrics.Value(1); rmse = record.Metrics.Value(2); end
                 saved = ''; if ~isempty(record.SavedPath), [~, base, extension] = fileparts(record.SavedPath); saved = [base extension]; end
-                rows(index, :) = {record.Id, record.Run, record.Target, modeling_condition_label(record.Condition), ranks(index), r2, rmse, ...
+                rows(position, :) = {record.Id, record.Run, record.Target, modeling_condition_label(record.Condition), ranks(index), r2, rmse, ...
                     record.Scope, record.ShapStatus, record.Status, saved, strjoin(record.InputNames, ', '), ...
                     page.fileNameOf(record.Source), record.Note};
             end
             page.ModelTable.Data = cell2table(rows, 'VariableNames', ...
                 {'ID', '実行', '目的変数', 'モデル', '順位', 'R2', 'RMSE', '評価データ', 'SHAP', '状態', '保存先', '説明変数', '入力ファイル', '備考'});
             page.ModelTable.ColumnWidth = {40, 44, 90, 150, 44, 80, 90, 120, 60, 54, 150, 200, 160, 'auto'};
+        end
+        function order = displayOrder(page, ranks)
+            % 表示順：目的変数（最初に現れた順）→ 実行 → 順位（失敗は最後）→ 元の順。
+            count = numel(page.Records); keys = zeros(count, 4); targets = strings(count, 1);
+            for index = 1:count, targets(index) = string(page.Records{index}.Target); end
+            [~, first_seen] = unique(targets, 'stable'); target_order = zeros(count, 1);
+            for group = 1:numel(first_seen), target_order(targets == targets(first_seen(group))) = group; end
+            for index = 1:count
+                rank = ranks(index); if isnan(rank), rank = Inf; end
+                keys(index, :) = [target_order(index), page.Records{index}.Run, rank, index];
+            end
+            [~, order] = sortrows(keys); order = order(:)';
         end
         function ranks = ranks(page)
             % 同じ実行・同じ目的変数の中で、RMSEの小さい順に順位を付ける。
@@ -735,15 +809,18 @@ classdef ModelingPage < AppPage
             end
         end
         function modelRowSelected(page, event)
-            if isempty(event.Indices), return; end
-            row = event.Indices(1, 1);
+            % 一覧は並べ替えて表示しているため、表示の行から Records の番号へ戻す。
+            if isempty(event.Indices) || event.Indices(1, 1) > numel(page.RowOrder), return; end
+            row = page.RowOrder(event.Indices(1, 1));
             if row ~= page.SelectedRow, page.selectRow(row); end
         end
         function highlightSelectedRow(page)
             removeStyle(page.ModelTable);
             if page.SelectedRow >= 1 && page.SelectedRow <= numel(page.Records)
+                shown = find(page.RowOrder == page.SelectedRow, 1);
+                if isempty(shown), return; end
                 addStyle(page.ModelTable, uistyle('BackgroundColor', page.SELECTED_ROW_COLOR, 'FontColor', [0, 0, 0], 'FontWeight', 'bold'), ...
-                    'row', page.SelectedRow);
+                    'row', shown);
             end
         end
         function [record, row] = selectedRecord(page)
@@ -779,7 +856,12 @@ classdef ModelingPage < AppPage
             panel.setTable(page.TABLE_OUTPUT, page.outputTable(record));
             panel.setTable('列の要約', summarize_model_columns([record.Inputs, actual, predicted, residual], ...
                 [string(record.InputNames), "Actual", "Predicted", "Residual"]));
-            if ~isempty(record.Details), page.showPeriodSearch(record.Details); end
+            if isstruct(record.Details) && isfield(record.Details, 'Trace'), page.showPeriodSearch(record.Details); end
+            if isstruct(record.Details) && isfield(record.Details, 'SearchTrace'), page.showSearch(record.Details); end
+            if isa(record.Model, 'ProcessRegressionModel') && ~isempty(fieldnames(record.Model.Hyperparameters))
+                panel.setTable(page.TABLE_HYPERPARAMETERS, page.hyperparameterTable(record));
+            end
+            if isa(record.Model, 'ProcessRegressionModel') && strcmp(record.Model.Method, 'ebm'), page.showEbmShapes(record.Model); end
             if ~isempty(record.Shap)
                 page.showShap(record);
             end
@@ -820,6 +902,69 @@ classdef ModelingPage < AppPage
             xlabel(ax, '周期（nm）'); ylabel(ax, details.Criterion);
             title(ax, sprintf('採用した周期 %.6g nm（尤度が最も大きい候補）', details.Period));
             legend(ax, 'Location', 'best'); grid(ax, 'on');
+        end
+        function output = hyperparameterTable(~, record)
+            % 学習に使ったハイパーパラメータ（探索した項目は採用した値）。
+            model = record.Model; specs = hyperparameter_specs(model.Method); searched = strings(0, 1);
+            if isstruct(record.Details) && isfield(record.Details, 'SearchParameters'), searched = string({record.Details.SearchParameters.Name}); end
+            labels = string({specs.Label})'; values = arrayfun(@(spec) model.Hyperparameters.(spec.Name), specs);
+            how = repmat("指定値", numel(specs), 1); how(ismember(string({specs.Name}), searched)) = "探索で採用";
+            output = table(labels, values(:), how, string({specs.Description})', 'VariableNames', {'パラメータ', '値', '決め方', '説明'});
+        end
+        function showSearch(page, details)
+            % ハイパーパラメータ探索の結果：試行ごとの表、試行順の RMSE と最良の推移、各パラメータと RMSE の関係。
+            panel = page.Result; trace = details.SearchTrace; panel.setTable(page.TABLE_SEARCH, trace);
+            ok = trace.("状態") == "成功"; modes = struct('grid', 'グリッドサーチ', 'random', 'ランダムサーチ');
+            ax = panel.addAxes(page.CHART_SEARCH_TRACE); hold(ax, 'on');
+            scatter(ax, trace.("試行")(ok), trace.CV_RMSE(ok), 36, 'filled', 'DisplayName', '各試行');
+            stairs(ax, trace.("試行"), trace.("それまでの最良RMSE"), 'LineWidth', 1.8, 'DisplayName', 'それまでの最良');
+            chosen = trace.("採用");
+            scatter(ax, trace.("試行")(chosen), trace.CV_RMSE(chosen), 120, 'p', 'filled', 'DisplayName', '採用した値');
+            xlabel(ax, '試行の順番'); ylabel(ax, sprintf('交差検証の RMSE（%d分割）', details.SearchFolds)); grid(ax, 'on');
+            legend(ax, 'Location', 'best');
+            title(ax, sprintf('%s の推移（%d試行。小さいほど良い）', modes.(details.SearchMode), height(trace))); hold(ax, 'off');
+            % 各パラメータの値と RMSE を並べた図（パネル）。1つの図としても、1枚ずつでも書き出せる。
+            labels = {details.SearchParameters.Label}; count = numel(labels);
+            tab = panel.addChartTab(page.CHART_SEARCH_EFFECT); holder = uigridlayout(tab, [1, 1]); holder.Padding = [4, 4, 4, 4];
+            container = uipanel(holder, 'BorderType', 'none');
+            columns = min(count, 3); plots = uigridlayout(container, [ceil(count / columns), columns]); plots.Padding = [0, 0, 0, 0];
+            charts = {container}; names = {page.CHART_SEARCH_EFFECT};
+            for index = 1:count
+                ax = uiaxes(plots); values = trace.(labels{index});
+                scatter(ax, values(ok), trace.CV_RMSE(ok), 36, 'filled'); hold(ax, 'on');
+                % 同じ値の試行の中で最も良い RMSE を線で結び、値による傾向を見やすくする。
+                levels = unique(values(ok)); best = arrayfun(@(level) min(trace.CV_RMSE(ok & values == level)), levels);
+                plot(ax, levels, best, '-', 'LineWidth', 1.5); hold(ax, 'off');
+                if numel(levels) > 2 && all(levels > 0) && max(levels) / min(levels) >= 50, ax.XScale = 'log'; end
+                xlabel(ax, labels{index}, 'Interpreter', 'none'); ylabel(ax, 'CV RMSE'); grid(ax, 'on');
+                title(ax, labels{index}, 'Interpreter', 'none');
+                charts{end + 1} = ax; names{end + 1} = sprintf('%s：%s', page.CHART_SEARCH_EFFECT, labels{index}); %#ok<AGROW>
+            end
+            panel.registerCharts(charts, names);
+        end
+        function showEbmShapes(page, model)
+            % EBM は各説明変数の効果（形状関数）と、選ばれた交互作用の組の効果をそのまま図にできる。
+            booster = model.Booster; count = min(numel(model.PredictorNames), page.MAX_SHAPE_CHARTS);
+            tab = page.Result.addChartTab(page.CHART_EBM_SHAPES); holder = uigridlayout(tab, [1, 1]); holder.Padding = [4, 4, 4, 4];
+            container = uipanel(holder, 'BorderType', 'none'); total = count + size(booster.Pairs, 1);
+            columns = min(total, 3); plots = uigridlayout(container, [ceil(total / columns), columns]); plots.Padding = [0, 0, 0, 0];
+            charts = {container}; names = {page.CHART_EBM_SHAPES};
+            for feature = 1:count
+                ax = uiaxes(plots); [positions, values] = booster.shape(feature);
+                stairs(ax, positions, values, 'LineWidth', 1.8); yline(ax, 0, ':');
+                xlabel(ax, model.PredictorNames{feature}, 'Interpreter', 'none'); ylabel(ax, '予測への効果'); grid(ax, 'on');
+                title(ax, sprintf('f(%s)', model.PredictorNames{feature}), 'Interpreter', 'none');
+                charts{end + 1} = ax; names{end + 1} = sprintf('EBMの形：%s', model.PredictorNames{feature}); %#ok<AGROW>
+            end
+            for pair = 1:size(booster.Pairs, 1)
+                ax = uiaxes(plots); first = booster.Pairs(pair, 1); second = booster.Pairs(pair, 2);
+                imagesc(ax, booster.PairTerms{pair}'); colorbar(ax); ax.YDir = 'normal';
+                xlabel(ax, sprintf('%s の区間', model.PredictorNames{first}), 'Interpreter', 'none');
+                ylabel(ax, sprintf('%s の区間', model.PredictorNames{second}), 'Interpreter', 'none');
+                title(ax, sprintf('交互作用 f(%s, %s)', model.PredictorNames{first}, model.PredictorNames{second}), 'Interpreter', 'none');
+                charts{end + 1} = ax; names{end + 1} = sprintf('EBMの交互作用：%s × %s', model.PredictorNames{first}, model.PredictorNames{second}); %#ok<AGROW>
+            end
+            page.Result.registerCharts(charts, names);
         end
         function output = outputTable(~, record)
             % 元データの説明変数（入力ファイルの列名）・目的変数と、予測値・残差・SHAP値を1つの表へまとめる。

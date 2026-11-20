@@ -10,7 +10,16 @@ switch kind
     case 'generic'
         if isfield(condition,'Regressor') && ~strcmp(condition.Regressor,'gpr')
             trees=ProcessRegressionModel.DEFAULT_TREES; if isfield(condition,'Trees'), trees=condition.Trees; end
-            model=ProcessRegressionModel(inputs,response,names,condition.Regressor,condition.Components,trees); warnings=strings(0,1);
+            parameters=struct(); if isfield(condition,'Parameters') && ~isempty(condition.Parameters), parameters=condition.Parameters; end
+            if isfield(condition,'Search') && ~isempty(condition.Search)
+                % ハイパーパラメータの探索（Pro 版）。交差検証で候補を比べ、最も良い値で学習し直す。
+                require_pro_feature('ハイパーパラメータの探索');
+                [parameters, trace, searched] = search_hyperparameters(inputs, response, names, condition.Regressor, ...
+                    condition.Components, parameters, condition.Search, progress);
+                details = struct('SearchTrace', trace, 'SearchMode', condition.Search.Mode, 'SearchFolds', condition.Search.Folds, ...
+                    'SearchParameters', searched, 'BestParameters', parameters);
+            end
+            model=ProcessRegressionModel(inputs,response,names,condition.Regressor,condition.Components,trees,parameters); warnings=strings(0,1);
         else
             [model, warnings] = train_generic_gpr_model(inputs, response, condition.Kernel, condition.FitMethod);
         end

@@ -8,7 +8,6 @@ classdef DesignPage < AppPage
         Factors
         Levels
         Runs
-        SeedInfo
         ExistingPanel = []
         Source = []
         Mapper = []
@@ -29,7 +28,9 @@ classdef DesignPage < AppPage
         MAX_RUNS = 300
         TABLE_DESIGN = '実験計画'
         TABLE_DEPENDENCY = '交絡の線形関係'
+        TABLE_METRICS = '計画の評価指標'
         CHART_CONFOUNDING = '交絡の可視化'
+        CHART_VARIANCE = '予測分散の分布（FDS）'
     end
     methods
         function page = DesignPage(app, parent)
@@ -61,24 +62,21 @@ classdef DesignPage < AppPage
                 dialog = page.App.startProgress('実験計画作成', '計画を探索しています。');
                 [design, details] = create_experiment_design(page.METHOD_CODES{choice}, factors, page.Runs.Value, settings.Seed, ...
                     model, str2double(page.Levels.Value), existing);
-                report = design_diagnostics(design, model);
+                report = design_diagnostics(design, model); metrics = design_metrics(design, model);
                 AnalysisController.closeProgress(dialog);
-                page.showDesign(design, details, report);
+                page.showDesign(design, details, report, metrics);
             catch err
                 AnalysisController.closeProgress(dialog); page.showError(err);
             end
-        end
-        function onSettingsChanged(page)
-            page.SeedInfo.Text = page.seedText();
         end
     end
     methods (Access = private)
         function buildInputs(page)
             settings = page.settings();
-            left = uigridlayout(page.Body, [3, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {250, '1x', 38};
-            if ~page.IsPro, left.RowHeight = {250, 38, '1x'}; end
+            left = uigridlayout(page.Body, [3, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {220, '1x', 38};
+            if ~page.IsPro, left.RowHeight = {220, 38, '1x'}; end
             panel = AppPage.section(left, '① 計画の条件');
-            grid = uigridlayout(panel, [6, 2]); grid.RowHeight = {30, 30, 30, 30, 30, 30}; grid.ColumnWidth = {170, '1x'};
+            grid = uigridlayout(panel, [5, 2]); grid.RowHeight = {30, 30, 30, 30, 30}; grid.ColumnWidth = {170, '1x'};
             uilabel(grid, 'Text', '方式');
             methods_shown = page.METHODS(~page.AUGMENTED | page.IsPro);
             page.Method = uidropdown(grid, 'Items', methods_shown, 'ValueChangedFcn', @(~, ~) page.methodChanged());
@@ -90,7 +88,6 @@ classdef DesignPage < AppPage
             page.Levels = uidropdown(grid, 'Items', page.LEVEL_CHOICES, 'Value', page.DEFAULT_LEVELS);
             runs_label = '実験数'; if page.IsPro, runs_label = '実験数（拡張では追加数）'; end
             [~, page.Runs] = AppPage.numberField(grid, runs_label, settings.Runs, [1, page.MAX_RUNS], true);
-            page.SeedInfo = uilabel(grid, 'Text', page.seedText()); page.SeedInfo.Layout.Column = [1, 2];
 
             if ~page.IsPro
                 page.RunButton = AppPage.primaryButton(left, '実験計画を作成', @(~, ~) page.run());
@@ -105,9 +102,6 @@ classdef DesignPage < AppPage
             page.Mapper = ColumnMapper(holder);
             page.ClearButton = uibutton(grid, 'Text', '既存の計画を解除', 'ButtonPushedFcn', @(~, ~) page.clearExisting());
             page.RunButton = AppPage.primaryButton(left, '実験計画を作成', @(~, ~) page.run());
-        end
-        function text = seedText(page)
-            text = sprintf('乱数seed: %d（変更は「9 設定」で行います）', page.settings().Seed);
         end
         function methodChanged(page)
             choice = find(strcmp(page.METHODS, page.Method.Value), 1);
@@ -129,7 +123,7 @@ classdef DesignPage < AppPage
         function clearExisting(page)
             page.Source.clear(); page.refreshRoles(); page.message('既存の計画を解除しました。');
         end
-        function showDesign(page, design, details, report)
+        function showDesign(page, design, details, report, metrics)
             panel = page.Result; panel.clear();
             output = array2table(design, 'VariableNames', cellstr("F" + string(1:size(design, 2))));
             kind = repmat("追加", size(design, 1), 1); kind(1:details.FixedRows) = "既存";
@@ -137,6 +131,7 @@ classdef DesignPage < AppPage
             % 既存・追加の区別は拡張計画（Pro 版）のときだけ意味を持つ。
             if ~page.IsPro, output = removevars(output, 'Type'); end
             panel.setTable(page.TABLE_DESIGN, output);
+            panel.setTable(page.TABLE_METRICS, metrics.Table);
             if ~isempty(report.Dependencies)
                 columns = cellstr("関係" + string(1:size(report.Dependencies, 2)));
                 panel.setTable(page.TABLE_DEPENDENCY, array2table(report.Dependencies, 'VariableNames', columns, 'RowNames', cellstr(report.Names)));
@@ -147,13 +142,23 @@ classdef DesignPage < AppPage
             ax.XTickLabel = report.Names; ax.YTickLabel = report.Names; ax.XTickLabelRotation = 60; ax.TickLabelInterpreter = 'none';
             axis(ax, 'tight'); ax.YDir = 'reverse';
             title(ax, sprintf('2次モデルの項どうしの重なり |cosθ|（1＝区別できない、0＝直交） ランク %d / %d', report.FullRank, report.FullTerms));
-            if page.IsPro
-                panel.setHeadline(sprintf('実験数 %d（既存 %d ＋ 追加 %d） / 選んだモデルのランク %d / %d 項', ...
-                    size(design, 1), details.FixedRows, details.AddedRows, report.Rank, report.Terms));
-            else
-                panel.setHeadline(sprintf('実験数 %d / 選んだモデルのランク %d / %d 項', size(design, 1), report.Rank, report.Terms));
+            if ~isempty(metrics.Variance)
+                ax = panel.addAxes(page.CHART_VARIANCE); hold(ax, 'on');
+                fraction = (1:numel(metrics.Variance))' / numel(metrics.Variance);
+                plot(ax, fraction, metrics.Variance, 'LineWidth', 1.8, 'DisplayName', '予測分散');
+                yline(ax, metrics.Values.ICriterion, '--', sprintf('I基準（平均） %.3g', metrics.Values.ICriterion), 'DisplayName', 'I基準（平均）');
+                xlabel(ax, '領域のうち、予測分散がその値以下の割合'); ylabel(ax, '予測分散（誤差分散を1とした値）'); grid(ax, 'on');
+                title(ax, '予測分散の分布（FDS：低く平らな線ほど、領域全体で予測が安定）'); hold(ax, 'off');
             end
-            panel.showTable(page.TABLE_DESIGN); page.App.applyTheme();
+            headline = sprintf('実験数 %d / 選んだモデルのランク %d / %d 項', size(design, 1), report.Rank, report.Terms);
+            if page.IsPro
+                headline = sprintf('実験数 %d（既存 %d ＋ 追加 %d） / 選んだモデルのランク %d / %d 項', ...
+                    size(design, 1), details.FixedRows, details.AddedRows, report.Rank, report.Terms);
+            end
+            values = metrics.Values;
+            panel.setHeadline(sprintf('%s\nD効率 %.1f%%　A効率 %.1f%%　I基準 %.4g　G効率 %.1f%%　最大VIF %.3g（詳しくは「%s」の表）', headline, ...
+                values.DEfficiency, values.AEfficiency, values.ICriterion, values.GEfficiency, values.MaxVIF, page.TABLE_METRICS));
+            panel.showTable(page.TABLE_METRICS); page.App.applyTheme();
             page.message(sprintf('計画を作成しました（seed=%d）。D最適・I最適は局所探索のため、最良の計画である保証はありません。', details.Seed));
             if report.Rank < report.Terms
                 page.showWarnings("ランク不足です。選んだモデルのすべての係数を独立には推定できません。実験数を増やすか、モデルを簡単にしてください。");

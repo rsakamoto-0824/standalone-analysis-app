@@ -323,3 +323,20 @@ R2022bでは純粋な数値処理・代替学習器/合成SHAPの表示試験と
   - 参照：[fitrensemble](https://www.mathworks.com/help/stats/fitrensemble.html)、[templateTree](https://www.mathworks.com/help/stats/templatetree.html)。2026-11-20 参照。
 
 2026-11-20 参照。R2025b / Windows / Runtime での確認は未実施。
+
+## 2026-11-20（2）：データのグラフ、目的変数ごとの並べ替え、Pro版のブースティングとハイパーパラメータ探索、ワードクラウド、計画の評価指標
+
+ユーザー指示による。以前の節の「ワードクラウドは全版」「汎用回帰は GPR・重回帰・PLS・ランダムフォレスト・バギング木」「実験計画の条件に乱数seedを表示」は、以下に置き換える。
+
+- **データのグラフ**：学習画面（APC・Swing Curve・汎用回帰）の「① データを開く」の表を「データの表」「グラフで傾向を見る」の2つのタブに分けた（`DataExplorer`）。通常版は単変量の傾向（縦軸＝任意の数値の列、横軸＝レコード〈行の順番〉または任意の列、色＝任意の列）。色の列は、文字の列と種類が10以下の数値の列をグループ（質的変数、凡例つき）、それ以外の数値を連続した色（量的変数）として自動で扱い、「色の扱い」で切り替えられる。横軸に文字の列を選ぶと値ごとに並べる。縦軸の要約（全体と色のグループごと）の表も出す。見るだけで、学習のデータと列の選択は変えない。
+- **Pro版のデータのグラフ**：ヒストグラム（色の列でグループごとに重ねる）、相関マトリックス（Pearson、組ごとに空欄を除く、p値の表）、分散分析（`anovan` の主効果、寄与率＝平方和÷全体の平方和、要因ごとの箱ひげ図）、Parallel Coordinates（`parallelplot`）、Parallel Sets・Sankey Diagram（自前の配置 `category_flow_layout` と描画 `plot_category_flows`。数値の列は分位点で6区間）、主成分分析（標準化してから `pca`。得点・寄与率・負荷量）、クラスタリング（標準化してから k-means（10回の初期値、設定のseed）または Ward 法。エルボー図・シルエット係数・樹形図）。配布した通常版の exe では、これらを内部でも止める（`require_pro_feature`）。
+- **目的変数ごとの並べ替え**：④の一覧を、目的変数（最初に現れた順）→ 実行 → 順位（RMSEの小さい順。失敗は最後）の順に並べる。表示の行と記録の対応（`RowOrder`）を持ち、行の選択・強調も並べ替えに合わせる。
+- **Pro版のブースティング**：汎用回帰に EBM（GA2M）・XGBoost・LightGBM・CatBoost を追加した（`ProcessRegressionModel` の `ebm` / `xgboost` / `lightgbm` / `catboost`、学習器は `ExplainableBoostingModel` と `GradientBoostedTrees`）。いずれも二乗誤差の勾配ブースティングで、値を区間に分けたヒストグラム（`boosting_bins`）で分岐を探す。XGBoost は段ごとの成長と λ・γ、LightGBM は葉ごとの成長と葉の数、CatBoost は対称木。EBM は説明変数を1つずつ順に小さな木で学習する周回と、残差の二乗和の減り方で選んだ2変数の組の学習。各ライブラリそのものではなく、考え方を MATLAB で実装したもの（CatBoost の順序付きブースティング・質的変数の変換、LightGBM の GOSS・EFB は含まない）。行・列の抽出は学習ごとの乱数（seed 0）で行い、同じ条件なら同じ結果になる。保存は既存の `Regression_Model`（Version 1、方式の一覧を拡張）。
+- **Pro版のハイパーパラメータ**：③の右下に「ハイパーパラメータ（Pro版）」を追加した（`HyperparameterEditor`）。ランダムフォレスト・バギング木（木の本数・葉の最小行数・分岐で使う変数の割合）とブースティング4方式の値を方式ごとに編集する。Pro版では③の「木の本数」欄を出さない（通常版は従来どおり）。項目・既定値・範囲・説明は `hyperparameter_specs` に1か所でまとめた。
+- **Pro版のハイパーパラメータ探索**：グリッドサーチ（候補の全組み合わせ、200通りまで）とランダムサーチ（候補の組み合わせから試行数だけ重複なしに選ぶ）。各試行は③の分割数・seed の交差検証 RMSE で比べ、最も良い値で全データを学習し直す（`search_hyperparameters`）。④に「探索の推移」（試行ごとの RMSE とそれまでの最良）、「パラメータと精度」（項目ごとの値と RMSE、同じ値の中の最良を線で結ぶ）、「ハイパーパラメータ探索」「ハイパーパラメータ」（採用した値と決め方）の表を出す。EBM は「EBMの形」（各変数の効果と交互作用）も出す。③で交差検証の評価を選ぶと、評価の各分割の中で探索し直す（入れ子の交差検証）。
+- **ワードクラウドは Pro 版だけ**：通常版のメニュー・ホームに出さず、設定・Help の番号を 8・9 に詰める（`AnalysisController.settingsTitle` / `helpTitle`）。形（楕円・長方形）、配色（単色＋強調する色、出現数で色を変える、ランダムな色）、色の範囲、表示する単語の数、文字の大きさの差を選べる。選んだ色はテーマの適用で上書きしない（appdata の `KeepColor`）。
+- **計画の評価指標**：`design_metrics` で、選んだモデルの項について D効率・A効率・I基準（平均予測分散）・G効率（3水準の格子点と計画点での最大予測分散）・条件数・最大VIF・項どうしの最大相関・残差の自由度を計算し、「計画の評価指標」の表と見出しに出す。予測分散の分布（FDS、固定 seed の乱数2000点）のグラフも出す。I基準の積分モーメントは計画の探索と同じ式（`doe_moment_matrix`）を使う。
+- **実験計画の条件から乱数seedの説明を削除**：「① 計画の条件」の「乱数seed: …（変更は「9 設定」で行います）」の行をなくした。seed の値は従来どおり設定で変え、作成後の状況欄にも表示する。
+- Help・ホーム・利用者向け手順書・ビルド・利用手順書（詳細）・ビルド手順書・Windows 手順を更新した。
+
+2026-11-20 参照：[parallelplot](https://www.mathworks.com/help/matlab/ref/parallelplot.html)、[anovan](https://www.mathworks.com/help/stats/anovan.html)、[pca](https://www.mathworks.com/help/stats/pca.html)、[kmeans](https://www.mathworks.com/help/stats/kmeans.html)、[linkage](https://www.mathworks.com/help/stats/linkage.html)、[wordcloud](https://www.mathworks.com/help/matlab/ref/wordcloud.html)。R2025b / Windows / Runtime での確認は未実施。

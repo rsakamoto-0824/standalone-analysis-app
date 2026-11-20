@@ -27,15 +27,17 @@ step('起動とホーム画面', @() app.selectPage('home'));
 step('APC：2カーネルを交差検証あり・なしで比較・SHAP・保存', @checkApc);
 step('Swing Curve：下地あり', @checkSwingWithBase);
 step('Swing Curve：下地なし・周期カーネル', @checkSwingPeriodic);
+step('データの傾向：単変量（質的・量的な色）と Pro 版の8種類のグラフ', @checkExplorer);
 step('汎用回帰：GPR・重回帰・PLS・ランダムフォレスト・バギング木の比較と保存', @checkGeneric);
+step('Pro版の回帰：EBM・XGBoost・LightGBM・CatBoost・ハイパーパラメータ探索・目的変数ごとの並べ替え', @checkBoosting);
 step('炉内補間：2Run・6方式・保存', @checkFurnace);
 step('保存モデルで推定：評価つき', @checkPredict);
 step('SHAP解析：起動中のモデルを使用', @checkShapPage);
-step('実験計画：D最適・I最適・直交表・拡張', @checkDesign);
-step('ワードクラウド', @checkWords);
+step('実験計画：D最適・I最適・直交表・拡張と評価指標', @checkDesign);
+step('ワードクラウド：形と色', @checkWords);
 step('設定：テーマ・文字の大きさの変更で結果が消えない', @checkSettings);
 step('Help', @() app.selectPage('help'));
-step('通常版：Pro版だけの機能（周期カーネル・周期の探索範囲・拡張計画）と説明を出さない', @checkStandardEdition);
+step('通常版：Pro版だけの機能（周期カーネル・拡張計画・データのグラフ・回帰方式・ワードクラウド）と説明を出さない', @checkStandardEdition);
 step('細かい操作：並べ替え・書出し・CSV・ヘッダー行', @checkDetails);
 step('結果の表示と出力：横並びの散布図・SHAPの色・1ファイル出力・進捗', @checkOutputs);
 step('入力の誤りを分かる言葉で止める', @checkValidation);
@@ -187,8 +189,10 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1', 'Y2'});
         page.Regressors.linear.Value = true; page.Regressors.pls.Value = true;
         page.Regressors.forest.Value = true; page.Regressors.bagging.Value = true; page.Regressors.bagging.ValueChangedFcn([], []);
-        assert(strcmp(page.TreeCount.Enable, 'on'), 'ランダムフォレスト・バギング木を選ぶと木の本数を入力できます。');
-        page.TreeCount.Value = 50; page.runModeling();
+        % Pro 版では木の本数を「ハイパーパラメータ」の表で指定する（通常版の「木の本数」欄はない）。
+        assert(isempty(page.TreeCount) && ~isempty(page.Hyper), 'Pro版では木の本数をハイパーパラメータの表で指定します。');
+        page.Hyper.setValue('forest', 'NumTrees', 50); page.Hyper.setValue('bagging', 'NumTrees', 50);
+        page.runModeling();
         assert(numel(page.Records) == 10, '目的変数2 × 条件5 = 10モデルになりません。');
         labels = cellfun(@(record) modeling_condition_label(record.Condition), page.Records, 'UniformOutput', false);
         for index = 1:10, assert(strcmp(page.Records{index}.Status, '成功'), '%s の失敗: %s', labels{index}, page.Records{index}.Note); end
@@ -204,6 +208,83 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         loaded = load_analysis_model(path); assert(isequal(loaded.PredictorNames, {'X1', 'X2', 'X3'}), '重回帰の説明変数名は列名を保持します。');
         gpr = find(~ismember(labels, {'重回帰'}) & ~startsWith(labels, {'PLS', 'ランダムフォレスト', 'バギング木'}), 1); page.selectRow(gpr);
         report = page.saveSelectedTo(fullfile(work, 'GenericGPR_Model_Y1.mat')); assert(report.Success, '汎用GPRの保存後検証に失敗しました。');
+    end
+    function checkExplorer()
+        % 学習画面の①「グラフで傾向を見る」。APC のサンプルには文字の列（Lot）がある。
+        page = app.page('apc'); page.openSample(); explorer = page.Explorer;
+        assert(numel(explorer.Kind.Items) == 9, 'Pro版では9種類のグラフを選べます。');
+        explorer.configure(struct('Kind', 'trend', 'X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot', 'ColorMode', 'auto')); explorer.draw();
+        groups = explorer.Result.tableData('縦軸の要約');
+        assert(height(groups) == 7 && groups.("グループ")(1) == "全体", '文字の列（Lot）で色分けすると、6グループの要約が出ます。');
+        explorer.configure(struct('Color', 'SIN_TH', 'ColorMode', 'numeric')); explorer.draw();
+        explorer.configure(struct('X', 'Lot', 'Color', explorer.NO_COLOR)); explorer.draw();
+        assert(~isempty(explorer.Result.validCharts()), '単変量の傾向を描けません。');
+        settings = {
+            struct('Kind', 'histogram', 'Columns', {{'SIN_TH', 'CD_X'}}, 'Color', 'Lot'), 'ヒストグラム: SIN_TH'
+            struct('Kind', 'correlation', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH', 'CD_X'}}), '相関マトリックス'
+            struct('Kind', 'anova', 'Y', 'CD_X', 'Columns', {{'Lot', 'SIN_TH'}}), '箱ひげ図: Lot'
+            struct('Kind', 'parallel', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'CD_X'}}, 'Color', 'Lot'), 'Parallel Coordinates'
+            struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}), 'Parallel Sets'
+            struct('Kind', 'sankey', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}), 'Sankey Diagram'
+            struct('Kind', 'pca', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'Color', 'Lot', 'ColorMode', 'auto'), '主成分得点（PC1 × PC2）'
+            struct('Kind', 'cluster', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'ClusterMethod', 'ward', 'ClusterCount', 3), '樹形図（Ward 法）'};
+        for index = 1:size(settings, 1)
+            explorer.configure(settings{index, 1}); explorer.draw();
+            assert(any(strcmp(explorer.Result.ChartNames, settings{index, 2})), '「%s」のグラフがありません。', settings{index, 2});
+        end
+        anova = (struct('Kind', 'anova', 'Y', 'CD_X', 'Columns', {{'Lot'}})); explorer.configure(anova); explorer.draw();
+        result = explorer.Result.tableData('ANOVA表');
+        assert(any(result.("要因") == "Lot") && all(isfinite(result.("p値")(1))), '分散分析の表が不正です。');
+        explorer.configure(struct('Kind', 'parallel', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'CD_X'}})); explorer.draw();
+        png = fullfile(work, 'parallel.png'); explorer.Result.exportFigureTo(1, png);
+        info = dir(png); assert(~isempty(info) && info.bytes > 1000, 'Parallel Coordinates をPNG保存できません。');
+        page.DataTabs.SelectedTab = page.DataTabs.Children(2); app.selectPage('apc'); drawnow; capture('データの傾向（Parallel Coordinates）');
+        page.DataTabs.SelectedTab = page.DataTabs.Children(1);
+    end
+    function checkBoosting()
+        app.selectPage('generic'); page = app.page('generic');
+        page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1', 'Y2'});
+        names = fieldnames(page.Regressors);
+        for index = 1:numel(names), page.Regressors.(names{index}).Value = false; end
+        for name = {'ebm', 'xgboost', 'lightgbm', 'catboost'}, page.Regressors.(name{1}).Value = true; end
+        page.Regressors.catboost.ValueChangedFcn([], []);
+        % XGBoost だけ 2×2 のグリッドサーチ、他は既定の値で学習する。
+        for method = {'ebm', 'lightgbm', 'catboost'}
+            specs = hyperparameter_specs(method{1});
+            for row = 1:numel(specs), page.Hyper.setCandidates(method{1}, specs(row).Name, []); end
+        end
+        page.Hyper.setCandidates('xgboost', 'MaxDepth', [2, 3]); page.Hyper.setCandidates('xgboost', 'LearningRate', [0.1, 0.3]);
+        page.Hyper.setValue('xgboost', 'NumRounds', 100); page.Hyper.setMode('grid');
+        assert(contains(page.Plan.Text, '合計4通り'), '探索の試行数が実行内容に出ません: %s', page.Plan.Text);
+        before = numel(page.Records); page.ComputeShap.Value = false; page.runModeling();
+        added = page.Records(before + 1:end);
+        assert(numel(added) == 8 && all(cellfun(@(record) strcmp(record.Status, '成功'), added)), 'ブースティング4方式 × 目的変数2の学習に失敗しました。');
+        % 一覧は目的変数ごとにまとまり、同じ実行の中は順位の順に並ぶ。
+        listed = page.ModelTable.Data; this_run = listed.("実行") == max(listed.("実行"));
+        for target = ["Y1", "Y2"]
+            ranks = listed.("順位")(this_run & string(listed.("目的変数")) == target);
+            assert(isequal(ranks(:)', 1:numel(ranks)), '%s の一覧が順位の順に並んでいません。', target);
+        end
+        targets = string(listed.("目的変数")); first_y2 = find(targets == "Y2", 1);
+        assert(all(targets(1:first_y2 - 1) == "Y1"), '一覧が目的変数ごとにまとまっていません。');
+        xgboost = before + find(cellfun(@(record) strcmp(record.Condition.Regressor, 'xgboost'), added), 1);
+        page.selectRow(xgboost);
+        trace = page.Result.tableData(page.TABLE_SEARCH);
+        assert(height(trace) == 4 && sum(trace.("採用")) == 1, '探索の表が4試行・採用1つになっていません。');
+        assert(all(ismember({page.CHART_SEARCH_TRACE, page.CHART_SEARCH_EFFECT}, page.Result.ChartNames)), '探索のグラフがありません。');
+        chosen = page.Result.tableData(page.TABLE_HYPERPARAMETERS);
+        assert(sum(chosen.("決め方") == "探索で採用") == 2, '探索した2項目が「探索で採用」になっていません。');
+        page.Result.showCharts(); drawnow; capture('ハイパーパラメータ探索の結果');
+        ebm = before + find(cellfun(@(record) strcmp(record.Condition.Regressor, 'ebm'), added), 1);
+        page.selectRow(ebm); assert(any(strcmp(page.Result.ChartNames, page.CHART_EBM_SHAPES)), 'EBMの形のグラフがありません。');
+        path = fullfile(work, 'GenericEBM_Model_Y1.mat'); report = page.saveSelectedTo(path);
+        assert(report.Success, 'EBMの保存後検証に失敗しました。');
+        loaded = load_analysis_model(path); assert(strcmp(loaded.Method, 'ebm'), 'EBMの保存内容が違います。');
+        page.Hyper.setMode('none');
+        % 範囲外の候補は、項目名と範囲を示して止める。
+        page.Hyper.selectMethod('xgboost'); message = '';
+        try, page.Hyper.setCandidates('xgboost', 'MaxDepth', 20); catch err, message = err.message; end
+        assert(contains(message, '木の深さ') && contains(message, '1〜10'), '範囲外の候補を止めません: %s', message);
     end
     function checkFurnace()
         app.selectPage('furnace'); page = app.page('furnace');
@@ -247,11 +328,21 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         page.Source.open(sample, 'DOE_Existing', 1); page.Runs.Value = 8; page.run();
         design = page.Result.tableData(page.TABLE_DESIGN);
         assert(height(design) == 18 && sum(design.Type == "既存") == 10, '拡張計画は既存10点＋追加8点です。');
+        metrics = page.Result.tableData(page.TABLE_METRICS);
+        efficiency = metrics.("値")(metrics.("指標") == "D効率（%）");
+        assert(efficiency > 0 && efficiency <= 100 && contains(page.Result.Headline.Text, 'D効率'), '計画の評価指標（D効率）がありません。');
+        assert(any(strcmp(page.Result.ChartNames, page.CHART_VARIANCE)), '予測分散の分布のグラフがありません。');
+        labels = findall(page.Body, 'Type', 'uilabel');
+        assert(~any(contains(string({labels.Text}), '乱数seed')), '実験計画の条件に乱数seedの説明が残っています。');
     end
     function checkWords()
         app.selectPage('words'); page = app.page('words');
-        page.loadText(fullfile(root, 'samples', 'sample_wordcloud.txt')); page.run();
+        page.loadText(fullfile(root, 'samples', 'sample_wordcloud.txt'));
+        page.setStyle(struct('Shape', 'rectangle', 'Scheme', 'gradient', 'Palette', 'turbo', 'MaxWords', 50)); page.run();
         assert(height(page.Result.tableData(page.TABLE_WORDS)) > 1, '単語を集計できません。');
+        chart = page.Result.validCharts(); chart = chart{1};
+        assert(strcmp(chart.Shape, 'rectangle') && size(chart.Color, 1) > 1, 'ワードクラウドの形・色が反映されていません。');
+        page.setStyle(struct('Shape', 'oval', 'Scheme', 'single', 'BaseColor', 3)); page.run();
     end
     function checkSettings()
         app.selectPage('settings'); page = app.page('settings');
@@ -325,6 +416,18 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         pro_terms = findobj(app.page('help').Body, 'Type', 'uitable').Data(:, 1);
         assert(~any(ismember({'swingperiodic', '拡張実験計画', '近似残差'}, standard_terms)), '通常版の Help に Pro 版だけの用語があります。');
         assert(all(ismember({'swingperiodic', '拡張実験計画', '近似残差'}, pro_terms)), 'Pro版の Help に Pro 版の用語がありません。');
+        assert(~any(ismember({'EBM（GA2M）', 'ワードクラウド', '主成分分析（PCA）'}, standard_terms)), '通常版の Help に Pro 版の新しい用語があります。');
+        assert(all(ismember({'EBM（GA2M）', 'ワードクラウド', '計画の評価指標', 'データの傾向（グラフ）'}, pro_terms)), 'Pro版の Help に新しい用語がありません。');
+        % ワードクラウドは Pro 版だけ。通常版では設定・Help の番号を詰める。
+        assert(~any(strcmp(standard.Navigation.Keys, 'words')), '通常版のメニューにワードクラウドがあります。');
+        settings_button = standard.Navigation.Buttons{strcmp(standard.Navigation.Keys, 'settings')};
+        assert(strcmp(settings_button.Text, '8 設定'), '通常版の設定の番号が違います: %s', settings_button.Text);
+        % データのグラフは単変量の傾向だけ、汎用回帰は5方式（木の本数欄あり、ハイパーパラメータ欄なし）。
+        explorer = standard.page('apc').Explorer;
+        assert(isequal(explorer.Kind.ItemsData, {'trend'}), '通常版のグラフに Pro 版の種類があります。');
+        generic = standard.page('generic');
+        assert(isequal(fieldnames(generic.Regressors)', {'gpr', 'linear', 'pls', 'forest', 'bagging'}) && isempty(generic.Hyper) && ~isempty(generic.TreeCount), ...
+            '通常版の汎用回帰に Pro 版の方式があります。');
         standard_buttons = {findobj(standard.page('help').Body, 'Type', 'uibutton').Text};
         assert(~any(contains(standard_buttons, {'ビルド・利用手順書', 'daugment'})), '通常版の Help に Pro 版の案内があります。');
     end

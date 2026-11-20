@@ -87,15 +87,15 @@ end
         if update.Fold == 0, stage = update.Stage; end
         partial = 0;
         if update.PeriodCount > 0
-            stage = sprintf('%s（周期候補 %d / 最大%d）', stage, update.PeriodCount, update.PeriodMaximum);
+            stage = sprintf('%s（%s %d / 最大%d）', stage, candidateLabel(update.Period), update.PeriodCount, update.PeriodMaximum);
             partial = min(update.PeriodCount/max(update.PeriodMaximum,1), 1);
         end
         notify(stage, target, update.KernelIndex);
     end
-    function periodProgress(number, maximum, ~)
-        % 周期カーネルは候補ごとに学習し直すため、1回の学習の中の進み具合も反映する。
+    function periodProgress(number, maximum, value)
+        % 周期カーネルの周期探索・ハイパーパラメータの探索は候補ごとに学習し直すため、1回の学習の中の進み具合も反映する。
         partial = min(number/max(maximum,1), 1);
-        notify(sprintf('学習（周期候補 %d / 最大%d）', number, maximum), target, candidate);
+        notify(sprintf('学習（%s %d / 最大%d）', candidateLabel(value), number, maximum), target, candidate);
     end
     function notify(stage, target_index, condition_index)
         if isempty(progress), return; end
@@ -103,4 +103,10 @@ end
         progress(struct('Stage',stage,'Target',targets{target_index},'TargetIndex',target_index,'Targets',numel(targets), ...
             'Condition',condition_index,'Conditions',count,'Done',min(done,total_units),'Total',total_units));
     end
+end
+
+function label = candidateLabel(value)
+% 1回の学習の中の候補の呼び方。文字が渡されたらその名前（ハイパーパラメータの試行など）、数値は周期の候補。
+label = '周期候補';
+if ischar(value) || isstring(value), label = char(value); end
 end

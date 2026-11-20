@@ -1,8 +1,10 @@
 function capture_app_screens(edition, only)
 % 手順書用の画面画像を、実際のアプリを同梱サンプルで操作して撮影する。
 %   capture_app_screens            配布版（通常版）の画面を撮る（利用手順書・ビルド利用手順書で使用）
-%   capture_app_screens('pro', {'56-conditions-swing', '60-period-search', '70-expanded-pro-fit', '78-doe-pro'})
-%                                  Pro版だけの画面（swingperiodic・周期の探索範囲・カーブ評価・拡張計画）を撮る。only に名前を渡すと、その画像だけ保存する
+%   capture_app_screens('pro', {'56-conditions-swing', '60-period-search', '70-expanded-pro-fit', '78-doe-pro', ...
+%       '81-data-pro-sets', '82-data-pro-pca', '83-conditions-generic-pro', '84-search-results', '85-ebm-shapes', '66-wordcloud'})
+%                                  Pro版だけの画面（swingperiodic・周期の探索範囲・カーブ評価・拡張計画・データのグラフ・
+%                                  ブースティングとハイパーパラメータ探索・ワードクラウド）を撮る。only に名前を渡すと、その画像だけ保存する
 % 利用環境は Windows のため、Mac 特有の表示を画像に含めない。
 %   ・exportapp はアプリの中身だけを書き出し、ウィンドウの枠（タイトルバー・閉じるボタン）を含まない。
 %   ・開発用の例外で起動したときの「検証用 R2022b」の注意は、利用者の Windows 画面には出ないため撮影前に除く。
@@ -34,6 +36,15 @@ app.selectPage('home'); snap('50-home');
 
 % --- APC：4ステップ ---
 app.selectPage('apc'); apc = app.page('apc'); apc.openSample(); snap('51-data-step');
+% ① の「グラフで傾向を見る」：単変量の傾向（文字の列 Lot で色分け）。
+apc.DataTabs.SelectedTab = apc.DataTabs.Children(2); explorer = apc.Explorer;
+explorer.configure(struct('Kind', 'trend', 'X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot')); explorer.draw(); snap('80-data-trend');
+if strcmp(edition, 'pro')
+    explorer.configure(struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}})); explorer.draw(); snap('81-data-pro-sets');
+    explorer.configure(struct('Kind', 'pca', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'Color', 'Lot', 'ColorMode', 'auto'));
+    explorer.draw(); snap('82-data-pro-pca');
+end
+apc.DataTabs.SelectedTab = apc.DataTabs.Children(1);
 apc.selectTargets({'CD_X', 'CD_Y'}); apc.Steps.SelectedTab = apc.StepTabs.Variables; snap('52-variables-apc');
 apc.Kernels.Value = {'squaredexponential', 'matern52'}; apc.Kernels.ValueChangedFcn([], []);
 apc.Steps.SelectedTab = apc.StepTabs.Conditions; snap('55-conditions');
@@ -75,6 +86,24 @@ generic.Regressors.forest.Value = true; generic.Regressors.bagging.Value = true;
 generic.Steps.SelectedTab = generic.StepTabs.Conditions; snap('71-conditions-generic');
 generic.runModeling(); chart_tabs = generic.Result.ChartTabs.Children;
 generic.Result.ChartTabs.SelectedTab = chart_tabs(startsWith({chart_tabs.Title}, '条件の比較')); snap('72-results-generic');
+if strcmp(edition, 'pro')
+    % Pro 版：ブースティング系の方式と、XGBoost のハイパーパラメータのグリッドサーチ。
+    for name = fieldnames(generic.Regressors)', generic.Regressors.(name{1}).Value = false; end
+    for name = {'ebm', 'xgboost'}, generic.Regressors.(name{1}).Value = true; end
+    generic.Regressors.xgboost.ValueChangedFcn([], []);
+    for name = {'Interactions', 'LearningRate'}, generic.Hyper.setCandidates('ebm', name{1}, []); end
+    generic.Hyper.selectMethod('xgboost'); generic.Hyper.setMode('grid');
+    generic.Steps.SelectedTab = generic.StepTabs.Conditions; snap('83-conditions-generic-pro');
+    generic.ComputeShap.Value = false; generic.runModeling();
+    records = generic.Records; regressors = cellfun(@(record) record.Condition.Regressor, records, 'UniformOutput', false);
+    generic.selectRow(find(strcmp(regressors, 'xgboost'), 1, 'last'));
+    chart_tabs = generic.Result.ChartTabs.Children; generic.Result.ChartTabs.SelectedTab = chart_tabs(strcmp({chart_tabs.Title}, generic.CHART_SEARCH_TRACE));
+    snap('84-search-results');
+    generic.selectRow(find(strcmp(regressors, 'ebm'), 1, 'last'));
+    chart_tabs = generic.Result.ChartTabs.Children; generic.Result.ChartTabs.SelectedTab = chart_tabs(strcmp({chart_tabs.Title}, generic.CHART_EBM_SHAPES));
+    snap('85-ebm-shapes');
+    generic.Hyper.setMode('none');
+end
 
 % --- 炉内補間 ---
 app.selectPage('furnace'); furnace = app.page('furnace'); furnace.openSample();
@@ -92,12 +121,17 @@ shap_page.Source.open(sample, 'Predict_SHAP', 1); shap_page.run(); snap('62-shap
 
 % --- 実験計画・ワードクラウド・設定・Help ---
 app.selectPage('doe'); design = app.page('doe'); design.run(); design.Result.showCharts(); snap('65-doe');
+design.Result.showTable(design.TABLE_METRICS); snap('79-doe-metrics');
 if strcmp(edition, 'pro')
     % 既存の計画に点を追加する拡張計画は Pro 版だけ。
     design.Method.Value = design.METHODS{4}; design.Method.ValueChangedFcn([], []);
     design.Source.open(sample, 'DOE_Existing', 1); design.Runs.Value = 8; design.run(); snap('78-doe-pro');
 end
-app.selectPage('words'); words = app.page('words'); words.loadText(fullfile(root, 'samples', 'sample_wordcloud.txt')); words.run(); snap('66-wordcloud');
+if strcmp(edition, 'pro')
+    % ワードクラウドは Pro 版だけ。形と色を変えた例を撮る。
+    app.selectPage('words'); words = app.page('words'); words.loadText(fullfile(root, 'samples', 'sample_wordcloud.txt'));
+    words.setStyle(struct('Shape', 'rectangle', 'Scheme', 'gradient', 'Palette', 'turbo')); words.run(); snap('66-wordcloud');
+end
 % 設定画面の画像には、撮影した端末のフォルダ名を写さない（表示だけを例の値へ置き換える）。
 app.selectPage('settings'); settings_page = app.page('settings');
 actual_folder = settings_page.Fields.SaveFolder.Value; actual_path = settings_page.PathInfo.Text;
