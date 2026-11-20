@@ -13,8 +13,14 @@ const BACKSLASH = String.fromCharCode(92);
 const winPath = (...parts) => parts.join(BACKSLASH);
 const WORK = winPath('C:', 'work', 'StandaloneAnalysisApp');
 const REPOSITORY = 'https://github.com/rsakamoto-0824/standalone-analysis-app';
+// prepare_edition_build.m の除外の一覧と同じ（通常版の exe に含めない Pro 版だけのファイル）。
 const PRO_FILES = ['app/SwingCurveView.m', 'core/fit_swing_curve.m', 'core/fit_swing_spline.m', 'core/swing_curve_values.m',
-  'core/swing_curve_extrema.m', 'core/swing_spline_extrema.m', 'core/swing_residual_diagnostics.m'];
+  'core/swing_curve_extrema.m', 'core/swing_spline_extrema.m', 'core/swing_residual_diagnostics.m',
+  'core/GradientBoostedTrees.m', 'core/ExplainableBoostingModel.m', 'core/boosting_bins.m', 'core/search_hyperparameters.m',
+  'app/HyperparameterEditor.m', 'core/category_flow_layout.m', 'app/plot_category_flows.m', 'core/calc_anova_summary.m',
+  'core/calc_pca_summary.m', 'core/calc_cluster_summary.m', 'app/WordCloudPage.m', 'core/create_wordCloud.m',
+  'app/SobolPage.m', 'core/calc_sobol_indices.m', 'app/CausalPage.m', 'core/causal_discovery.m', 'app/BayesPage.m',
+  'core/hierarchical_bayes.m', 'core/mixed_gpr_kernel.m'];
 const EDITIONS = [
   { key: 'standard', label: '通常版（配布版）', exe: 'ProcessInsightTool', app: 'Process Insight Tool' },
   { key: 'pro', label: 'Pro版', exe: 'ProcessInsightToolPro', app: 'Process Insight Tool Pro' }];
@@ -35,8 +41,8 @@ add('overview', '目的と対象', 'START HERE', `
 <p>この手順書は、<strong>Process Insight Tool の Windows 用インストーラーを作る担当者</strong>向けです。<strong>通常版（配布版）</strong>と<strong>Pro版</strong>の2種類を作ります。アプリの使い方は<a href="user-manual.html">配布版の利用手順書</a>を参照してください。</p>
 ${note('配布先の PC には MATLAB がない前提です', 'ビルドでは、アプリと <strong>MATLAB Runtime（アプリを動かすための無償の部品）を1つにまとめたインストーラー</strong>を作ります。利用者はそのインストーラーを実行するだけで使え、MATLAB 本体も、インストール時のインターネット接続も要りません。MATLAB と MATLAB Compiler が必要なのは、ビルドする PC だけです。')}
 ${table(['版', 'インストーラー', 'アプリの題名', '内容'], [
-  ['通常版（配布版）', '<code>ProcessInsightTool_Installer.exe</code>', 'Process Insight Tool', '学習・比較・保存（汎用回帰は GPR・重回帰・PLS・ランダムフォレスト・バギング木）、データの単変量の傾向のグラフ、推定、SHAP解析（分布図・依存図）、炉内補間、実験計画（評価指標つき）。'],
-  ['Pro版', '<code>ProcessInsightToolPro_Installer.exe</code>', 'Process Insight Tool Pro', '通常版の機能に加えて、Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲、レジスト膜厚の SHAP へのカーブ近似、極値・山間／谷間の傾き、近似残差の診断、データのグラフ8種類（ヒストグラム・相関・ANOVA・Parallel Coordinates・Parallel Sets・Sankey・PCA・クラスタリング）、汎用回帰の EBM・XGBoost・LightGBM・CatBoost とハイパーパラメータの探索、拡張実験計画、ワードクラウド。']])}
+  ['通常版（配布版）', '<code>ProcessInsightTool_Installer.exe</code>', 'Process Insight Tool', '学習・比較・保存（汎用回帰は GPR・重回帰・PLS・ランダムフォレスト・バギング木、Permutation Importance・VIP）、データの単変量の傾向のグラフ、推定と SHAP（どのモデルでも分布図・依存図）、炉内補間、実験計画（評価指標つき）。'],
+  ['Pro版', '<code>ProcessInsightToolPro_Installer.exe</code>', 'Process Insight Tool Pro', '通常版の機能に加えて、Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲、レジスト膜厚の SHAP へのカーブ近似、極値・山間／谷間の傾き、近似残差の診断、データのグラフ8種類（ヒストグラム・相関・ANOVA・Parallel Coordinates・Parallel Sets・Sankey・PCA・クラスタリング）、汎用回帰の EBM・XGBoost・LightGBM・CatBoost とハイパーパラメータの探索、GPR の加法カーネルと質的変数、Sobol感度解析、因果探索、階層ベイズ、拡張実験計画、ワードクラウド。']])}
 <p>版はビルドのときに決まります。起動後の設定や引数で通常版を Pro 版へ切り替えることはできません。通常版には Pro 版だけの機能の画面と、そのためのファイルを含めません。</p>
 ${note('この手順書の範囲', 'ビルドは Windows 64bit の MATLAB R2025b でしか実行できないため、MATLAB の画面の画像は載せていません。操作はコマンドウィンドウへの入力で行います。2026-11-19 時点で、Windows での実際のビルドとインストールは未実施です。最初のビルドでは各章の「確認」を一つずつ確かめ、結果を <code>verification.md</code> に記録してください。', 'warning')}
 `);
@@ -107,7 +113,7 @@ ${note('インストーラーの作成で止まった場合', 'exe はできて�
 add('build-pro', 'Pro版をビルドする', 'STEP 5', `
 ${buildSection(EDITIONS[1], 5)}
 ${table(['Pro版だけに含めるファイル（通常版には含めない）'], PRO_FILES.map((file) => [`<code>${file}</code>`]))}
-<p>このほか、次の画面と説明は Pro 版でだけ表示されます。</p><ul><li>Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲</li><li>実験計画作成の拡張 D最適・拡張 I最適（既存の計画に点を追加）と「② 既存の計画」の欄</li><li>「10 Help」の Pro 版だけの用語・操作・関数のリンクと、ビルド・利用手順書（procedure-guide.html）を開くボタン</li></ul><p>Pro 版のインストーラーには、すべての手順書を入れます。</p>
+<p>このほか、次の画面と説明は Pro 版でだけ表示されます。</p><ul><li>Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲</li><li>実験計画作成の拡張 D最適・拡張 I最適（既存の計画に点を追加）と「② 既存の計画」の欄</li><li>学習画面の①のデータのグラフ8種類（ヒストグラム・相関・ANOVA・Parallel Coordinates・Parallel Sets・Sankey・PCA・クラスタリング）</li><li>汎用回帰の EBM・XGBoost・LightGBM・CatBoost、ハイパーパラメータの欄と探索、GPR の加法カーネル（additive）と「質的変数として扱う列」</li><li>メニューの「6 Sobol感度解析」「7 因果探索」「8 階層ベイズ」「10 ワードクラウド」（通常版のメニューにはなく、番号が詰まります）</li><li>「12 Help」の Pro 版だけの用語・操作・関数のリンクと、ビルド・利用手順書（procedure-guide.html）を開くボタン</li></ul><p>Pro 版のインストーラーには、すべての手順書を入れます。</p>
 `);
 
 add('verify', '版の確認と、MATLAB のない PC での確認', 'STEP 6', `

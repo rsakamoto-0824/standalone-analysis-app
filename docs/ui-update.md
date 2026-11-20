@@ -340,3 +340,19 @@ R2022bでは純粋な数値処理・代替学習器/合成SHAPの表示試験と
 - Help・ホーム・利用者向け手順書・ビルド・利用手順書（詳細）・ビルド手順書・Windows 手順を更新した。
 
 2026-11-20 参照：[parallelplot](https://www.mathworks.com/help/matlab/ref/parallelplot.html)、[anovan](https://www.mathworks.com/help/stats/anovan.html)、[pca](https://www.mathworks.com/help/stats/pca.html)、[kmeans](https://www.mathworks.com/help/stats/kmeans.html)、[linkage](https://www.mathworks.com/help/stats/linkage.html)、[wordcloud](https://www.mathworks.com/help/matlab/ref/wordcloud.html)。R2025b / Windows / Runtime での確認は未実施。
+
+## 2026-11-20（3）：炉内の棒グラフ、推定と SHAP の統合、変数重要度、Pro版の GPR・Sobol・因果探索・階層ベイズ
+
+ユーザー指示による。以前の節の「保存モデルで推定」「SHAP 解析」の2画面と、メニューの番号は以下に置き換える。
+
+- **炉内補間の棒グラフ**：④「内部Slot検証のRMSE」を、目的変数ごとの棒グラフに分けて横に並べた（1つのタブに並べたパネル。並べた図・1枚ずつの両方を書き出せる）。選択中の Run の方式を比べ、選択中の方式を濃い色にする。
+- **推定と SHAP の統合**：「保存モデルで推定」と「SHAP 解析」を「保存モデルで推定・SHAP」（`ModelUsePage`）にまとめた。処理の種類は汎用推定・面内推定・ノイズ除去用SHAP。「SHAPも計算する」（初期状態で選択、先頭最大1000行）で、どのモデル（APC・Swing Curve・汎用回帰〈ブースティング・Pro版の GPR を含む〉・面内）でも SHAP の分布と依存図を表示する。面内推定は X・Y と半径の3変数で SHAP を計算する。
+- **メニューの番号**：`AnalysisController.menuTitles` で版ごとに番号を付ける。通常版は 1〜4、5 保存モデルで推定・SHAP、6 実験計画作成、7 設定、8 Help。Pro版は 6 Sobol感度解析、7 因果探索、8 階層ベイズ、9 実験計画作成、10 ワードクラウド、11 設定、12 Help。ホーム・Help・画面内の案内もここから名前を取る。
+- **変数重要度**：汎用回帰の④で、Permutation Importance（`calc_permutation_importance`、1列ずつ5回並べ替えたときの RMSE の増加、乱数固定、学習データ）を全方式で、VIP（`ProcessRegressionModel.Vip`、plsregress の W・YL・XS から計算）を PLS で表示する。一度計算した重要度は記録に残す。
+- **Pro版の GPR**：カーネルに `additive`（加法カーネル）を追加し、②に「質的変数として扱う列」を追加した。学習は `ProcessRegressionModel` の `gpr_pro`（fitrgp の独自カーネル `mixed_gpr_kernel`。連続の列は二乗指数、質的の列は「同じ水準なら1、違えば ρ」）。質的変数は値の名前の順に番号を付け（`encode_categories`）、水準の一覧をモデルに保存し、推定では同じ一覧で番号に置き換える（`model_input_matrix`。学習時になかった水準は止める）。質的変数があるときは回帰方式を GPR だけに限る。保存後検証では、カーネルの関数ハンドルではなく学習した値（カーネルのパラメータ・係数・ノイズ）で比べる。
+- **Sobol感度解析**（Pro版、`SobolPage`・`calc_sobol_indices`）：範囲（初期値は学習データの最小〜最大、編集可）の一様分布・独立を仮定し、スクランブルした Sobol 列で S1（Saltelli 2010）と ST（Jansen）を計算する。予測値は平均を引いてから計算し、ブートストラップで95%区間を出す。
+- **因果探索**（Pro版、`CausalPage`・`causal_discovery`）：PC アルゴリズム（Fisher の z、条件づける列は最大3、V字構造と Meek の規則 R1〜R3）と DirectLiNGAM（最大エントロピー近似の尺度で順序を決め、OLS の t 検定で辺を残す）。グラフは digraph で描き、向きの決まらない辺は破線。
+- **階層ベイズ**（Pro版、`BayesPage`・`hierarchical_bayes`）：グループごとの切片（と傾き）が N(μ, Σ) に従う線形モデルを、標準化したデータのギブスサンプリングで推定し、元の単位へ戻す。事前分布は N(0, 10²)・逆ウィシャート（項数＋2、単位行列）・逆ガンマ(1, 1)。R-hat（Gelman–Rubin）を出し、1.1以上は注意を表示する。グループ単独の最小二乗と並べた図で縮小を確認できる。
+- 通常版の exe には Pro だけの新しいファイル（7個）を含めない。Help・ホーム・手順書3つ・Windows 手順を更新した。
+
+2026-11-20 参照：[fitrgp（独自カーネル）](https://www.mathworks.com/help/stats/fitrgp.html)、[sobolset](https://www.mathworks.com/help/stats/sobolset.html)、[plsregress](https://www.mathworks.com/help/stats/plsregress.html)、[digraph](https://www.mathworks.com/help/matlab/ref/digraph.html)、[iwishrnd](https://www.mathworks.com/help/stats/iwishrnd.html)。R2025b / Windows / Runtime での確認は未実施。

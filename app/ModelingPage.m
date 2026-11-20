@@ -15,6 +15,7 @@ classdef ModelingPage < AppPage
         ResistColumn = []
         Underlayers = []
         Predictors = []
+        Qualitative = []
         Order = {}
         OrderInfo = []
         MappingTable
@@ -64,6 +65,10 @@ classdef ModelingPage < AppPage
         CHART_SEARCH_TRACE = '探索の推移'
         CHART_SEARCH_EFFECT = 'パラメータと精度'
         CHART_EBM_SHAPES = 'EBMの形（各変数の効果）'
+        CHART_PERMUTATION = 'Permutation Importance'
+        CHART_VIP = 'VIP（PLS）'
+        TABLE_IMPORTANCE = '変数重要度'
+        PERMUTATION_REPEATS = 5
         REGRESSOR_LABELS = struct('gpr', 'ガウス過程回帰（GPR）', 'linear', '重回帰', 'pls', 'PLS回帰', 'forest', 'ランダムフォレスト', ...
             'bagging', 'バギング木', 'ebm', 'EBM（GA2M）', 'xgboost', 'XGBoost', 'lightgbm', 'LightGBM', 'catboost', 'CatBoost')
         MAX_SHAPE_CHARTS = 9
@@ -113,8 +118,8 @@ classdef ModelingPage < AppPage
                 end
                 data = page.Source.Data; settings = page.settings();
                 if settings.Bins > 0, validate_bin_count(settings.Bins, 'AnalysisApp'); end
-                [inputs, responses, names, targets] = modeling_input_data(data, page.currentMapping(), page.Targets.Value);
-                conditions = page.conditions(numel(names));
+                [inputs, responses, names, targets, levels] = modeling_input_data(data, page.currentMapping(), page.Targets.Value, page.qualitativeColumns());
+                conditions = page.conditions(numel(names), levels);
                 folds = page.validationFolds(numel(conditions));
                 page.checkRowCount(size(inputs, 1), folds);
                 period_options = page.periodOptions();
@@ -319,11 +324,20 @@ classdef ModelingPage < AppPage
                 'ValueChangedFcn', @(~, ~) page.variablesChanged());
         end
         function grid = buildGenericVariables(page, parent)
-            grid = uigridlayout(parent, [5, 1]); grid.RowHeight = {44, 130, 22, '1x', 30};
+            heights = {44, 130, 22, '1x', 30};
+            if page.isPro(), heights = {44, 110, 22, 64, 22, '1x', 30}; end
+            grid = uigridlayout(parent, [numel(heights), 1]); grid.RowHeight = heights;
             AppPage.hint(grid, ['モデルの入力に使う列を選びます（複数選択は Ctrl キーを押しながらクリック）。' ...
                 'GPRのMATは列名を持たないため、下の表の順序（1列目、2列目…）で入力と対応します。']);
             page.Predictors = uilistbox(grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', 'Enable', 'off', ...
                 'ValueChangedFcn', @(~, ~) page.variablesChanged());
+            if page.isPro()
+                % Pro 版：選んだ説明変数のうち、ロット・装置名などの質的変数として扱う列（GPR だけが使える）。
+                uilabel(grid, 'Text', '質的変数として扱う列（Pro版。GPRだけ。文字の列も選べます）', 'FontWeight', 'bold');
+                page.Qualitative = uilistbox(grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', ...
+                    'ValueChangedFcn', @(~, ~) page.variablesChanged(), ...
+                    'Tooltip', '選んだ列は値ごとのグループ（水準）として扱い、同じ水準どうしの似かたを GPR が学習します。');
+            end
         end
         function buildConditionStep(page)
             tab = uitab(page.Steps, 'Title', '③ 条件を決めて実行'); page.StepTabs.Conditions = tab;
@@ -353,6 +367,8 @@ classdef ModelingPage < AppPage
                 % swingperiodic（周期カーネル）は Pro 版だけの選択肢。
                 if page.isPro(), kernels = constants.SWING_KERNELS; end
             end
+            % Pro 版の汎用回帰では、説明変数ごとの効果の和で表す加法カーネル（additive）も選べる。
+            if strcmp(page.Kind, 'generic') && page.isPro(), kernels = [kernels, {'additive'}]; end
             if ~any(strcmp(kernels, default_kernel)), default_kernel = constants.DEFAULT_KERNEL; end
             heights = {22, 190, 44};
             if strcmp(page.Kind, 'generic')
@@ -524,6 +540,9 @@ classdef ModelingPage < AppPage
             selected = cellstr(string(page.Predictors.Value)); selected = selected(:)';
             kept = page.Order(ismember(page.Order, selected));
             page.Order = [kept, selected(~ismember(selected, kept))];
+            if ~isempty(page.Qualitative)
+                set(page.Qualitative, 'Items', page.Order, 'Value', intersect(cellstr(string(page.Qualitative.Value)), page.Order, 'stable'));
+            end
             page.SelectedOrderRow = min(page.SelectedOrderRow, numel(page.Order));
             page.updateOrderInfo();
         end
@@ -557,7 +576,7 @@ classdef ModelingPage < AppPage
             if strcmp(page.Kind, 'swing') && strcmp(page.SwingMode.Value, page.MODE_WITH) && size(mapping, 1) < 2
                 error('modeling:underlayers', '「下地あり」では、膜厚以外の説明変数を1列以上選んでください。膜厚だけで学習する場合は「下地なし」を選びます。');
             end
-            inputs = modeling_input_data(data, mapping, targets);
+            inputs = modeling_input_data(data, mapping, targets, page.qualitativeColumns());
             if strcmp(page.Kind, 'apc') && size(inputs, 1) < constants.MIN_TRAIN_ROWS
                 error('modeling:tooFewRows', 'APC学習には%d行以上のデータが必要です（現在 %d行）。', constants.MIN_TRAIN_ROWS, size(inputs, 1));
             end
@@ -617,7 +636,14 @@ classdef ModelingPage < AppPage
             names = names(cellfun(@(name) isfield(page.Regressors, name), names));
             regressors = names(cellfun(@(name) page.Regressors.(name).Value, names));
         end
-        function conditions = conditions(page, predictor_count)
+        function columns = qualitativeColumns(page)
+            % 質的変数として扱う入力列（選んだ説明変数の中だけ）。Pro 版の汎用回帰以外は空。
+            columns = {};
+            if isempty(page.Qualitative), return; end
+            columns = intersect(cellstr(string(page.Qualitative.Value)), page.Order, 'stable');
+        end
+        function conditions = conditions(page, predictor_count, levels)
+            if nargin < 3, levels = cell(1, predictor_count); end
             regressors = page.selectedRegressors();
             if isempty(regressors), error('modeling:regressors', '回帰方式を1つ以上選んでください。'); end
             kernels = cellstr(string(page.Kernels.Value));
@@ -638,7 +664,12 @@ classdef ModelingPage < AppPage
                     search = page.Hyper.searchSpec(page.Folds.Value, page.Seed.Value);
                 end
             end
-            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components, trees, parameters, search);
+            categorical = [];
+            mapping = page.currentMapping(); mask = false(1, size(mapping, 1));
+            if ~isempty(mapping), mask = ismember(mapping(:, 3)', page.qualitativeColumns()); end
+            if any(mask), categorical = struct('Mask', mask, 'Levels', {levels}); end
+            if ~page.isPro() && any(strcmp(kernels, 'additive')), error('modeling:proOnly', '加法カーネルは Pro 版だけで使えます。'); end
+            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components, trees, parameters, search, categorical);
         end
         function count = conditionCount(page)
             regressors = page.selectedRegressors(); count = numel(regressors);
@@ -851,6 +882,7 @@ classdef ModelingPage < AppPage
             view = EvaluationScatterView(panel.ChartTabs, actual, predicted, record.Source);
             [charts, chart_names] = view.charts(); panel.registerCharts(charts, chart_names);
             page.drawComparison(record);
+            if strcmp(page.Kind, 'generic'), page.showImportance(record); end
             panel.setTable('評価指標', display_metric_names(page.metricTable(record)));
             if ~isempty(record.FoldId), panel.setTable('検証分割', record.FoldMetrics); end
             panel.setTable(page.TABLE_OUTPUT, page.outputTable(record));
@@ -902,6 +934,39 @@ classdef ModelingPage < AppPage
             xlabel(ax, '周期（nm）'); ylabel(ax, details.Criterion);
             title(ax, sprintf('採用した周期 %.6g nm（尤度が最も大きい候補）', details.Period));
             legend(ax, 'Location', 'best'); grid(ax, 'on');
+        end
+        function showImportance(page, record)
+            % 汎用回帰の変数重要度：どの方式でも Permutation Importance、PLS では VIP も表示する。
+            % Permutation Importance は学習に使ったデータで計算し、一度計算した結果は記録に残して再計算しない。
+            if isfield(record, 'Importance') && ~isempty(record.Importance)
+                importance = record.Importance;
+            else
+                predictor = @(x) page.App.Services.Predictor(record.Model, x);
+                importance = calc_permutation_importance(predictor, record.Inputs, record.Actual, record.InputNames, page.PERMUTATION_REPEATS, 0);
+                row = page.SelectedRow;
+                if row >= 1 && row <= numel(page.Records) && page.Records{row}.Id == record.Id
+                    page.Records{row}.Importance = importance;
+                end
+            end
+            output = importance.Table; vip = [];
+            if isa(record.Model, 'ProcessRegressionModel') && ~isempty(record.Model.Vip)
+                vip = record.Model.Vip(:); output.VIP = vip;
+            end
+            page.Result.setTable(page.TABLE_IMPORTANCE, output);
+            [~, order] = sort(output.("RMSEの増加"));
+            ax = page.Result.addAxes(page.CHART_PERMUTATION); hold(ax, 'on');
+            barh(ax, output.("RMSEの増加")(order), 'FaceColor', [0.12, 0.35, 0.58]);
+            errorbar(ax, output.("RMSEの増加")(order), 1:height(output), output.("RMSEの増加の標準偏差")(order), 'horizontal', ...
+                'k', 'LineStyle', 'none', 'CapSize', 4);
+            ax.YTick = 1:height(output); ax.YTickLabel = output.("説明変数")(order); ax.TickLabelInterpreter = 'none';
+            xlabel(ax, sprintf('並べ替えたときの RMSE の増加（元の RMSE %.4g、%d回の平均と標準偏差）', importance.BaseRMSE, importance.Repeats));
+            title(ax, 'Permutation Importance（大きいほど予測に効いている。学習に使ったデータで計算）'); grid(ax, 'on'); hold(ax, 'off');
+            if isempty(vip), return; end
+            ax = page.Result.addAxes(page.CHART_VIP); hold(ax, 'on');
+            [~, order] = sort(vip); barh(ax, vip(order), 'FaceColor', [0.30, 0.55, 0.35]);
+            xline(ax, 1, '--', '目安 1');
+            ax.YTick = 1:numel(vip); ax.YTickLabel = record.InputNames(order); ax.TickLabelInterpreter = 'none';
+            xlabel(ax, 'VIP'); title(ax, 'VIP（PLSの各成分への寄与。1を超える変数が重要とされる目安）'); grid(ax, 'on'); hold(ax, 'off');
         end
         function output = hyperparameterTable(~, record)
             % 学習に使ったハイパーパラメータ（探索した項目は採用した値）。
