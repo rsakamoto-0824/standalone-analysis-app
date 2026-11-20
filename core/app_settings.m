@@ -1,6 +1,8 @@
 function settings = app_settings(action, path, proposed)
 constants = model_constants();
-defaults = struct('SaveFolder', pwd, 'Theme', 'ライト', ...
+% FontSize は画面の文字の大きさ（ポイント）。12 が MATLAB の画面の標準。
+FONT_SIZE_LIMITS = [8, 20];
+defaults = struct('SaveFolder', pwd, 'Theme', 'ライト', 'FontSize', 12, ...
     'Kernel', constants.DEFAULT_KERNEL, 'SwingKernel', constants.DEFAULT_KERNEL, 'FitMethod', constants.DEFAULT_FIT_METHOD, ...
     'ShowPlots', true, 'InputCount', 4, 'Bins', 0, 'Factors', 3, 'Runs', 25, 'Seed', 42, ...
     'RBFWidth', 0, 'RBFRidge', 1e-8);
@@ -24,6 +26,11 @@ if ~(ischar(settings.SaveFolder) || isscalar(string(settings.SaveFolder))) || ~i
 end
 settings.SaveFolder = char(settings.SaveFolder);
 if ~any(strcmp(settings.Theme, {'ライト', 'ダーク'})), error('settings:theme', 'テーマが不正です。'); end
+if ~isnumeric(settings.FontSize) || ~isscalar(settings.FontSize) || settings.FontSize ~= round(settings.FontSize) ...
+        || settings.FontSize < FONT_SIZE_LIMITS(1) || settings.FontSize > FONT_SIZE_LIMITS(2)
+    error('settings:fontSize', '文字の大きさは%d〜%dの整数で指定してください。', FONT_SIZE_LIMITS(1), FONT_SIZE_LIMITS(2));
+end
+settings.FontSize = double(settings.FontSize);
 validate_model_parameters(settings.Kernel, settings.FitMethod, 'settings');
 validate_model_parameters(settings.SwingKernel, settings.FitMethod, 'settings', true);
 validateattributes(settings.ShowPlots, {'logical', 'numeric'}, {'scalar', 'binary'});

@@ -180,8 +180,12 @@ classdef ModelUsePage < AppPage
             if ~isequal(names, model.PredictorNames)
                 lines{end + 1} = ['モデル内の変数名: ' strjoin(model.PredictorNames, ', ')];
             end
-            lines{end + 1} = sprintf('学習データ %d行 / ResponseName: %s / kernel: %s', model.NumObservations, ...
-                char(string(model.ResponseName)), model_kernel_name(model.KernelFunction));
+            if isa(model, 'ProcessRegressionModel')
+                lines{end + 1} = sprintf('学習データ %d行 / 方式: %s', model.NumObservations, model.methodLabel());
+            else
+                lines{end + 1} = sprintf('学習データ %d行 / ResponseName: %s / kernel: %s', model.NumObservations, ...
+                    char(string(model.ResponseName)), model_kernel_name(model.KernelFunction));
+            end
             periodic = swing_kernel_info(model.KernelFunction);
             if ~isempty(periodic), lines{end + 1} = sprintf('swingperiodic の周期: %.8g nm', periodic.Period); end
         end

@@ -62,6 +62,36 @@ classdef TestGeneralRegression < matlab.unittest.TestCase
             testCase.verifyEqual({c(3:4).FitMethod},{'-','-'});
             testCase.verifyEqual(modeling_condition_label(c(4)),'PLS（2成分）');
         end
+        function forestAndBaggingTrainSaveAndReload(testCase)
+            rng(3); x=rand(60,3); y=sin(4*x(:,1))+x(:,2).^2+.05*randn(60,1);
+            fixture=testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            expected=struct('forest',{{1,'ランダムフォレスト（40本）'}},'bagging',{{3,'バギング木（40本）'}});
+            for method={'forest','bagging'}
+                model=ProcessRegressionModel(x,y,{'A','B','C'},method{1},2,40);
+                testCase.verifyEqual(model.Trees,40); testCase.verifyEqual(model.MinLeafSize,5);
+                testCase.verifyEqual(model.VariablesPerSplit,expected.(method{1}){1});
+                testCase.verifyEqual(model.methodLabel(),expected.(method{1}){2});
+                prediction=predict(model,x); testCase.verifyLessThan(sqrt(mean((prediction-y).^2)),std(y));
+                testCase.verifyEqual(predict(model,array2table(x,'VariableNames',{'A','B','C'})),prediction);
+                path=fullfile(fixture.Folder,[method{1} '.mat']); report=save_regression_model(model,path);
+                testCase.verifyTrue(report.Success); loaded=load_analysis_model(path);
+                testCase.verifyEqual(predict(loaded,x),prediction); testCase.verifyEqual(loaded.Method,method{1});
+            end
+            testCase.verifyError(@()ProcessRegressionModel(x,y,{'A','B','C'},'forest',2,5),'regression:trees');
+        end
+        function ensembleConditionsAreComparedInOneBatch(testCase)
+            t=(1:40)'; x=[t,sin(t)]; y=2+.1*t+sin(t);
+            conditions=modeling_conditions({}, {'forest','bagging'},'exact',2,20);
+            testCase.verifyEqual({conditions.Regressor},{'forest','bagging'}); testCase.verifyEqual([conditions.Trees],[20,20]);
+            services=struct('Trainer',@(a,b,c,callback)train_modeling_candidate('generic',a,b,{'A','B'},c,[],callback), ...
+                'Predictor',@(model,a)predict(model,a),'Shap',@testShap);
+            records=evaluate_modeling_batch(x,y,{'A','B'},{'Y1'},conditions,struct('Folds',4,'Seed',2,'Bins',0),services);
+            for index=1:2
+                testCase.verifyEqual(records{index}.Status,'成功',records{index}.Note);
+                testCase.verifyEqual(records{index}.Model.Trees,20);
+                testCase.verifyTrue(all(isfinite(records{index}.Prediction)));
+            end
+        end
         function invalidTrainingAndInputColumnsStop(testCase)
             x=[(1:8)',2*(1:8)']; y=(1:8)';
             testCase.verifyError(@()ProcessRegressionModel(x,y,{'A','B'},'linear',1),'regression:rank');

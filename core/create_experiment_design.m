@@ -8,6 +8,10 @@ validateattributes(levels, {'numeric'}, {'scalar', 'integer', '>=', 2, '<=', 5})
 validateattributes(existing, {'numeric'}, {'2d', 'real', 'finite', '>=', -1, '<=', 1});
 if size(existing, 2) ~= factors, error('doe:columns', '既存計画の列数を因子数と一致させてください。'); end
 if ~any(strcmp(method, {'D', 'I', 'orthogonal'})), error('doe:method', '計画方式が不正です。'); end
+% 既存の計画に点を追加する拡張計画は Pro 版だけ。配布した通常版の exe では作らない。
+if ~isempty(existing) && isdeployed && ~strcmp(app_edition(), 'pro')
+    error('doe:proOnly', '既存の計画に点を追加する拡張計画は Pro 版だけで使えます。');
+end
 previous_rng = rng; restore_rng = onCleanup(@() rng(previous_rng));
 rng(seed, 'twister');
 if strcmp(method, 'orthogonal')

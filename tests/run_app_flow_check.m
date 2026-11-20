@@ -27,15 +27,15 @@ step('起動とホーム画面', @() app.selectPage('home'));
 step('APC：2カーネルを交差検証あり・なしで比較・SHAP・保存', @checkApc);
 step('Swing Curve：下地あり', @checkSwingWithBase);
 step('Swing Curve：下地なし・周期カーネル', @checkSwingPeriodic);
-step('汎用回帰：GPR・重回帰・PLSの比較と保存', @checkGeneric);
+step('汎用回帰：GPR・重回帰・PLS・ランダムフォレスト・バギング木の比較と保存', @checkGeneric);
 step('炉内補間：2Run・6方式・保存', @checkFurnace);
 step('保存モデルで推定：評価つき', @checkPredict);
 step('SHAP解析：起動中のモデルを使用', @checkShapPage);
 step('実験計画：D最適・I最適・直交表・拡張', @checkDesign);
 step('ワードクラウド', @checkWords);
-step('設定：テーマ変更で結果が消えない', @checkSettings);
+step('設定：テーマ・文字の大きさの変更で結果が消えない', @checkSettings);
 step('Help', @() app.selectPage('help'));
-step('通常版：swingperiodic と周期の探索範囲を出さない', @checkStandardEdition);
+step('通常版：Pro版だけの機能（周期カーネル・周期の探索範囲・拡張計画）と説明を出さない', @checkStandardEdition);
 step('細かい操作：並べ替え・書出し・CSV・ヘッダー行', @checkDetails);
 step('結果の表示と出力：横並びの散布図・SHAPの色・1ファイル出力・進捗', @checkOutputs);
 step('入力の誤りを分かる言葉で止める', @checkValidation);
@@ -186,15 +186,23 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         app.selectPage('generic'); page = app.page('generic');
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1', 'Y2'});
         page.Regressors.linear.Value = true; page.Regressors.pls.Value = true;
-        page.runModeling();
-        assert(numel(page.Records) == 6, '目的変数2 × 条件3 = 6モデルになりません。');
+        page.Regressors.forest.Value = true; page.Regressors.bagging.Value = true; page.Regressors.bagging.ValueChangedFcn([], []);
+        assert(strcmp(page.TreeCount.Enable, 'on'), 'ランダムフォレスト・バギング木を選ぶと木の本数を入力できます。');
+        page.TreeCount.Value = 50; page.runModeling();
+        assert(numel(page.Records) == 10, '目的変数2 × 条件5 = 10モデルになりません。');
         labels = cellfun(@(record) modeling_condition_label(record.Condition), page.Records, 'UniformOutput', false);
-        for index = 1:6, assert(strcmp(page.Records{index}.Status, '成功'), '%s の失敗: %s', labels{index}, page.Records{index}.Note); end
+        for index = 1:10, assert(strcmp(page.Records{index}.Status, '成功'), '%s の失敗: %s', labels{index}, page.Records{index}.Note); end
+        assert(all(ismember({'ランダムフォレスト（50本）', 'バギング木（50本）'}, labels)), '条件の名前が想定と違います: %s', strjoin(labels, ', '));
+        forest = find(strcmp(labels, 'ランダムフォレスト（50本）'), 1); page.selectRow(forest);
+        report = page.saveSelectedTo(fullfile(work, 'GenericForest_Model_Y1.mat'));
+        assert(report.Success, 'ランダムフォレストの保存後検証に失敗しました。');
+        loaded = load_analysis_model(fullfile(work, 'GenericForest_Model_Y1.mat'));
+        assert(strcmp(loaded.Method, 'forest') && loaded.Trees == 50, 'ランダムフォレストの保存内容が違います。');
         linear = find(strcmp(labels, '重回帰'), 1); page.selectRow(linear);
         path = fullfile(work, 'GenericRegression_Model_Y1.mat'); report = page.saveSelectedTo(path);
         assert(report.Success, '重回帰モデルの保存後検証に失敗しました。');
         loaded = load_analysis_model(path); assert(isequal(loaded.PredictorNames, {'X1', 'X2', 'X3'}), '重回帰の説明変数名は列名を保持します。');
-        gpr = find(~ismember(labels, {'重回帰'}) & ~startsWith(labels, 'PLS'), 1); page.selectRow(gpr);
+        gpr = find(~ismember(labels, {'重回帰'}) & ~startsWith(labels, {'PLS', 'ランダムフォレスト', 'バギング木'}), 1); page.selectRow(gpr);
         report = page.saveSelectedTo(fullfile(work, 'GenericGPR_Model_Y1.mat')); assert(report.Success, '汎用GPRの保存後検証に失敗しました。');
     end
     function checkFurnace()
@@ -253,7 +261,19 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(numel(modeling.Records) == 4 && ~isempty(modeling.Result.validCharts()), '設定の変更で学習結果が消えました。');
         assert(contains(modeling.FitInfo.Text, 'sd'), 'Fit method の表示が更新されていません。');
         app.selectPage('apc'); drawnow; capture('ダークテーマの学習結果');
-        page.Fields.Theme.Value = 'ライト'; page.Fields.FitMethod.Value = 'exact'; page.save();
+        % 文字の大きさは保存するとすぐ全画面に反映し、見出しは比率を保つ。
+        page.Fields.FontSize.Value = 16; page.save();
+        assert(app.Settings.FontSize == 16, '文字の大きさを保存できません。');
+        assert(modeling.RunButton.FontSize == 16, '学習画面の文字の大きさが変わりません。');
+        modeling.UseCrossValidation.Value = true; modeling.UseCrossValidation.ValueChangedFcn([], []);
+        assert(modeling.Plan.FontSize == 16, '実行内容の表示を更新すると、文字の大きさが標準に戻ります。');
+        modeling.UseCrossValidation.Value = false; modeling.UseCrossValidation.ValueChangedFcn([], []);
+        labels = findall(app.Navigation.page('home'), 'Type', 'uilabel');
+        home_title = labels(contains(string({labels.Text}), 'へようこそ'));
+        assert(~isempty(home_title) && home_title(1).FontSize == 24, 'ホームの見出しが標準の比率で大きくなりません（%g）。', home_title(1).FontSize);
+        assert(numel(modeling.Records) == 4, '文字の大きさの変更で学習結果が消えました。');
+        page.Fields.Theme.Value = 'ライト'; page.Fields.FitMethod.Value = 'exact'; page.Fields.FontSize.Value = 12; page.save();
+        assert(modeling.RunButton.FontSize == 12, '文字の大きさを標準へ戻せません。');
     end
     function checkDetails()
         app.selectPage('generic'); page = app.page('generic');
@@ -284,14 +304,29 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
     function checkStandardEdition()
         % 通常版（配布版）では、swingperiodic と周期の探索範囲を出さない（Pro 版だけの選択肢）。
         standard_work = tempname; mkdir(standard_work); cleanup_folder = onCleanup(@() removeFolder(standard_work));
-        standard_window = uifigure('Visible', 'off'); cleanup_standard = onCleanup(@() deleteWindow(standard_window));
+        % 実験計画の実行で進捗ダイアログを出すため、表示した状態で作る。
+        standard_window = uifigure('Visible', 'on'); cleanup_standard = onCleanup(@() deleteWindow(standard_window));
         standard = AnalysisController(standard_window, 'standard', standard_work);
+        standard.AlertFcn = @(text, title_text, ~) error('flow:standardAlert', '通常版の画面で %s: %s', title_text, text);
         swing = standard.page('swing');
         assert(~any(strcmp(swing.Kernels.Items, 'swingperiodic')), '通常版のカーネルに swingperiodic があります。');
         assert(isempty(fieldnames(swing.Period)), '通常版に周期の探索範囲があります。');
         assert(~any(strcmp(standard.page('settings').Fields.SwingKernel.Items, 'swingperiodic')), '通常版の設定に swingperiodic があります。');
         pro_swing = app.page('swing');
         assert(any(strcmp(pro_swing.Kernels.Items, 'swingperiodic')) && isfield(pro_swing.Period, 'Wavelength'), 'Pro版では swingperiodic と周期の探索範囲を使えます。');
+        % 拡張計画（既存の計画への追加）は Pro 版だけ。
+        design = standard.page('doe');
+        assert(~any(contains(design.Method.Items, '拡張')) && isempty(design.ExistingPanel), '通常版に拡張計画があります。');
+        design.Method.Value = design.Method.Items{1}; design.run();
+        assert(~isempty(design.Result.tableData(design.TABLE_DESIGN)), '通常版で実験計画を作れません。');
+        assert(any(contains(app.page('doe').Method.Items, '拡張')), 'Pro版では拡張計画を選べます。');
+        % Help は版ごとの内容。通常版には Pro 版だけの用語と、作成担当者向け手順書のボタンを出さない。
+        standard_terms = findobj(standard.page('help').Body, 'Type', 'uitable').Data(:, 1);
+        pro_terms = findobj(app.page('help').Body, 'Type', 'uitable').Data(:, 1);
+        assert(~any(ismember({'swingperiodic', '拡張実験計画', '近似残差'}, standard_terms)), '通常版の Help に Pro 版だけの用語があります。');
+        assert(all(ismember({'swingperiodic', '拡張実験計画', '近似残差'}, pro_terms)), 'Pro版の Help に Pro 版の用語がありません。');
+        standard_buttons = {findobj(standard.page('help').Body, 'Type', 'uibutton').Text};
+        assert(~any(contains(standard_buttons, {'ビルド・利用手順書', 'daugment'})), '通常版の Help に Pro 版の案内があります。');
     end
     function checkValidation()
         app.selectPage('generic'); page = app.page('generic');

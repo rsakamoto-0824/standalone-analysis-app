@@ -1,16 +1,18 @@
 classdef DesignPage < AppPage
     % 実験計画作成の画面。左で条件を決め、右に計画・交絡の表とグラフを表示する。
+    % 既存の計画に点を追加する拡張計画（拡張 D最適・拡張 I最適）は Pro 版だけ。通常版では選択肢と「② 既存の計画」を出さない。
     properties (SetAccess = private)
+        IsPro
         Method
         DesignModel
         Factors
         Levels
         Runs
         SeedInfo
-        ExistingPanel
-        Source
-        Mapper
-        ClearButton
+        ExistingPanel = []
+        Source = []
+        Mapper = []
+        ClearButton = []
         RunButton
         Result
     end
@@ -32,12 +34,17 @@ classdef DesignPage < AppPage
     methods
         function page = DesignPage(app, parent)
             page@AppPage(app, parent);
+            page.IsPro = strcmp(app.Edition, 'pro');
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
             page.buildInputs();
             holder = uigridlayout(page.Body, [1, 1]); holder.Padding = [0, 0, 0, 0];
             page.Result = ResultPanel(page, holder, '左で条件を決めて「実験計画を作成」を押すと、ここに計画と交絡の確認結果を表示します。');
             page.methodChanged();
-            page.message('値は −1〜1 の符号化値です（因子の下限を −1、上限を 1 とします）。既存の実験に追加する場合は「拡張」を選びます。');
+            if page.IsPro
+                page.message('値は −1〜1 の符号化値です（因子の下限を −1、上限を 1 とします）。既存の実験に追加する場合は「拡張」を選びます。');
+            else
+                page.message('値は −1〜1 の符号化値です（因子の下限を −1、上限を 1 とします）。');
+            end
         end
         function run(page)
             dialog = [];
@@ -45,6 +52,7 @@ classdef DesignPage < AppPage
                 choice = find(strcmp(page.METHODS, page.Method.Value), 1); factors = page.Factors.Value;
                 existing = zeros(0, factors);
                 if page.AUGMENTED(choice)
+                    if ~page.IsPro, error('doe:proOnly', '既存の計画に点を追加する拡張計画は Pro 版だけで使えます。'); end
                     if isempty(page.Source.Data), error('doe:noExisting', '「② 既存の計画」で、既存の実験点のファイルを開いてください。'); end
                     page.Mapper.requireComplete(); mapping = page.Mapper.mapping();
                     existing = assign_required_columns(page.Source.Data, mapping(:, 2), mapping(:, 3));
@@ -68,19 +76,27 @@ classdef DesignPage < AppPage
         function buildInputs(page)
             settings = page.settings();
             left = uigridlayout(page.Body, [3, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {250, '1x', 38};
+            if ~page.IsPro, left.RowHeight = {250, 38, '1x'}; end
             panel = AppPage.section(left, '① 計画の条件');
             grid = uigridlayout(panel, [6, 2]); grid.RowHeight = {30, 30, 30, 30, 30, 30}; grid.ColumnWidth = {170, '1x'};
             uilabel(grid, 'Text', '方式');
-            page.Method = uidropdown(grid, 'Items', page.METHODS, 'ValueChangedFcn', @(~, ~) page.methodChanged());
+            methods_shown = page.METHODS(~page.AUGMENTED | page.IsPro);
+            page.Method = uidropdown(grid, 'Items', methods_shown, 'ValueChangedFcn', @(~, ~) page.methodChanged());
             uilabel(grid, 'Text', '評価するモデル');
             page.DesignModel = uidropdown(grid, 'Items', page.MODEL_LABELS, 'ItemsData', page.MODEL_CODES);
             [~, page.Factors] = AppPage.numberField(grid, sprintf('因子数（1〜%d）', page.MAX_FACTORS), settings.Factors, [1, page.MAX_FACTORS], true);
             page.Factors.ValueChangedFcn = @(~, ~) page.refreshRoles();
             uilabel(grid, 'Text', '水準数（2〜5）');
             page.Levels = uidropdown(grid, 'Items', page.LEVEL_CHOICES, 'Value', page.DEFAULT_LEVELS);
-            [~, page.Runs] = AppPage.numberField(grid, '実験数（拡張では追加数）', settings.Runs, [1, page.MAX_RUNS], true);
+            runs_label = '実験数'; if page.IsPro, runs_label = '実験数（拡張では追加数）'; end
+            [~, page.Runs] = AppPage.numberField(grid, runs_label, settings.Runs, [1, page.MAX_RUNS], true);
             page.SeedInfo = uilabel(grid, 'Text', page.seedText()); page.SeedInfo.Layout.Column = [1, 2];
 
+            if ~page.IsPro
+                page.RunButton = AppPage.primaryButton(left, '実験計画を作成', @(~, ~) page.run());
+                AppPage.fillLastRow(left);
+                return;
+            end
             page.ExistingPanel = AppPage.section(left, '② 既存の計画（「拡張」を選んだときに使用）');
             grid = uigridlayout(page.ExistingPanel, [4, 1]); grid.RowHeight = {40, 70, '1x', 30};
             AppPage.hint(grid, '既存の実験点（−1〜1に符号化した値）のファイルを開き、因子ごとに列を選びます。既存の点は値と順序を保ち、追加の点を後ろへ並べます。');
@@ -98,11 +114,13 @@ classdef DesignPage < AppPage
             orthogonal = strcmp(page.METHOD_CODES{choice}, 'orthogonal');
             % 直交表は必要な実験数を自動で決めるため、実験数の入力を使わない。
             page.Runs.Enable = matlab.lang.OnOffSwitchState(~orthogonal);
+            if ~page.IsPro, return; end
             enabled = matlab.lang.OnOffSwitchState(page.AUGMENTED(choice));
             page.Source.OpenButton.Enable = enabled; page.ClearButton.Enable = enabled;
             page.refreshRoles();
         end
         function refreshRoles(page)
+            if ~page.IsPro, return; end
             headers = {};
             if ~isempty(page.Source.Data), headers = page.Source.Data.Headers; end
             roles = cellstr("F" + string(1:page.Factors.Value));
@@ -116,6 +134,8 @@ classdef DesignPage < AppPage
             output = array2table(design, 'VariableNames', cellstr("F" + string(1:size(design, 2))));
             kind = repmat("追加", size(design, 1), 1); kind(1:details.FixedRows) = "既存";
             output = addvars(output, (1:size(design, 1))', kind, 'Before', 1, 'NewVariableNames', {'Run', 'Type'});
+            % 既存・追加の区別は拡張計画（Pro 版）のときだけ意味を持つ。
+            if ~page.IsPro, output = removevars(output, 'Type'); end
             panel.setTable(page.TABLE_DESIGN, output);
             if ~isempty(report.Dependencies)
                 columns = cellstr("関係" + string(1:size(report.Dependencies, 2)));
@@ -127,8 +147,12 @@ classdef DesignPage < AppPage
             ax.XTickLabel = report.Names; ax.YTickLabel = report.Names; ax.XTickLabelRotation = 60; ax.TickLabelInterpreter = 'none';
             axis(ax, 'tight'); ax.YDir = 'reverse';
             title(ax, sprintf('2次モデルの項どうしの重なり |cosθ|（1＝区別できない、0＝直交） ランク %d / %d', report.FullRank, report.FullTerms));
-            panel.setHeadline(sprintf('実験数 %d（既存 %d ＋ 追加 %d） / 選んだモデルのランク %d / %d 項', ...
-                size(design, 1), details.FixedRows, details.AddedRows, report.Rank, report.Terms));
+            if page.IsPro
+                panel.setHeadline(sprintf('実験数 %d（既存 %d ＋ 追加 %d） / 選んだモデルのランク %d / %d 項', ...
+                    size(design, 1), details.FixedRows, details.AddedRows, report.Rank, report.Terms));
+            else
+                panel.setHeadline(sprintf('実験数 %d / 選んだモデルのランク %d / %d 項', size(design, 1), report.Rank, report.Terms));
+            end
             panel.showTable(page.TABLE_DESIGN); page.App.applyTheme();
             page.message(sprintf('計画を作成しました（seed=%d）。D最適・I最適は局所探索のため、最良の計画である保証はありません。', details.Seed));
             if report.Rank < report.Terms

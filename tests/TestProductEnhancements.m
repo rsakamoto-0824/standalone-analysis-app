@@ -80,5 +80,22 @@ classdef TestProductEnhancements < matlab.unittest.TestCase
             testCase.verifyTrue(contains(fileread(fullfile(pro,'core','app_edition.m')),'''pro'''));
             testCase.verifyTrue(contains(fileread(fullfile(standard,'core','app_edition.m')),'''standard'''));
         end
+        function standardGuideKeepsOnlyUserManualFiles(testCase)
+            root = fileparts(fileparts(mfilename('fullpath')));
+            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            guide = fullfile(fixture.Folder, 'user-guide'); copyfile(fullfile(root, 'docs', 'user-guide'), guide);
+            rmdir(fullfile(guide, '_src'), 's');
+            removed = keep_user_manual_only(guide);
+            testCase.verifyTrue(isfile(fullfile(guide, 'user-manual.html')));
+            testCase.verifyFalse(isfile(fullfile(guide, 'procedure-guide.html')) || isfile(fullfile(guide, 'build-guide.html')));
+            testCase.verifyFalse(isfile(fullfile(guide, 'images', '60-period-search.png')), 'Pro 版だけの画像が残っています。');
+            testCase.verifyTrue(any(strcmp(removed, 'procedure-guide.html')));
+            % 残したファイルだけで、利用者向け手順書の参照がすべて解決する。
+            text = fileread(fullfile(guide, 'user-manual.html'));
+            references = regexp(text, '(?:href|src)="([^"#:]+)"', 'tokens');
+            for index = 1:numel(references)
+                testCase.verifyTrue(isfile(fullfile(guide, references{index}{1})), references{index}{1});
+            end
+        end
     end
 end

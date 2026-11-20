@@ -120,17 +120,17 @@ ${shot('52-variables-apc','APC：4変数にドロップダウンで列を割り�
 ${shot('53-variables-swing','Swing Curve：モード・膜厚の列・下地の説明変数を同じ画面で選ぶ')}
 ${shot('54-variables-generic','汎用回帰：入力に使う列を選び、順序を確認する')}
 <h3 id="kernel-comparison">8-2　③ 条件を決めて実行する（複数条件の比較）</h3>
-<ol><li>左の <span class="ui-name">GPRのカーネル</span> を選びます。複数選ぶと比較します（Ctrl を押しながらクリック）。汎用回帰では <span class="ui-name">回帰方式</span>（GPR・重回帰・PLS回帰）も選べ、PLS を選ぶと <span class="ui-name">PLSの成分数</span> を入力できます。</li><li>右で評価の方法を決めます。初期状態では交差検証を使わず、学習データでの当てはまりで評価します（条件をいくつ選んでも、この方法で比べられます）。</li><li><span class="ui-name">交差検証で評価する</span> にチェックを入れると、同じ分割の交差検証（学習に使っていない行での予測）で評価します。分割数の初期値は5、乱数seedは0です。</li><li><span class="ui-name">SHAPも計算する</span> を外すと、SHAP を省いて速く終わります。SHAP は④で後から計算できます。</li><li>下の緑の文で、学習するモデルの数（目的変数 × 条件）を確認し、<span class="ui-name">モデリング・SHAP評価を実行</span> を押します。処理中は進捗を表示し、中止もできます。</li></ol>
+<ol><li>左の <span class="ui-name">GPRのカーネル</span> を選びます。複数選ぶと比較します（Ctrl を押しながらクリック）。汎用回帰では <span class="ui-name">回帰方式</span>（GPR・重回帰・PLS回帰・ランダムフォレスト・バギング木）も選べ、PLS を選ぶと <span class="ui-name">PLSの成分数</span> を、ランダムフォレストかバギング木を選ぶと <span class="ui-name">木の本数</span>（10〜1000、初期値100、両方で共通）を入力できます。ランダムフォレストは分岐ごとに説明変数の約1/3だけを候補にし、バギング木は全変数を候補にします。どちらも復元抽出に乱数を使い、学習範囲の外では予測がほぼ一定になります。</li><li>右で評価の方法を決めます。初期状態では交差検証を使わず、学習データでの当てはまりで評価します（条件をいくつ選んでも、この方法で比べられます）。</li><li><span class="ui-name">交差検証で評価する</span> にチェックを入れると、同じ分割の交差検証（学習に使っていない行での予測）で評価します。分割数の初期値は5、乱数seedは0です。</li><li><span class="ui-name">SHAPも計算する</span> を外すと、SHAP を省いて速く終わります。SHAP は④で後から計算できます。</li><li>下の緑の文で、学習するモデルの数（目的変数 × 条件）を確認し、<span class="ui-name">モデリング・SHAP評価を実行</span> を押します。処理中は進捗を表示し、中止もできます。</li></ol>
 <p>GPR の Fit method は「9 設定」で指定した値を、すべての GPR に共通で使います。この画面では変更しません。</p>
 ${shot('55-conditions','③ 条件を決めて実行：カーネルを複数選ぶと交差検証で比較する')}
-${shot('71-conditions-generic','汎用回帰：GPR・重回帰・PLS回帰を選んで同じ分割で比較する')}
+${shot('71-conditions-generic','汎用回帰：GPR・重回帰・PLS回帰・ランダムフォレスト・バギング木を選んで比較する')}
 ${note('検証の範囲と計算量','交差検証の指標は、全行の検証予測をまとめて計算します（分割ごとの平均ではありません）。条件ごとに「分割数＋1」回の学習を行うため、条件や目的変数が多いほど時間がかかります。APC は各分割の学習に25行以上が必要です。行をランダムに分けるため、ロットや時系列のまとまりは分離しません。比較に使った検証値は条件選びにも使っているので、採用後は別のデータでも確認してください。')}
 ${step('8-3','④ 結果を比べる',`<ol><li>上の一覧に、学習したモデルが1行ずつ並びます。<strong>行をクリックすると、下に評価とグラフを表示します</strong>（選んだ行は青く表示）。</li><li>「順位」は、同じ実行・同じ目的変数の中で RMSE が小さい順です。「評価データ」が「学習データ」の行は、学習に使ったデータでの当てはまりです。</li><li>下の <span class="ui-name">グラフ</span> で、実測値と予測値・残差・条件の比較（RMSE）・SHAP を確認します。実測値と予測値・残差は1つのタブに横並びで表示し、「色を指定する列」で入力ファイルの任意の列により2つの図をまとめて色分けできます。SHAP 依存図は上の「色の変数」で、点の色に使う説明変数を選び直せます。</li><li>表のタブで、評価指標（8指標）・検証分割・予測・SHAPの出力（元データの説明変数・目的変数と予測値・残差・SHAP値を並べた表）・列の要約を確認できます。<span class="ui-name">予測・SHAPを1ファイルに保存</span> で、この表を CSV / Excel の1ファイルに保存できます。</li><li>条件を変えて③をもう一度実行すると、以前の結果を残したまま一覧へ追加します。</li></ol><p>グラフを広く見たいときは <span class="ui-name">グラフを大きく表示</span> を押すと、一覧をたたみます。一覧はアプリを終了すると消えるため、使うモデルは終了前に保存してください。</p>`,'一覧の「状態」が成功で、見出しに RMSE・R²・件数が表示されること。失敗した行は「備考」に理由が表示されます。')}
 ${shot('57-results','④ 結果を比べて保存：一覧の行をクリックすると、下に評価とグラフを表示する（実測値と予測値・残差は横並び）')}
 ${shot('75-output-table','予測・SHAPの出力：元データの説明変数・目的変数と、予測値・残差・SHAP値を1つの表に並べる')}
 ${shot('72-results-generic','条件の比較（RMSE）：同じ目的変数の条件を棒グラフで比べる')}
 ${shot('58-results-shap','SHAP分布と依存図もアプリ内に表示する','R2022b のため SHAP は代替計算（1列を平均に置き換えた予測差）で描いた参考画面です。R2025b では shapley の計算結果を標準の swarmchart で表示します。')}
-${step('8-4','選んだ1モデルだけをMAT保存する',`<ol><li>一覧で保存するモデルの行をクリックします。</li><li><span class="ui-name">選択モデルをMAT保存</span> を押し、保存先を決めます。初期の名前は <code>Train_Model_目的変数.mat</code>（APC）、<code>SwingCurve_Model_目的変数.mat</code>、<code>GenericGPR_Model_目的変数.mat</code>、<code>GenericRegression_Model_目的変数.mat</code>（重回帰・PLS）です。</li><li>保存後、自動で読み直して検証し、<span class="ui-name">保存後検証</span> の表を表示します。一覧の「保存先」にもファイル名が入ります。</li></ol><p>再学習や SHAP の再計算は行わず、全データで学習済みのそのモデルを保存します。GPR の MAT に入る変数は <code>Train_Model</code> だけです。重回帰・PLS は別形式の <code>Regression_Model</code> で、GPR 専用の制御側へは渡しません。</p>`,'保存後検証の Passed がすべてチェック済みであること。1つでも失敗すると「このモデルを制御に使用しないでください」と表示します。')}
+${step('8-4','選んだ1モデルだけをMAT保存する',`<ol><li>一覧で保存するモデルの行をクリックします。</li><li><span class="ui-name">選択モデルをMAT保存</span> を押し、保存先を決めます。初期の名前は <code>Train_Model_目的変数.mat</code>（APC）、<code>SwingCurve_Model_目的変数.mat</code>、<code>GenericGPR_Model_目的変数.mat</code>、<code>GenericRegression_Model_目的変数.mat</code>（重回帰・PLS・ランダムフォレスト・バギング木）です。</li><li>保存後、自動で読み直して検証し、<span class="ui-name">保存後検証</span> の表を表示します。一覧の「保存先」にもファイル名が入ります。</li></ol><p>再学習や SHAP の再計算は行わず、全データで学習済みのそのモデルを保存します。GPR の MAT に入る変数は <code>Train_Model</code> だけです。重回帰・PLS は別形式の <code>Regression_Model</code> で、GPR 専用の制御側へは渡しません。</p>`,'保存後検証の Passed がすべてチェック済みであること。1つでも失敗すると「このモデルを制御に使用しないでください」と表示します。')}
 ${shot('59-results-verification','保存後検証：変数名・説明変数の名前と順序・設定・行数・予測の一致を確認する')}
 <h3 id="periodic-kernel">8-5　Swing Curve向けの周期カーネルを選ぶ（Pro版のみ）</h3>
 <p>Pro版の Swing Curve学習では、③でカーネルに <code>swingperiodic</code> を選べます（通常版には、このカーネルと周期の探索範囲の欄はありません）。レジスト膜厚の周期成分と、膜厚の直線的な変化（バルク効果を想定）を組み合わせた専用カーネルです。周期は入力しません。右の <span class="ui-name">周期の探索範囲</span> の中から、GPR の当てはまり（周辺尤度）が最も大きい周期を内部で選びます。</p>
@@ -205,16 +205,18 @@ bundle = load_furnace_model('FurnaceInterpolation_Model_xxx.mat');
 slots = (10:5:150)';   % 学習した範囲内の BoatSlot
 [prediction, deviation, interval] = predict_furnace_model(bundle.Model, slots);`)}
 ${note('検証の限界','内部 Slot の検証は、端部や外挿の精度を評価しません。方式の選択にも使った検証値は独立な評価ではないため、採用前に別の実測でも確認してください。','warning')}
-<h3>11-C　実験計画作成</h3><ol><li>「7 実験計画作成」の①で方式（D最適・I最適・直交表・拡張）、評価するモデル、因子数、水準数（2〜5）、実験数を決めます。直交表は必要な実験数を自動で決めます。</li><li>既存の実験に追加する場合は「拡張」を選び、②で既存の計画（−1〜1に符号化した値）のファイルを開いて、因子ごとに列を選びます。</li><li><span class="ui-name">実験計画を作成</span> を押します。右に計画の表と、交絡の確認結果を表示します。</li></ol>
-${shot('65-doe','実験計画：左で条件を決め、右で計画と交絡（項どうしの重なり）を確認する')}
+<h3>11-C　実験計画作成</h3><ol><li>「7 実験計画作成」の①で方式（D最適・I最適・直交表、Pro版では拡張も）、評価するモデル、因子数、水準数（2〜5）、実験数を決めます。直交表は必要な実験数を自動で決めます。</li><li>（Pro版のみ）既存の実験に追加する場合は「拡張 D最適」「拡張 I最適」を選び、②で既存の計画（−1〜1に符号化した値）のファイルを開いて、因子ごとに列を選びます。通常版には拡張の選択肢と②の欄がありません。</li><li><span class="ui-name">実験計画を作成</span> を押します。右に計画の表と、交絡の確認結果を表示します。</li></ol>
+${shot('65-doe','実験計画（通常版）：左で条件を決め、右で計画と交絡（項どうしの重なり）を確認する')}
+${shot('78-doe-pro','実験計画（Pro版）：拡張を選ぶと、②で既存の計画を開いて点を追加できる')}
 ${note('最適計画の限界','値は −1〜1 の符号化値です。D最適・I最適は局所探索のため、最良の計画である保証はありません。図の対角線以外が1に近い項どうしは、効果を区別できません。乱数seedは「9 設定」で指定し、同じseedなら同じ計画を再現できます。')}
 <h3>11-D　ワードクラウド</h3><p>「8 ワードクラウド」で文章を入力するか <code>.txt</code> を開き、<span class="ui-name">ワードクラウドを作成</span> を押します。日本語は自動で単語に分けないため、単語の間を空白で区切ってください。1文字の単語は除きます。</p>
 ${shot('66-wordcloud','ワードクラウド：図と単語の出現数を表示する')}
-<h3>11-E　設定とHelp</h3><p>「9 設定」で、保存先、テーマ、カーネルの初期値、<strong>Fit method（すべての GPR に共通）</strong>、<strong>KL / MI ビン数</strong>、実験計画の因子数・実験数・<strong>seed</strong>、炉内補間の <strong>RBF 幅・正則化</strong> を変更し、<span class="ui-name">設定を保存して適用</span> を押します。太字の項目はこの画面だけで変更します。変更は次の実行から反映し、表示中の結果や学習済みモデルの一覧は消えません。</p>
+<h3>11-E　設定とHelp</h3><p>「9 設定」で、保存先、テーマ、<strong>文字の大きさ</strong>、カーネルの初期値、<strong>Fit method（すべての GPR に共通）</strong>、<strong>KL / MI ビン数</strong>、実験計画の因子数・実験数・<strong>seed</strong>、炉内補間の <strong>RBF 幅・正則化</strong> を変更し、<span class="ui-name">設定を保存して適用</span> を押します。太字の項目はこの画面だけで変更します。テーマと文字の大きさは保存するとすぐ反映し、それ以外は次の実行から反映します。表示中の結果や学習済みモデルの一覧は消えません。</p>
+<p>文字の大きさは8〜20ポイントの整数（標準12）です。部品ごとに作成時の大きさを覚えておき、すべての画面の文字を同じ比率で拡大・縮小します（見出し・グラフの文字も含む）。大きくしすぎると、高さが決まった欄で文字が切れる場合があります。</p>
 ${shot('67-settings','設定：項目を目的別にまとめ、保存ボタンは常に見える位置に置く')}
 ${shot('69-dark-theme','ダークテーマの表示（学習結果を表示したまま切り替えできる）')}
-<p>「10 Help」には、用語の説明、操作のまとめ、MathWorks 公式の関数ヘルプ、この手順書への入口があります。ウィンドウの大きさは自由に変えられ、最大化もできます。</p>
-${shot('68-help','Help：用語の説明と、公式の関数ヘルプへの入口')}
+<p>「10 Help」には、用語の説明、操作のまとめ、MathWorks 公式の関数ヘルプ、手順書への入口があります。<strong>内容は版ごとに異なります。</strong>通常版では、Pro版だけの機能（swingperiodic・周期の探索範囲・カーブ近似と残差診断・拡張実験計画）の用語・操作・関数のリンクと、この手順書を開くボタンを表示しません（利用者向け手順書のボタンだけ）。Pro版ではすべてを表示します。ウィンドウの大きさは自由に変えられ、最大化もできます。</p>
+${shot('68-help','Help（通常版）：用語の説明と、公式の関数ヘルプへの入口')}
 `);
 
 add('export','結果・グラフ・ログを保存する','USER · OUTPUTS',`
@@ -275,17 +277,17 @@ add('references','参考資料と、この資料の確認範囲','SOURCES AND SC
 <h3>機能評価用サンプル</h3><p><a href="../../samples/ProcessInsight_Samples.xlsx">サンプルExcel（9シート）</a>と<a href="../../samples/README.md">列指定・使い方</a>を同梱しています。APC、Swing Curve両モード、汎用回帰のGPR・重回帰・PLS、推定・SHAP、2Runの炉内補間、拡張計画、ワードクラウドを試せます。全データは合成で、各データシートのヘッダー行は1です。予測・SHAP用MATはアプリでモデルを作成してから保存します。</p><h3>プロジェクト内の正本</h3><ul class="source-list"><li><a href="../../README.md">README.md</a><small>構成、入力と保存仕様、起動方法。</small></li><li><a href="../windows-build.md">Windows ビルド手順（Markdown）</a></li><li><a href="../specification.md">原仕様</a><small>MR-01〜MR-09、T-01〜T-10、Q-01〜Q-11 の正本。</small></li><li><a href="../../verification.md">検証記録</a> / <a href="../../issues.md">残課題</a></li></ul>
 <h3>MathWorks 公式資料</h3><ul class="source-list"><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-startup-function.html">startupFcn の追加と起動時の処理</a><small>アプリノードの Callbacks メニュー、StartupFcn コールバック。</small></li><li><a href="https://www.mathworks.com/help/matlab/creating_guis/app-designer-code-generation.html">App Designer Code View のコード管理</a><small>プロパティ・コールバックの追加。最新ページには R2026b の新仕様もあるため、R2025b の .mlapp 手順を使用。</small></li><li><a href="https://www.mathworks.com/help/compiler/compiler.build.standalonewindowsapplication.html">compiler.build.standaloneWindowsApplication</a><small>Windows でのビルドと出力ファイル。</small></li><li><a href="https://www.mathworks.com/help/compiler/compiler.package.installer.html">compiler.package.installer</a><small>MATLAB Runtime を同梱したインストーラーの作成（RuntimeDelivery "installer"）。</small></li><li><a href="https://www.mathworks.com/help/compiler/standalone-application-target.html">スタンドアローンアプリの配布</a><small>ビルドと配布先の OS、配布するファイル。</small></li><li><a href="https://www.mathworks.com/products/compiler/matlab-runtime.html">MATLAB Runtime の入手</a></li><li><a href="https://www.mathworks.com/help/matlab/ref/exportapp.html">exportapp</a><small>参考 UI 画像の書出しに使用。</small></li></ul>
 <h3>画像と文書の確認範囲</h3><p>アプリの使い方だけを知りたい利用者向けには、<a href="user-manual.html">利用者向け手順書</a>もあります。</p><p>アプリ画面は、R2022b / macOS で開発用の例外（環境変数 <code>PROCESS_INSIGHT_DEV_RELEASE=allow</code> を指定した MATLAB 上だけで有効。配布版では使えません）により起動し、同梱の合成サンプルを実際に学習して撮影しました（<code>docs/user-guide/_src/capture_app_screens.m</code>）。GPR の学習・MAT 保存・保存後検証は実際に実行しています。SHAP の計算だけは R2025b 専用のため、代替計算で描いています。10章の Pro 版カーブ評価の画像6枚は、作り直す前の画面で合成 SHAP 値を使って撮影したものです。</p><p>参考プレビューと R2025b 製品アプリの実行確認は別です。R2025b のビルド成功、Runtime 上の実行、モデル互換性は未確認です。手順書のブラウザ確認結果は同梱の <a href="guide-verification.md">guide-verification.md</a> に記録します。</p>
-<p class="privacy-note">この資料の更新日：2026-11-17（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
+<p class="privacy-note">この資料の更新日：2026-11-20（JST）。画像・フォント・ライブラリを外部から読み込まない構成です。公式サイトへのリンクを開くときはネット接続を使用します。</p>
 `);
 
 const html = renderPage({
   sections, groups: {0: 'はじめに', 3: '作成・配布担当者', 6: 'アプリ利用者', 12: '確認と対処'},
-  sidebarTitle: 'ビルド・利用手順書', sidebarSubtitle: 'Windows 64bit · R2025b', updated: '2026-11-17',
+  sidebarTitle: 'ビルド・利用手順書', sidebarSubtitle: 'Windows 64bit · R2025b', updated: '2026-11-20',
   heroEyebrow: 'BUILD &amp; OPERATING GUIDE', heroTitle: 'Process Insight Tool', heroSubtitle: 'ビルド・利用手順書',
   heroLead: 'ソースからの起動確認、Windows 配布、8機能と設定・Helpの操作、出力確認まで。',
-  badges: ['対象：Windows 64bit / R2025b', '画像：R2022b の参考撮影', '更新：2026-11-17'],
+  badges: ['対象：Windows 64bit / R2025b', '画像：R2022b の参考撮影', '更新：2026-11-20'],
   status: '<strong>現在の到達点：</strong>画面を作り直したソースを作成済み。R2025b での通し確認と全テスト・Windows でのインストーラー作成・MATLAB のない PC での確認は後工程です。この資料は、その作業を進めるための手順書です。',
-  footer: ['Process Insight Tool · ビルド・利用手順書', '2026-11-17 · 画像は参考プレビュー / 対象環境での確認は未完了'],
+  footer: ['Process Insight Tool · ビルド・利用手順書', '2026-11-20 · 画像は参考プレビュー / 対象環境での確認は未完了'],
   title: 'Process Insight Tool｜ビルド・利用手順書', description: 'Process Insight Tool（MATLAB R2025b）のWindowsビルド・配布・利用を、参考スクリーンショットとともに説明する手順書。'
 });
 fs.writeFileSync(pagePath, html);

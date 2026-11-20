@@ -99,7 +99,7 @@ classdef AnalysisController < handle
             app.applyTheme();
         end
         function applyTheme(app)
-            apply_app_theme(app.Window, app.Settings.Theme);
+            apply_app_theme(app.Window, app.Settings.Theme, app.Settings.FontSize);
             app.Navigation.applyTheme(app.Settings.Theme);
         end
         function path = chooseOpenFile(app, filter, title_text)
