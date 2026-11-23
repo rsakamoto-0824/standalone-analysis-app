@@ -160,3 +160,9 @@ comparison = compare_models('old.mat', 'new.mat', Xcheck);
 ## 評価用サンプル
 
 [samples/ProcessInsight_Samples.xlsx](samples/ProcessInsight_Samples.xlsx)に、使い方とAPC、Swing Curveの2モード、汎用回帰、推定・SHAP、複数Runの炉内補間、拡張計画、単語の9シートを用意しています。すべて合成データです。データシートのヘッダー行は1です。学習画面と炉内補間の「サンプルデータを開く」から直接開けます。[サンプルの使い方](samples/README.md)を参照してください。
+
+## 開発・レビュー用の文書
+
+[ウォーターフォール開発文書の一覧](docs/waterfall/index.html)に、要件定義・設計・試験・移行・運用保守など12点をまとめています。全書に2026-11-23付の新規作成履歴と、係長の確認・課長の承認の記録欄があります。記録欄は未記入です。
+
+[文書一式のZIP](docs/ProcessInsightTool_Waterfall_Documents_v1.0.zip)をダウンロード・展開し、`index.html`をPCのEdge / Chromeで開いてください。HTML上で記入した記録は「記入済みHTMLを保存」または印刷で保持できます。画像はアプリ内部だけの操作参考で、Windows R2025bの実行証跡ではありません。
