@@ -1,0 +1,61 @@
+{
+  "documentDate": "2026-11-23",
+  "sourceRevision": "df9ffc2214c6196eefb389f890d25551d53f2b1d",
+  "documentCount": 12,
+  "requirementCount": 19,
+  "testSpecificationCount": 19,
+  "screenshotCount": 9,
+  "staticChecks": {
+    "localReferences": 444,
+    "missing": 0,
+    "duplicateIds": 0,
+    "scope": "passed",
+    "revisionHistory": "all new creation",
+    "author": "坂本",
+    "initialReviewRecords": "blank"
+  },
+  "browser": {
+    "engine": "Chromium",
+    "delivery": "local HTML files",
+    "viewports": [
+      {
+        "width": 1366,
+        "height": 900,
+        "checkedPages": 12
+      },
+      {
+        "width": 1600,
+        "height": 1000,
+        "checkedPages": 12
+      }
+    ],
+    "horizontalOverflow": false,
+    "bodyFont": "14px",
+    "pageErrors": []
+  },
+  "reviewFunctionChecks": [
+    "date-does-not-confirm",
+    "approval-requires-checker",
+    "confirmed-record-requires-name",
+    "dates-validated",
+    "html-name-roundtrip",
+    "html-comment-escaping-roundtrip",
+    "html-decision-roundtrip",
+    "header-reflects-record",
+    "print-keeps-values",
+    "original-review-stays-blank",
+    "screenshot-enlarges",
+    "screenshot-original-size",
+    "screenshot-closes-with-escape"
+  ],
+  "reviewJsonRoundtrip": "passed",
+  "printValueDisplay": "passed",
+  "screenshotReview": "app content only; no OS window controls",
+  "applicationTestsThisTask": "not run",
+  "checkerReview": "not performed",
+  "managerApproval": "not performed",
+  "limitations": [
+    "参考画像はWindows R2025bの実行証跡ではない。",
+    "紙のページ分割・印刷機器ごとの差異は未検証。"
+  ]
+}
