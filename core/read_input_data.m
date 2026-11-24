@@ -4,10 +4,11 @@ if nargin < 3, header_row = 1; end
 validateattributes(header_row, {'numeric'}, {'scalar', 'integer', 'positive'}, mfilename, 'header_row');
 [~, ~, extension] = fileparts(fullName);
 switch lower(extension)
+    % readcell は配布版（MATLAB Runtime）で止まることがあったため、Excel・CSV とも自前の読み取りを使う。
     case '.xlsx'
-        cells = readcell(fullName, 'Sheet', sheet, 'UseExcel', false);
+        cells = read_xlsx_cells(fullName, sheet);
     case '.csv'
-        cells = readcell(fullName, 'FileType', 'text', 'Delimiter', ',', 'EmptyLineRule', 'read');
+        cells = read_csv_cells(fullName);
     otherwise
         error('read_input_data:fileType', '入力ファイルは .xlsx または .csv としてください。');
 end

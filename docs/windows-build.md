@@ -148,3 +148,18 @@ MATLAB も MATLAB Runtime も入っていない Windows 64bit の PC に、5章�
 ## 開発用：R2025b 以外で画面を確認する
 
 製品は R2025b 以外で起動しません。開発時に限り、MATLAB を起動する前に環境変数 `PROCESS_INSIGHT_DEV_RELEASE=allow` を設定すると、別のリリースでも起動・テストできます（配布版では無効）。このときウィンドウの題名に「検証用」と表示します。**この状態で保存したモデルは制御に使用しないでください。** SHAP の複数行計算は R2025b 専用のため、通し確認は SHAP だけ代替計算へ差し替えます。
+
+## インストーラーに入れるサンプルを置き換える
+
+インストーラーには `samples\installer\standard`（通常版）または `samples\installer\pro`（Pro版）のフォルダの中のファイルがすべて入ります（2026-11-25 から。以前は `samples` の3ファイル）。通常版には手順書（`docs`）を入れません。
+
+1. 置き換えたい版のフォルダのファイルを差し替えます。Excel のブックは名前を `ProcessInsight_Samples.xlsx` のままにし、「サンプルデータを開く」が開く `APC`・`Swing_Base`・`Generic`・`Furnace` の4シート（1行目は列名）を入れます。ほかのシートやファイルは自由に足せます。
+2. 通常版のフォルダには Pro 版だけの機能のサンプル（`sample_wordcloud.txt`、`WordCloud`・`DOE_Existing` のシート）を入れません。
+3. `build_windows` を実行します。最初に `check_installer_samples` がフォルダを確かめ、条件に合わないと `samples:workbook`・`samples:sheets`・`samples:sheetContent`・`samples:proOnly` のどれかで止まります。
+4. 別のフォルダを使う場合は `build_windows('standard', true, 'C:\work\my_samples')` のように3つ目に指定します。
+5. ビルド後、MATLAB のない PC で4つの画面の「サンプルデータを開く」を押して開けることを確かめます（通し確認は `samples` の元の合成データを使うため、置き換えたサンプルは確かめません）。
+
+## Excel を読むと「Implementation Error: cannot call this method before validating "Filename"」で止まる問題
+
+2026-11-25 の報告：通常版を MATLAB のない PC にインストールし、Excel を読み込むと上のエラーで止まった。MATLAB の `readcell`・`readtable` は、内部で関数の部品を名前から呼び出す仕組みで動き、配布版（MATLAB Runtime）ではこの仕組みが正しく働かない可能性が高い（R2022b のソースで確認。R2025b の Runtime では未確認）。対策として、Excel（.xlsx）は zip の中の XML を直接読み（`read_xlsx_cells`）、CSV もファイルを直接読む（`read_csv_cells`。UTF-8・BOM・Shift_JIS、" で囲んだ値に対応）ようにした。シート名の一覧も `sheetnames` を使わない。結果は同梱サンプルの全シートで `readcell` と一致する（数式が空の文字を返すセルは空欄として読む）。**新しいソースでビルドし直したインストーラーを配ってください。**
+

@@ -41,4 +41,6 @@
 - [ ] I-032 R2025b / Windows で、データのグラフ（特に parallelplot・dendrogram の表示と PNG 保存・コピー）、ブースティング4方式とハイパーパラメータ探索の計算時間、新しい方式の SHAP（実際の shapley）、ワードクラウドの形と色を確認する。
 - [x] I-033 炉内補間の検証RMSEを目的変数ごとの棒グラフに分けて並べた。「保存モデルで推定」と「SHAP 解析」を統合し、どのモデルでも SHAP 依存図を表示するようにした。汎用回帰に Permutation Importance と VIP（PLS）を追加した。Pro版の GPR に加法カーネルと質的変数を追加し、Pro版に Sobol感度解析・因果探索（PC・DirectLiNGAM）・階層ベイズ（ギブスサンプリング）の画面を追加した。メニューの番号を版ごとに付け直した。R2022b（開発用の例外）で確認。
 - [ ] I-034 R2025b / Windows で、Pro版の GPR（独自カーネルの学習時間と実際の shapley）、Sobol感度解析の計算時間、因果グラフ（digraph）と階層ベイズの図の表示・PNG保存、統合した推定・SHAP 画面で行数が多いときの SHAP の時間を確認する。
+- [x] I-035 通常版を MATLAB のない PC で使うと Excel の読込みが「Implementation Error: cannot call this method before validating "Filename"」で止まる問題に、Excel・CSV を直接読む読み取り（read_xlsx_cells・read_csv_cells）で対策した。インストーラーのサンプルを版ごとのフォルダ（samples/installer）に分けてビルド前に確かめるようにし、通常版からワードクラウド・拡張計画のサンプルと docs を除いた。置き換えの手順をビルド手順書に追加した。R2022b で確認。
+- [ ] I-036 Windows R2025b で通常版・Pro 版を作り直し、MATLAB のない PC で Excel・CSV のサンプルと社内のファイル（日本語のシート名・列名、Shift_JIS の CSV）が読めること、通常版のインストール先に docs と sample_wordcloud.txt がないことを確認する。
 

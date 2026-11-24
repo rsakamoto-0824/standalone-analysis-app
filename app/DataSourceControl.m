@@ -61,7 +61,8 @@ classdef DataSourceControl < handle
                 [~, ~, extension] = fileparts(path);
                 sheets = {'(CSV)'};
                 if strcmpi(extension, '.xlsx')
-                    sheets = cellstr(sheetnames(path));
+                    % sheetnames は配布版で止まることがあったため、自前の読み取りでシート名を得る。
+                    [~, sheets] = read_xlsx_cells(path);
                     if isempty(sheet), sheet = sheets{1}; end
                     if ~any(strcmp(sheets, sheet)), error('DataSourceControl:sheet', 'シート「%s」が見つかりません。', sheet); end
                 else
