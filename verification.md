@@ -1,5 +1,15 @@
 # 検証記録
 
+## 2026-11-25 配布版の Excel 読込み・インストーラーのサンプル・通常版の docs
+
+- 報告：通常版を MATLAB のない PC にインストールし、Excel を読むと「Implementation Error: cannot call this method before validating "Filename"」で止まる。R2022b の MATLAB のソースを調べ、`readcell`・`readtable` が関数の部品を名前から呼び出す仕組み（`matlab.io.internal.functions.FunctionStore`）で動くことを確認した。R2022b にはこの文言がなく、R2025b の Runtime で同じ仕組みの中で起きていると判断した（R2025b の Runtime での再現・確認はしていない）。
+- 対策の確認（MATLAB R2022b、開発用の例外）：新しい `read_xlsx_cells` は同梱サンプルの全9シートで `readcell` と一致（数式が空の文字を返すセルは空欄として読む）。シート名も `sheetnames` と一致。`read_csv_cells` は " で囲んだ値・"" ・UTF-8・BOM・Shift_JIS・文字のままの読込みを確認。新しい `TestFileReaders`（4件）に入れた。
+- 途中で見つけた不具合：MATLAB の regexp は、選択肢（|）の中のかっこの部分を tokens で返さないことがあり、最初の版ではすべてのセルが空欄になった。セル全体を取り出してから分けるよう直した。readcell は先頭の空の行・列を詰めるため、同じにした（「ヘッダー行」の数え方を変えないため）。
+- 通常版のサンプルブック：元のブックの XML から WordCloud・DOE_Existing のシートと「使い方」の表の2行を除いて作った（Mac の Excel は自動操作でダイアログを待って止まったため使わなかった）。readcell で読め、データの6シートは元のブックと一致し、macOS のプレビューでも表示できた。Windows の Excel で開いたときに修復の案内が出ないかは未確認。
+- `check_installer_samples`：通常版・Pro版のフォルダが条件を満たすこと、通常版に Pro のサンプルを入れたとき・シートが足りないとき・ブックがないときに止まることを `TestProductEnhancements` で確認した。
+- 単体テスト：176件成功、失敗0件（R2025b 専用の5件は未実施）。`run_app_flow_check`：22項目すべて成功。
+- 未確認：Windows での `build_windows`（通常版のインストール先に docs と sample_wordcloud.txt がないこと）、MATLAB のない PC での Excel・CSV の読込み（I-036）。
+
 ## 2026-11-20（3） 炉内の棒グラフ・推定と SHAP の統合・変数重要度・Pro版の GPR・Sobol・因果探索・階層ベイズ
 
 - MATLAB R2022b（macOS、開発用の例外 `PROCESS_INSIGHT_DEV_RELEASE=allow`）で確認した。

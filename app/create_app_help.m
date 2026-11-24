@@ -1,7 +1,7 @@
 function create_app_help(tab, guide_paths, edition)
 % guide_paths：{利用者向け手順書, ビルド・利用手順書} のHTMLの場所。
 % 用語・操作の説明・関数のリンクは、それぞれ対象の版（all / standard / pro）を持つ。
-% 通常版では Pro 版だけの説明を表示せず、Pro 版の機能を説明する作成担当者向けの手順書へのボタンも出さない。
+% 通常版では Pro 版だけの説明を表示しない。通常版のインストーラーには手順書（docs）を入れないため、手順書のボタンも出さない。
 if nargin < 3, edition = app_edition(); end
 is_pro = strcmp(edition, 'pro');
 edition_names = struct('standard', '通常版', 'pro', 'Pro版');
@@ -134,10 +134,11 @@ for index = 1:size(functions, 1)
 end
 
 guide_paths = cellstr(guide_paths);
+if ~is_pro, layout.RowHeight{end} = 0; return; end
 buttons = uigridlayout(layout, [1, 2]); buttons.Padding = [0, 0, 0, 0];
 uibutton(buttons, 'Text', '利用者向け手順書を開く（画面の使い方）', 'FontWeight', 'bold', ...
     'ButtonPushedFcn', @(~, ~) web(guide_paths{1}, '-browser'));
-if is_pro && numel(guide_paths) > 1
+if numel(guide_paths) > 1
     uibutton(buttons, 'Text', 'ビルド・利用手順書を開く（作成・配布担当者向け）', ...
         'ButtonPushedFcn', @(~, ~) web(guide_paths{2}, '-browser'));
 end

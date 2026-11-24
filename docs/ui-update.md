@@ -356,3 +356,12 @@ R2022bでは純粋な数値処理・代替学習器/合成SHAPの表示試験と
 - 通常版の exe には Pro だけの新しいファイル（7個）を含めない。Help・ホーム・手順書3つ・Windows 手順を更新した。
 
 2026-11-20 参照：[fitrgp（独自カーネル）](https://www.mathworks.com/help/stats/fitrgp.html)、[sobolset](https://www.mathworks.com/help/stats/sobolset.html)、[plsregress](https://www.mathworks.com/help/stats/plsregress.html)、[digraph](https://www.mathworks.com/help/matlab/ref/digraph.html)、[iwishrnd](https://www.mathworks.com/help/stats/iwishrnd.html)。R2025b / Windows / Runtime での確認は未実施。
+
+## 2026-11-25：配布版の Excel 読込み、インストーラーのサンプル、通常版の docs
+
+ユーザーの報告と指示による。
+
+- **Excel 読込みの対策**：通常版を MATLAB のない PC にインストールして Excel を読むと「Implementation Error: cannot call this method before validating "Filename"」で止まった。MATLAB の `readcell`・`readtable` は内部で関数の部品を名前から呼び出す仕組み（`matlab.io.internal.functions.FunctionStore`）で動くため、配布版（MATLAB Runtime）ではこの仕組みが正しく働かない可能性が高いと判断した（R2025b の Runtime では未確認）。`read_input_data`・`read_furnace_data`・`DataSourceControl` を、自前の `read_xlsx_cells`（.xlsx の XML を直接読む。数式は保存時の値、日付はシリアル値、先頭の空の行・列は readcell と同じく詰める）と `read_csv_cells`（UTF-8・BOM・Shift_JIS、" で囲んだ値・改行・""、炉内補間は文字のまま）へ置き換えた。結果の書き出し（writetable）はこの仕組みを使わないため変えていない。
+- **インストーラーのサンプル**：`samples/installer/standard`・`samples/installer/pro` のファイルをすべて入れる。通常版のブックからは WordCloud・DOE_Existing のシートと「使い方」の表の2行を除き（書式・数式は保つ）、`sample_wordcloud.txt` を入れない。ビルドの最初に `check_installer_samples` がブック名・必要な4シート・通常版に Pro だけのサンプルがないことを確かめる。`build_windows` の3つ目の引数で別のフォルダも使える。
+- **通常版の docs**：通常版のインストーラー・application フォルダに手順書（docs）を入れない（以前は利用者向け手順書だけを入れていた）。Help の手順書のボタンは Pro 版だけに出す。`keep_user_manual_only` は使わなくなったため削除した。
+- ビルド手順書・Windows 手順・README を更新した。

@@ -25,6 +25,7 @@
 - **2026-11-17**：Swing Curve の基準周期を「波長÷屈折率÷2」（約70nm）に修正し、SHAP 依存図の色の変数の選択、モデリングの進捗バー、実測値と予測値・残差の横並び表示、予測・残差・SHAP の1ファイル出力、[利用者向け手順書](docs/user-guide/user-manual.html)を追加しました。同梱サンプルの合成データも新しい周期で計算し直しています。
 - **画面を作り直しました（2026-11-16）。** 学習画面は上のタブを左から「① データを開く → ② 変数を選ぶ → ③ 条件を決めて実行 → ④ 結果を比べて保存」の順に進みます。変更の内容と理由は[更新仕様](docs/ui-update.md)の「2026-11-16：画面の作り直し」を参照してください。
 - **2026-11-20**：学習画面の①にデータのグラフ（Pro 版は9種類）、Pro 版の汎用回帰に EBM・XGBoost・LightGBM・CatBoost とハイパーパラメータの探索、実験計画の評価指標を追加し、結果の一覧を目的変数ごとに精度の順位で並べるようにしました。ワードクラウドは Pro 版だけにし、形と色を変えられるようにしました。XGBoost などは各ライブラリそのものではなく、考え方を MATLAB で実装したものです（[更新仕様](docs/ui-update.md)）。
+- **2026-11-25**：通常版を MATLAB のない PC で使うと Excel の読込みが「Implementation Error: cannot call this method before validating "Filename"」で止まる問題に対策しました（Excel・CSV を MATLAB の readcell・readtable を使わずに直接読む）。インストーラーに入れるサンプルを `samples/installer/standard`・`samples/installer/pro` に分け、通常版にはワードクラウド・拡張計画のサンプルと手順書（docs）を入れないようにしました。サンプルの置き換え方は [Windows での確認・ビルド手順](docs/windows-build.md) と[ビルド手順書](docs/user-guide/build-guide.html)にあります。
 - **2026-11-20（2）**：「保存モデルで推定」と「SHAP 解析」を1つの画面にし、どのモデルでも SHAP 依存図を表示するようにしました。炉内補間の検証RMSEを目的変数ごとの棒グラフに分け、汎用回帰に Permutation Importance と VIP を追加しました。Pro 版に GPR の加法カーネル・質的変数、Sobol感度解析・因果探索・階層ベイズの画面を追加しました（メニューの番号が変わりました。通常版は 5 推定・SHAP、6 実験計画、7 設定、8 Help）。
 - 手元の MATLAB R2022b（macOS）では、開発用の例外で起動して、同梱サンプルで全機能を通す確認（22項目）と単体テストに成功しています（件数は [検証記録](verification.md)）。
 - **MATLAB R2025b / Windows での確認、SHAP の実計算、インストーラーの作成、MATLAB のない PC へのインストールと起動の確認は未実施です。** [Windows での確認・ビルド手順](docs/windows-build.md)に従って確認してください。
@@ -163,6 +164,6 @@ comparison = compare_models('old.mat', 'new.mat', Xcheck);
 
 ## 開発・レビュー用の文書
 
-[ウォーターフォール開発文書の一覧](docs/waterfall/index.html)に、要件定義・設計・試験・移行・運用保守など12点をまとめています。全書に2026-11-23付の新規作成履歴と、係長の確認・課長の承認の記録欄があります。記録欄は未記入です。
+[ウォーターフォール開発文書の一覧](docs/waterfall/index.html)に、要件定義・設計・テスト・運用保守など9点をまとめています。全書に2026-11-23付の新規作成履歴、2026-11-25付の改定履歴と、係長の確認・課長の承認の記録欄があります。改定履歴の行はHTML上で追加・編集できます。記録欄は未記入です。
 
-[文書一式のZIP](docs/ProcessInsightTool_Waterfall_Documents_v1.0.zip)をダウンロード・展開し、`index.html`をPCのEdge / Chromeで開いてください。HTML上で記入した記録は「記入済みHTMLを保存」または印刷で保持できます。画像はアプリ内部だけの操作参考で、Windows R2025bの実行証跡ではありません。
+[文書一式のZIP](docs/ProcessInsightTool_Waterfall_Documents_v1.1.zip)をダウンロードして新しいフォルダに展開し、`index.html`をPCのEdge / Chromeで開いてください。HTML上で記入した記録は「記入済みHTMLを保存」または印刷で保持できます。画像はアプリ内部だけの操作参考で、Windows R2025bの実行証跡ではありません。

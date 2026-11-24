@@ -8,7 +8,7 @@ import { table, code, note, step, check, renderPage } from './guide_parts.mjs';
 
 const guideRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pagePath = path.join(guideRoot, 'build-guide.html');
-const UPDATED = '2026-11-20';
+const UPDATED = '2026-11-25';
 const BACKSLASH = String.fromCharCode(92);
 const winPath = (...parts) => parts.join(BACKSLASH);
 const WORK = winPath('C:', 'work', 'StandaloneAnalysisApp');
@@ -31,8 +31,8 @@ const outputTree = (edition) => `<pre class="mini-path">${winPath(WORK, 'build',
   application${BACKSLASH}
     ${edition.exe}.exe             exe 本体（インストーラーの中身と同じ）
     readme.txt など                MATLAB Compiler が作る付随ファイル
-    samples${BACKSLASH}                       合成サンプル
-    docs${BACKSLASH}user-guide${BACKSLASH}               ${edition.key === 'pro' ? '利用手順書（user-manual.html）・ビルド利用手順書ほか' : '利用手順書（user-manual.html）と、その画像だけ'}
+    samples${BACKSLASH}                       サンプル（samples${BACKSLASH}installer${BACKSLASH}${edition.key} の中身）${edition.key === 'pro' ? `
+    docs${BACKSLASH}user-guide${BACKSLASH}               利用手順書（user-manual.html）・ビルド利用手順書ほか` : ''}
   edition-manifest.json            版・含めたファイル・バージョンの一覧</pre>`;
 const sections = [];
 const add = (id, title, kicker, body) => sections.push({ id, title, kicker, body });
@@ -70,10 +70,23 @@ ${step('1-1', 'プロジェクトのフォルダを用意する', `<ol><li>GitHu
   app${BACKSLASH}                 画面のソース（起動口は launch_analysis_app.m）
   core${BACKSLASH}                学習・保存・検証などの計算
   tests${BACKSLASH}               単体テストと全機能の通し確認
-  samples${BACKSLASH}             合成サンプル（インストーラーに入れます）
-  docs${BACKSLASH}user-guide${BACKSLASH}     手順書（インストーラーに入れます）
+  samples${BACKSLASH}             合成サンプル（テスト・手順書の画像用）
+    installer${BACKSLASH}standard${BACKSLASH}  通常版のインストーラーに入れるサンプル
+    installer${BACKSLASH}pro${BACKSLASH}       Pro版のインストーラーに入れるサンプル
+  docs${BACKSLASH}user-guide${BACKSLASH}     手順書（Pro版のインストーラーにだけ入れます）
   build_windows.m      ビルドの入口
   run_tests.m          全テスト</pre>
+<h3 id="replace-samples">インストーラーに入れるサンプルを置き換える（必要なときだけ）</h3>
+<p>インストーラーには、<code>samples${BACKSLASH}installer${BACKSLASH}standard</code>（通常版）または <code>samples${BACKSLASH}installer${BACKSLASH}pro</code>（Pro版）の<strong>フォルダの中のファイルがすべて</strong>入ります。初期状態は同梱の合成データです。社内のデータなどに置き換えるときは、ビルドの前に次の手順で差し替えます。</p>
+${step('1-2', 'サンプルのファイルを差し替える', `<ol><li>置き換えたい版のフォルダ（例：<code>${winPath(WORK, 'samples', 'installer', 'standard')}</code>）を開きます。</li><li>Excel のブックを差し替えるときは、<strong>ファイル名を <code>ProcessInsight_Samples.xlsx</code> のまま</strong>にします（画面の ${ui('サンプルデータを開く')} がこの名前のブックを開くため）。</li><li>ブックには、ボタンが開く <strong>4つのシート</strong>を必ず入れます：<code>APC</code>（APC 学習）、<code>Swing_Base</code>（Swing Curve学習）、<code>Generic</code>（汎用回帰学習）、<code>Furnace</code>（炉内補間）。各シートの<strong>1行目は列名</strong>（空欄や同じ名前のない列名）にします。ほかのシートは自由に足せます（利用者は画面の ${ui('シート')} で選べます）。</li><li>列名は自由ですが、APC は SIN_TH・SIN_RN・NSG_TH・RESIST_TH、Swing Curve は RESIST_TH、炉内補間は WaferId・BoatSlot・Batch の名前にすると、画面で自動的に選ばれます。</li><li>説明用の <code>README.md</code> などのファイルは、内容を書き換えるか、不要なら削除します。フォルダに置いたファイルはすべてインストーラーに入ります。</li><li><strong>通常版のフォルダには、Pro 版だけの機能のサンプル</strong>（<code>sample_wordcloud.txt</code>、<code>WordCloud</code>・<code>DOE_Existing</code> のシート）を入れません。</li></ol>`,
+  'ビルドの最初に、サンプルのフォルダが自動で確かめられます（STEP 3 の通し確認より前）。条件に合わないと、理由を表示して止まります。')}
+${table(['表示されるエラー', '直し方'], [
+  ['samples:workbook', 'フォルダに <code>ProcessInsight_Samples.xlsx</code> がありません。ファイル名を確認します。'],
+  ['samples:sheets', 'ブックに <code>APC</code>・<code>Swing_Base</code>・<code>Generic</code>・<code>Furnace</code> のシートが足りません。表示された名前のシートを作ります（シート名の大文字・小文字も同じにします）。'],
+  ['samples:sheetContent', '表示されたシートの1行目が列名になっていません（空欄や重複など）。'],
+  ['samples:proOnly', '通常版のフォルダに Pro 版だけのサンプルがあります。表示されたファイル・シートを除きます。']])}
+${step('1-3', '別のフォルダのサンプルでビルドする（任意）', `<p>フォルダを差し替えずに、別の場所のサンプルでビルドすることもできます。STEP 4・STEP 5（ビルド）のコマンドの3つ目に、フォルダを指定します。</p>${code('MATLAB コマンドウィンドウ', "standard = build_windows('standard', true, 'C:\\work\\my_samples');")}<p>指定したフォルダにも、1-2 と同じ条件が当てはまります。</p>`)}
+${note('置き換えたサンプルで動作を確かめる', 'STEP 3 の通し確認（run_app_flow_check）とテストは、<code>samples</code> フォルダの元の合成データを使います。置き換えたサンプルは、ビルド後に MATLAB のない PC で ' + '「サンプルデータを開く」を押して、4つの画面で開けることを確かめてください。')}
 `);
 
 add('environment', '環境と MATLAB Runtime を用意する', 'STEP 2', `
@@ -126,7 +139,7 @@ ${step('6-2', 'MATLAB の入っていない PC でインストールして確か
 
 add('distribute', '利用者へ配る', 'STEP 7', `
 ${table(['配る相手', '渡すもの'], [
-  ['一般の利用者', '<code>ProcessInsightTool_Installer.exe</code>（通常版）と、<a href="user-manual.html">利用手順書</a>（インストール後は、インストール先の <code>docs' + BACKSLASH + 'user-guide' + BACKSLASH + 'user-manual.html</code> からも開けます）'],
+  ['一般の利用者', '<code>ProcessInsightTool_Installer.exe</code>（通常版）と、<a href="user-manual.html">利用手順書</a>。通常版のインストーラーには手順書を入れないため、利用手順書（<code>docs' + BACKSLASH + 'user-guide' + BACKSLASH + 'user-manual.html</code> と <code>images</code>・<code>assets</code> フォルダ）は別に渡すか、社内の共有フォルダに置きます。'],
   ['Pro版の利用者', '<code>ProcessInsightToolPro_Installer.exe</code>（Pro版）と、同じ利用手順書（Pro 版だけの機能は<a href="procedure-guide.html#shap">ビルド・利用手順書の10章</a>）']])}
 <ul><li>利用者の PC では、インストーラーを実行するだけで、アプリと MATLAB Runtime が入ります。MATLAB 本体とインターネット接続は要りません。</li><li>インストールに管理者の権限が必要な場合は、情報システムの窓口と手順を決めておきます。</li><li>アプリを更新するときは、新しいインストーラーを配ります。同じ MATLAB の更新版でビルドした場合、MATLAB Runtime は入れ直しになりません。</li></ul>
 ${note('インストーラーを使わない配り方（任意）', '<code>application</code> フォルダを ZIP にまとめて配る方法もあります。この場合は、配布先に MATLAB Runtime R2025b（ビルドに使った MATLAB と同じ更新版、またはそれ以降）を別にインストールする必要があります。通常はインストーラーで配ってください。')}
@@ -138,14 +151,15 @@ add('checklist', '完了確認', 'BEFORE HANDOVER', `
 <div class="checklist-grid"><article><h3>ビルドする PC</h3>${[
   'MATLAB R2025b・win64・必要な2製品を確認した。',
   '同じ更新版の MATLAB Runtime インストーラーを用意した。',
-  'run_app_flow_check が「16 件中 16 件成功」だった。',
+  'run_app_flow_check が「22 件中 22 件成功」だった。',
   'run_tests で Failed=0、Incomplete=0 だった。',
   '通常版と Pro 版のインストーラーができた。',
-  'edition-manifest.json の Edition・ProFiles・Installer が版どおりだった。'].map(check).join('')}</article>
+  'edition-manifest.json の Edition・ProFiles・Installer・Samples・Docs が版どおりだった（通常版は Docs が false、Samples にワードクラウドがない）。'].map(check).join('')}</article>
 <article><h3>MATLAB のない PC</h3>${[
   'インストーラーだけで、アプリと MATLAB Runtime が入った。',
   '起動し、題名とホームの見出しが版どおりだった。',
-  'サンプルデータが開き、Help から利用手順書が開いた。',
+  '各学習画面と炉内補間の「サンプルデータを開く」で、Excel のサンプルが開いた（MATLAB のない PC で Excel のファイルを読めることの確認）。',
+  'Pro版では、Help から利用手順書が開いた（通常版の Help には手順書のボタンがない）。',
   '通常版に swingperiodic と周期の探索範囲が出ず、Pro版には出た。',
   'サンプルでモデルを学習・保存し、保存後検証がすべて成功した。',
   '進捗バー、横並びの散布図、予測・SHAPの1ファイル出力（CSV を Excel で開いて文字化けしない）を確認した。',
@@ -163,7 +177,9 @@ add('troubleshooting', '困ったとき', 'TROUBLESHOOTING', `
   ['利用者の PC でインストールできない', '管理者の権限が必要な場合があります。情報システムの窓口に相談してください。空き容量（数GB）も確認します。'],
   ['インストールしたアプリが起動しない・すぐ閉じる', 'インストールが最後まで終わったか（MATLAB Runtime を含む）を確認し、PC を再起動してから試します。それでも起動しない場合は、表示されたエラーの文を記録します。'],
   ['「サンプルファイルが見つかりません」と表示される', 'インストール先のフォルダに <code>samples</code> フォルダがあるか確認します。ない場合は、ビルドに使ったソースの <code>samples</code> フォルダを確認してビルドし直します。'],
-  ['Help から手順書が開かない', 'インストール先の <code>docs\\user-guide\\user-manual.html</code> を直接ダブルクリックしても開けます。'],
+  ['Help から手順書が開かない（Pro版）', 'インストール先の <code>docs\\user-guide\\user-manual.html</code> を直接ダブルクリックしても開けます。通常版には手順書のボタンと docs フォルダはありません。'],
+  ['Excel を開くと「Implementation Error: cannot call this method before validating \"Filename\"」と表示される', '以前の版（2026-11-25 より前のソースでビルドしたもの）で起きていた問題です。MATLAB Runtime で MATLAB の Excel 読込み（readcell・sheetnames）が止まるため、アプリが Excel・CSV を直接読むように直しました。新しいソースでビルドし直したインストーラーを配ってください。'],
+  ['ビルドが samples:… で止まる', '1-2 の表を参照し、インストーラーに入れるサンプルのフォルダを直します。'],
   ['Pro版の機能が通常版に出る／Pro版に出ない', '<code>edition-manifest.json</code> の Edition を確認します。版はビルドのときに決まるため、違っていれば正しい版でビルドし直します。']
 ].map(([q, a]) => `<details><summary>${q}</summary><div><p>${a}</p></div></details>`).join('')}</div>
 <p>解決しない場合は、<strong>実行したコマンド、表示されたエラーの文、MATLAB のリリースと更新版</strong>を記録して開発の担当者へ伝えてください。</p>

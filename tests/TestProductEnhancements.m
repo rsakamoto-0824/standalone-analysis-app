@@ -83,22 +83,23 @@ classdef TestProductEnhancements < matlab.unittest.TestCase
             testCase.verifyTrue(contains(fileread(fullfile(pro,'core','app_edition.m')),'''pro'''));
             testCase.verifyTrue(contains(fileread(fullfile(standard,'core','app_edition.m')),'''standard'''));
         end
-        function standardGuideKeepsOnlyUserManualFiles(testCase)
+        function installerSampleFoldersMatchEdition(testCase)
+            % インストーラーに入れるサンプル：通常版にはワードクラウド・拡張計画のサンプルを入れない。
             root = fileparts(fileparts(mfilename('fullpath')));
+            standard = check_installer_samples(fullfile(root, 'samples', 'installer', 'standard'), 'standard');
+            pro = check_installer_samples(fullfile(root, 'samples', 'installer', 'pro'), 'pro');
+            testCase.verifyEqual(sort(standard.Files), {'ProcessInsight_Samples.xlsx', 'README.md'});
+            testCase.verifyFalse(any(ismember({'WordCloud', 'DOE_Existing'}, standard.Sheets)));
+            testCase.verifyTrue(all(ismember({'sample_wordcloud.txt', 'ProcessInsight_Samples.xlsx'}, pro.Files)));
+            testCase.verifyTrue(all(ismember({'WordCloud', 'DOE_Existing'}, pro.Sheets)));
+            % 通常版のフォルダへ Pro 版のサンプルを入れると、ビルドの前に止める。
+            testCase.verifyError(@() check_installer_samples(fullfile(root, 'samples', 'installer', 'pro'), 'standard'), 'samples:proOnly');
+            % 「サンプルデータを開く」が開くシートがないブックは止める。
             fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
-            guide = fullfile(fixture.Folder, 'user-guide'); copyfile(fullfile(root, 'docs', 'user-guide'), guide);
-            rmdir(fullfile(guide, '_src'), 's');
-            removed = keep_user_manual_only(guide);
-            testCase.verifyTrue(isfile(fullfile(guide, 'user-manual.html')));
-            testCase.verifyFalse(isfile(fullfile(guide, 'procedure-guide.html')) || isfile(fullfile(guide, 'build-guide.html')));
-            testCase.verifyFalse(isfile(fullfile(guide, 'images', '60-period-search.png')), 'Pro 版だけの画像が残っています。');
-            testCase.verifyTrue(any(strcmp(removed, 'procedure-guide.html')));
-            % 残したファイルだけで、利用者向け手順書の参照がすべて解決する。
-            text = fileread(fullfile(guide, 'user-manual.html'));
-            references = regexp(text, '(?:href|src)="([^"#:]+)"', 'tokens');
-            for index = 1:numel(references)
-                testCase.verifyTrue(isfile(fullfile(guide, references{index}{1})), references{index}{1});
-            end
+            writecell({'A'; 1}, fullfile(fixture.Folder, 'ProcessInsight_Samples.xlsx'), 'Sheet', 'APC');
+            testCase.verifyError(@() check_installer_samples(fixture.Folder, 'standard'), 'samples:sheets');
+            empty = fullfile(fixture.Folder, 'empty'); mkdir(empty);
+            testCase.verifyError(@() check_installer_samples(empty, 'standard'), 'samples:workbook');
         end
     end
 end
