@@ -1,8 +1,8 @@
 {
-  "issued": "2026-11-23",
-  "version": "1.0",
+  "created": "2026-11-23",
+  "updated": "2026-11-25",
+  "version": "1.1",
   "author": "坂本",
-  "sourceRevision": "df9ffc2214c6196eefb389f890d25551d53f2b1d",
   "documents": [
     {
       "id": "PIT-00",
@@ -37,20 +37,14 @@
     {
       "id": "PIT-05",
       "file": "test-plan.html",
-      "title": "試験計画・試験仕様書",
+      "title": "テスト計画・テスト仕様書",
       "phase": "単体・結合・総合・受入"
     },
     {
       "id": "PIT-06",
       "file": "test-results.html",
-      "title": "試験結果・品質評価書",
-      "phase": "試験結果・受入"
-    },
-    {
-      "id": "PIT-07",
-      "file": "release-plan.html",
-      "title": "移行・リリース計画書",
-      "phase": "移行・配布"
+      "title": "テスト結果・品質評価書",
+      "phase": "テスト結果・受入"
     },
     {
       "id": "PIT-08",
@@ -63,134 +57,84 @@
       "file": "user-manual.html",
       "title": "利用者操作手順書",
       "phase": "利用・受入"
-    },
-    {
-      "id": "PIT-10",
-      "file": "traceability.html",
-      "title": "要求・設計・試験対応表",
-      "phase": "全工程の整合"
-    },
-    {
-      "id": "PIT-11",
-      "file": "change-risk-management.html",
-      "title": "構成・変更・課題リスク管理書",
-      "phase": "全工程・変更管理"
     }
   ],
   "requirements": [
     {
       "id": "R-001",
-      "test": "T-01",
-      "source": "core/read_input_data.m",
-      "testSource": "tests/TestPureFunctions.m"
+      "test": "T-01"
     },
     {
       "id": "R-002",
-      "test": "T-02",
-      "source": "core/modeling_input_data.m",
-      "testSource": "tests/TestModelingBatch.m"
+      "test": "T-02"
     },
     {
       "id": "R-003",
-      "test": "T-03",
-      "source": "core/train_apc_model.m",
-      "testSource": "tests/TestModelCompatibility.m"
+      "test": "T-03"
     },
     {
       "id": "R-004",
-      "test": "T-04",
-      "source": "app/ColumnMapper.m",
-      "testSource": "tests/TestFlexibleSwingModel.m"
+      "test": "T-04"
     },
     {
       "id": "R-005",
-      "test": "T-05",
-      "source": "core/ProcessRegressionModel.m",
-      "testSource": "tests/TestGeneralRegression.m"
+      "test": "T-05"
     },
     {
       "id": "R-006",
-      "test": "T-06",
-      "source": "core/evaluate_modeling_batch.m",
-      "testSource": "tests/TestModelingBatch.m"
+      "test": "T-06"
     },
     {
       "id": "R-007",
-      "test": "T-07",
-      "source": "core/evaluate_predictions.m",
-      "testSource": "tests/TestPureFunctions.m"
+      "test": "T-07"
     },
     {
       "id": "R-008",
-      "test": "T-08",
-      "source": "app/ModelingPage.m",
-      "testSource": "tests/TestModelCompatibility.m"
+      "test": "T-08"
     },
     {
       "id": "R-009",
-      "test": "T-09",
-      "source": "app/ModelUsePage.m",
-      "testSource": "tests/TestGeneralRegressionShap.m"
+      "test": "T-09"
     },
     {
       "id": "R-010",
-      "test": "T-10",
-      "source": "core/combine_model_outputs.m",
-      "testSource": "tests/TestResultOutputs.m"
+      "test": "T-10"
     },
     {
       "id": "R-011",
-      "test": "T-11",
-      "source": "core/evaluate_furnace_models.m",
-      "testSource": "tests/TestFurnaceInterpolation.m"
+      "test": "T-11"
     },
     {
       "id": "R-012",
-      "test": "T-12",
-      "source": "app/FurnacePage.m",
-      "testSource": "tests/TestFurnaceSave.m"
+      "test": "T-12"
     },
     {
       "id": "R-013",
-      "test": "T-13",
-      "source": "core/create_experiment_design.m",
-      "testSource": "tests/TestIntegratedFeatures.m"
+      "test": "T-13"
     },
     {
       "id": "R-014",
-      "test": "T-14",
-      "source": "core/calc_permutation_importance.m",
-      "testSource": "tests/TestAdvancedAnalysis.m"
+      "test": "T-14"
     },
     {
       "id": "R-015",
-      "test": "T-15",
-      "source": "app/DataExplorer.m",
-      "testSource": "tests/run_app_flow_check.m"
+      "test": "T-15"
     },
     {
       "id": "R-016",
-      "test": "T-16",
-      "source": "core/app_settings.m",
-      "testSource": "tests/TestEditionAndDisplay.m"
+      "test": "T-16"
     },
     {
       "id": "R-017",
-      "test": "T-17",
-      "source": "app/AppPage.m",
-      "testSource": "tests/run_app_flow_check.m"
+      "test": "T-17"
     },
     {
       "id": "R-018",
-      "test": "T-18",
-      "source": "build_windows.m",
-      "testSource": "tests/TestProductEnhancements.m"
+      "test": "T-18"
     },
     {
       "id": "R-019",
-      "test": "T-19",
-      "source": "core/verify_saved_model.m",
-      "testSource": "tests/TestModelCompatibility.m"
+      "test": "T-19"
     }
   ]
 }

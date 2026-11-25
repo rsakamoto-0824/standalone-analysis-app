@@ -35,12 +35,21 @@
 .review-table input, .review-table select, .review-table textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 6px; font: inherit; border: 1px solid #aabbd0; border-radius: 3px; color: #172033; background: white; }
 .review-table textarea { min-height: 65px; resize: vertical; }
 .review-table input:focus-visible, .review-table select:focus-visible, .review-table textarea:focus-visible { outline: 3px solid #72a9d6; outline-offset: 1px; }
+.revision-table { min-width: 940px; }
+.revision-table th:nth-child(1) { width: 80px; }
+.revision-table th:nth-child(2) { width: 150px; }
+.revision-table th:nth-child(3) { width: 105px; }
+.revision-table th:nth-child(5) { width: 120px; }
+.revision-table th:nth-child(6) { width: 120px; }
+.revision-table input, .revision-table select, .revision-table textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 6px; font: inherit; border: 1px solid #aabbd0; border-radius: 3px; color: #172033; background: white; }
+.revision-table textarea { min-height: 90px; resize: vertical; }
+.revision-table input:focus-visible, .revision-table select:focus-visible, .revision-table textarea:focus-visible { outline: 3px solid #72a9d6; outline-offset: 1px; }
 .review-status { font-weight: 700; color: #2a4a6a; }
-.review-actions { display: flex; flex-wrap: wrap; gap: 9px; }
-.review-actions button { font: inherit; font-size: 13px; color: #18365e; background: #f1f6fb; border: 1px solid #9db5cd; padding: 9px 13px; border-radius: 3px; cursor: pointer; }
-.review-actions button:hover { background: #dfeaf5; }
-#review-message { font-size: 12px; color: #52677c; }
-#review-message[data-error="true"] { color: #a32f2f; font-weight: 700; }
+.review-actions, .revision-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.review-actions button, .revision-actions button, .revision-operation button { font: inherit; font-size: 13px; color: #18365e; background: #f1f6fb; border: 1px solid #9db5cd; padding: 9px 13px; border-radius: 3px; cursor: pointer; }
+.review-actions button:hover, .revision-actions button:hover, .revision-operation button:hover { background: #dfeaf5; }
+#review-message, #revision-message { font-size: 12px; color: #52677c; }
+#review-message[data-error="true"], #revision-message[data-error="true"] { color: #a32f2f; font-weight: 700; }
 .print-value { display: none; white-space: pre-wrap; overflow-wrap: anywhere; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; background: #f1f5fa; border: 1px solid #d3dfed; border-radius: 4px; }
 .image-open { display: block; box-sizing: border-box; width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
@@ -58,7 +67,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; background:
 @media print {
   @page { size: A4 landscape; margin: 13mm; }
   body { background: white; font-size: 10pt; }
-  .sidebar, .toc-toggle, .sidebar-overlay, .back-to-top, .skip-link, .review-actions, #review-message, dialog { display: none !important; }
+  .sidebar, .toc-toggle, .sidebar-overlay, .back-to-top, .skip-link, .review-actions, .revision-actions, .revision-operation, #review-message, #revision-message, dialog { display: none !important; }
   .main-content { margin: 0 !important; width: 100% !important; max-width: none; padding: 0 !important; }
   .hero { background: white; color: #172033; border-bottom: 2px solid #18365e; padding: 0 0 10px; break-inside: avoid; }
   .hero h1, .hero .hero-lead, .hero .eyebrow, .hero-badges span { color: #172033 !important; }
@@ -68,12 +77,12 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; background:
   .guide-status { margin: 10px 0; padding: 8px; }
   .content-section p, .content-section li, .guide-table { font-size: 10pt; }
   .table-scroll { overflow: visible; }
-  .guide-table, .review-table { min-width: 0; width: 100%; }
+  .guide-table, .review-table, .revision-table { min-width: 0; width: 100%; }
   .guide-table th, .guide-table td { padding: 6px; }
   thead { display: table-header-group; }
   tr, .document-note, .architecture, figure { break-inside: avoid; }
-  .review-table input, .review-table select, .review-table textarea { display: none; }
-  .review-table .print-value { display: block; }
+  .review-table input, .review-table select, .review-table textarea, .revision-table input, .revision-table select, .revision-table textarea { display: none; }
+  .review-table .print-value, .revision-table .print-value { display: block; }
   a { color: #18365e; text-decoration: underline; }
   a[href]::after { content: none !important; }
   .page-footer { margin: 15px 0 0; padding: 10px 0; }

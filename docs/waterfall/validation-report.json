@@ -1,56 +1,62 @@
 {
-  "documentDate": "2026-11-23",
-  "sourceRevision": "df9ffc2214c6196eefb389f890d25551d53f2b1d",
-  "documentCount": 12,
+  "documentDate": "2026-11-25",
+  "documentVersion": "1.1",
+  "documentCount": 9,
   "requirementCount": 19,
   "testSpecificationCount": 19,
   "screenshotCount": 9,
   "staticChecks": {
-    "localReferences": 444,
+    "localReferences": 243,
     "missing": 0,
     "duplicateIds": 0,
-    "scope": "passed",
-    "revisionHistory": "all new creation",
-    "author": "坂本",
+    "terminology": "テスト",
+    "initialHistory": "1.0 new creation preserved; 1.1 amendment added",
     "initialReviewRecords": "blank"
   },
   "browser": {
     "engine": "Chromium",
-    "delivery": "local HTML files",
+    "delivery": "local HTTP preview",
     "viewports": [
       {
         "width": 1366,
         "height": 900,
-        "checkedPages": 12
+        "checkedPages": 9
       },
       {
         "width": 1600,
         "height": 1000,
-        "checkedPages": 12
+        "checkedPages": 9
       }
     ],
     "horizontalOverflow": false,
     "bodyFont": "14px",
     "pageErrors": []
   },
-  "reviewFunctionChecks": [
-    "date-does-not-confirm",
+  "historyAndReviewChecks": [
+    "initial-history-has-original-and-current-revision",
+    "original-creation-kept",
+    "add-revision-with-next-version",
+    "empty-added-description-validated",
+    "metadata-follows-last-history-row",
+    "duplicate-history-version-validated",
+    "history-date-order-validated",
+    "multiple-rows-can-be-added",
+    "cancel-unused-added-row",
+    "date-alone-does-not-confirm",
     "approval-requires-checker",
-    "confirmed-record-requires-name",
-    "dates-validated",
-    "html-name-roundtrip",
-    "html-comment-escaping-roundtrip",
-    "html-decision-roundtrip",
-    "header-reflects-record",
-    "print-keeps-values",
-    "original-review-stays-blank",
-    "screenshot-enlarges",
-    "screenshot-original-size",
-    "screenshot-closes-with-escape"
+    "confirmation-requires-name",
+    "new-revision-requires-current-review-date",
+    "added-history-rows-survive-html-reload",
+    "existing-row-edits-survive-html-reload",
+    "new-row-text-survives-html-reload",
+    "approval-survives-html-reload",
+    "saved-metadata-is-consistent",
+    "reloaded-document-can-add-more-unique-rows",
+    "print-retains-edited-and-added-history",
+    "master-document-stays-unmodified"
   ],
-  "reviewJsonRoundtrip": "passed",
-  "printValueDisplay": "passed",
-  "screenshotReview": "app content only; no OS window controls",
+  "historyJsonRoundtrip": "passed",
+  "printValues": "passed",
   "applicationTestsThisTask": "not run",
   "checkerReview": "not performed",
   "managerApproval": "not performed",
