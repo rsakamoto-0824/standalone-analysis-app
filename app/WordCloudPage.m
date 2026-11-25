@@ -4,6 +4,8 @@ classdef WordCloudPage < AppPage
     % 表示する単語の数、文字の大きさの差を選べる。
     properties (SetAccess = private)
         Text
+        ExcludeCommon
+        ExtraExcluded
         Shape
         Scheme
         BaseColor
@@ -36,11 +38,12 @@ classdef WordCloudPage < AppPage
         function page = WordCloudPage(app, parent)
             page@AppPage(app, parent);
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
-            left = uigridlayout(page.Body, [5, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {60, 30, '1x', 250, 38};
+            left = uigridlayout(page.Body, [6, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {60, 30, '1x', 100, 250, 38};
             AppPage.hint(left, ['文章を入力するか、テキストファイル（.txt）を開きます。日本語は自動で単語に分けないため、' ...
                 '単語の間を空白で区切ってください。1文字の単語は除きます。']);
             uibutton(left, 'Text', 'テキストファイルを開く', 'ButtonPushedFcn', @(~, ~) page.chooseText());
             page.Text = uitextarea(left, 'Value', {page.SAMPLE_TEXT});
+            page.buildExclusion(AppPage.section(left, '除く語'));
             page.buildStyle(AppPage.section(left, '見た目（形と色）'));
             page.RunButton = AppPage.primaryButton(left, 'ワードクラウドを作成', @(~, ~) page.run());
             holder = uigridlayout(page.Body, [1, 1]); holder.Padding = [0, 0, 0, 0];
@@ -51,6 +54,17 @@ classdef WordCloudPage < AppPage
             page.Text.Value = cellstr(splitlines(string(fileread(path))));
             [~, base, extension] = fileparts(path); page.message(['テキストを読み込みました: ' base extension]);
         end
+        function setExclusion(page, common, extra)
+            % テストや他の画面から、除く語を設定する入口（common：英語のよく使う語を除くか、extra：ほかに除く語の文字）。
+            page.ExcludeCommon.Value = common; page.ExtraExcluded.Value = extra;
+        end
+        function words = excludedWords(page)
+            % 除く語の一覧：英語のよく使う語（選んだとき）と、カンマ・空白・読点で区切った追加の語。
+            words = {};
+            if page.ExcludeCommon.Value, words = english_stop_words(); end
+            extra = regexp(strtrim(page.ExtraExcluded.Value), '[,、\s]+', 'split');
+            words = [words, extra(~cellfun(@isempty, extra))];
+        end
         function setStyle(page, style)
             % テストや他の画面から見た目をまとめて設定する入口（Shape・Scheme・BaseColor・Palette・Highlight・MaxWords・SizePower）。
             names = fieldnames(style);
@@ -60,7 +74,7 @@ classdef WordCloudPage < AppPage
         function run(page)
             try
                 require_pro_feature('ワードクラウド');
-                [words, counts] = create_wordCloud(strjoin(string(page.Text.Value), newline));
+                [words, counts] = create_wordCloud(strjoin(string(page.Text.Value), newline), page.excludedWords());
                 panel = page.Result; panel.clear();
                 [counts, order] = sort(counts, 'descend'); words = words(order);
                 panel.setTable(page.TABLE_WORDS, table(string(words), counts, 'VariableNames', {'Word', 'Count'}));
@@ -80,6 +94,15 @@ classdef WordCloudPage < AppPage
         end
     end
     methods (Access = private)
+        function buildExclusion(page, parent)
+            grid = uigridlayout(parent, [2, 2]); grid.RowHeight = {26, 26}; grid.ColumnWidth = {130, '1x'}; grid.RowSpacing = 4;
+            page.ExcludeCommon = uicheckbox(grid, 'Text', '英語のよく使う語を除く（I・we・you・it・be動詞・a・the・and・of など）', 'Value', true, ...
+                'Tooltip', '代名詞・be 動詞・冠詞・前置詞・接続詞・助動詞など、意味の少ない英語の語を数えません（大文字・小文字は区別しません）。');
+            page.ExcludeCommon.Layout.Column = [1, 2];
+            uilabel(grid, 'Text', 'ほかに除く語');
+            page.ExtraExcluded = uieditfield(grid, 'text', 'Value', '', 'Placeholder', '例：data, 結果（カンマで区切る）', ...
+                'Tooltip', '数えたくない語をカンマ・空白・読点で区切って入れます。');
+        end
         function buildStyle(page, parent)
             grid = uigridlayout(parent, [7, 2]); grid.RowHeight = repmat({26}, 1, 7); grid.ColumnWidth = {130, '1x'};
             grid.RowSpacing = 4;

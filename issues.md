@@ -43,4 +43,6 @@
 - [ ] I-034 R2025b / Windows で、Pro版の GPR（独自カーネルの学習時間と実際の shapley）、Sobol感度解析の計算時間、因果グラフ（digraph）と階層ベイズの図の表示・PNG保存、統合した推定・SHAP 画面で行数が多いときの SHAP の時間を確認する。
 - [x] I-035 通常版を MATLAB のない PC で使うと Excel の読込みが「Implementation Error: cannot call this method before validating "Filename"」で止まる問題に、Excel・CSV を直接読む読み取り（read_xlsx_cells・read_csv_cells）で対策した。インストーラーのサンプルを版ごとのフォルダ（samples/installer）に分けてビルド前に確かめるようにし、通常版からワードクラウド・拡張計画のサンプルと docs を除いた。置き換えの手順をビルド手順書に追加した。R2022b で確認。
 - [ ] I-036 Windows R2025b で通常版・Pro 版を作り直し、MATLAB のない PC で Excel・CSV のサンプルと社内のファイル（日本語のシート名・列名、Shift_JIS の CSV）が読めること、通常版のインストール先に docs と sample_wordcloud.txt がないことを確認する。
+- [x] I-037 Sobol感度解析を「データを解析する」へ移し、データ（代替モデル）から解析できるようにし、予測値の分布の統計と左の欄の見切れを直した。グラフで傾向を見るを一括描画・結果の保持にし、Parallel Sets・Sankey に色の列を加えた。ワードクラウドの除く語、因果探索の50列、コピュラ乱数生成を追加した。R2022b で確認。
+- [ ] I-038 R2025b / Windows で、Sobol のデータからの解析（GPR 代替モデルの学習時間）、コピュラ乱数生成（100万行の生成と保存）、因果探索 50列の計算時間、スクロールする左の列の表示を確認する。
 

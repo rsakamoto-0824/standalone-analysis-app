@@ -365,3 +365,20 @@ R2022bでは純粋な数値処理・代替学習器/合成SHAPの表示試験と
 - **インストーラーのサンプル**：`samples/installer/standard`・`samples/installer/pro` のファイルをすべて入れる。通常版のブックからは WordCloud・DOE_Existing のシートと「使い方」の表の2行を除き（書式・数式は保つ）、`sample_wordcloud.txt` を入れない。ビルドの最初に `check_installer_samples` がブック名・必要な4シート・通常版に Pro だけのサンプルがないことを確かめる。`build_windows` の3つ目の引数で別のフォルダも使える。
 - **通常版の docs**：通常版のインストーラー・application フォルダに手順書（docs）を入れない（以前は利用者向け手順書だけを入れていた）。Help の手順書のボタンは Pro 版だけに出す。`keep_user_manual_only` は使わなくなったため削除した。
 - ビルド手順書・Windows 手順・README を更新した。
+
+## 2026-11-25（2）：Sobol をデータから、グラフの一括描画と保持、帯の色の列、除く語、因果探索50列、コピュラ乱数生成
+
+ユーザー指示による。以前の節の「Sobol感度解析は保存モデルだけ」「グラフで傾向を見るは1種類ずつ描き直す」は、以下に置き換える。
+
+- **Sobol感度解析**（`SobolPage`）：メニューの「データを解析する」へ移した。解析の対象に「データ（Excel / CSV）」を加え、出力の列と入力の列を選ぶと、代替モデル（GPR〈ARD 二乗指数・標準化〉またはランダムフォレスト200本）を学習し、5分割の交差検証で当てはまりを出す（R² が0.5未満なら注意）。入力はデータの分布（経験分布の分位点、`calc_sobol_indices` の Marginals）または範囲内の一様分布で動かす。モデルを使わずにデータから求めた1次の指数（`calc_sobol_given_data`：√行数個の区間の相関比から (区間数−1)/(行数−1) を差し引く）も並べる。保存モデルの解析は従来どおり。
+- **予測値の分布**：`calc_distribution_summary` で平均・標準偏差・中央値・最頻値（ksdensity の山の頂点）・95%区間・平均 ± kσ（k = 1〜n、n は③で指定）と、その範囲に入る割合（正規分布なら入る割合と並べる）を表にし、ヒストグラムに平均・最頻値・95%区間（帯）・±nσ（点線）を重ねた。
+- **Sobol の条件の欄の見切れ**：既定の文字の大きさで③の説明が切れていた。各欄に固定の高さを持たせ、左の列を上下にスクロールできるようにした（グラフで傾向を見るの左の列も同じ）。
+- **グラフで傾向を見る**（`DataExplorer`）：種類を一覧から複数選んで一括で描く。描いたグラフ・表には番号（1. 2. …）を付けて追加し、種類を変えて描き直しても消さない（「結果を消す」と、別のデータを開いたときに消す）。一括で描くとき、数値の列だけを使うグラフは「列」の中の文字の列を除いて描き、除いた列は状況欄へ出す。描けなかった種類は理由をまとめて表示する。
+- **Parallel Sets・Sankey の色**：「色」で任意の列を選べるようにした（`category_flow_layout` の color、`plot_category_flows`）。文字の列・種類の少ない数値の列はグループで帯を分けて色を付け、そのほかの数値の列は帯ごとの平均を parula の連続した色で表し、色の目盛りを出す。
+- **ワードクラウドの除く語**：「英語のよく使う語を除く」（`english_stop_words`：代名詞・be 動詞・冠詞・前置詞・接続詞・助動詞など）と「ほかに除く語」を追加した（`create_wordCloud` の excluded）。
+- **因果探索**：選べる列の上限を15から50にした。12列を超えるとグラフの配置を force にする。
+- **コピュラ乱数生成**（Pro版、`CopulaPage`）：データの関係をまねる（`copula_fit_data`：順位に直した値に copulafit、周辺分布は経験分布・カーネル密度・正規・対数正規・ワイブル・ガンマ）か、関係を指定して作る（`copula_from_spec`：分布とパラメータ、Spearman ρ または Kendall τ を copulaparam で直す。実現できない組み合わせは止める）。`copula_generate` で copularnd と周辺分布の逆関数から乱数を作り、`copula_compare` で順位相関（先頭5000行）と列の要約を比べる。散布図は横軸・縦軸を選べる。
+- メニューの番号：Pro版は 6 Sobol感度解析・7 因果探索・8 階層ベイズ・9 コピュラ乱数生成（「データを解析する」）、10 実験計画作成、11 ワードクラウド、12 設定、13 Help。通常版は変わらない。
+
+2026-11-25 参照：[copulafit](https://www.mathworks.com/help/stats/copulafit.html)、[copularnd](https://www.mathworks.com/help/stats/copularnd.html)、[copulaparam](https://www.mathworks.com/help/stats/copulaparam.html)、[ksdensity](https://www.mathworks.com/help/stats/ksdensity.html)。R2025b / Windows / Runtime での確認は未実施。
+- **Parallel Coordinates**：MATLAB の `parallelplot` は、R2022b / macOS で PNG に書き出すと MATLAB ごと落ちた（浮動小数点の例外）。通常のグラフの枠に自前で描くようにした（各列を最小〜最大で 0〜1 にそろえ、同じ色の行を NaN でつないだ1本の線にする）。

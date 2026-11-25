@@ -96,9 +96,9 @@ classdef TestAdvancedAnalysis < matlab.unittest.TestCase
         function menuNumbersDependOnEdition(testCase)
             standard=AnalysisController.menuTitles('standard'); pro=AnalysisController.menuTitles('pro');
             testCase.verifyEqual({standard.predict,standard.doe,standard.settings,standard.help},{'5 保存モデルで推定・SHAP','6 実験計画作成','7 設定','8 Help'});
-            testCase.verifyFalse(any(isfield(standard,{'sobol','causal','bayes','words'})));
-            testCase.verifyEqual({pro.sobol,pro.causal,pro.bayes,pro.doe,pro.words,pro.settings,pro.help}, ...
-                {'6 Sobol感度解析','7 因果探索','8 階層ベイズ','9 実験計画作成','10 ワードクラウド','11 設定','12 Help'});
+            testCase.verifyFalse(any(isfield(standard,{'sobol','causal','bayes','copula','words'})));
+            testCase.verifyEqual({pro.sobol,pro.causal,pro.bayes,pro.copula,pro.doe,pro.words,pro.settings,pro.help}, ...
+                {'6 Sobol感度解析','7 因果探索','8 階層ベイズ','9 コピュラ乱数生成','10 実験計画作成','11 ワードクラウド','12 設定','13 Help'});
         end
     end
 end

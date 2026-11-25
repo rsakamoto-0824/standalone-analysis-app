@@ -73,7 +73,7 @@ classdef TestProductEnhancements < matlab.unittest.TestCase
             fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
             standard = fullfile(fixture.Folder,'standard'); pro = fullfile(fixture.Folder,'pro');
             a = prepare_edition_build(root,'standard',standard); b = prepare_edition_build(root,'pro',pro);
-            testCase.verifyEmpty(a.ProFiles); testCase.verifyNumElements(b.ProFiles,26);
+            testCase.verifyEmpty(a.ProFiles); testCase.verifyNumElements(b.ProFiles,35);
             for name={'core/GradientBoostedTrees.m','core/search_hyperparameters.m','app/WordCloudPage.m','app/HyperparameterEditor.m','core/calc_pca_summary.m','app/SobolPage.m','core/hierarchical_bayes.m','core/causal_discovery.m'}
                 testCase.verifyFalse(isfile(fullfile(standard,name{1})),name{1}); testCase.verifyTrue(isfile(fullfile(pro,name{1})),name{1});
             end

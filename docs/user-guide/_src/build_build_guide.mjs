@@ -20,7 +20,9 @@ const PRO_FILES = ['app/SwingCurveView.m', 'core/fit_swing_curve.m', 'core/fit_s
   'app/HyperparameterEditor.m', 'core/category_flow_layout.m', 'app/plot_category_flows.m', 'core/calc_anova_summary.m',
   'core/calc_pca_summary.m', 'core/calc_cluster_summary.m', 'app/WordCloudPage.m', 'core/create_wordCloud.m',
   'app/SobolPage.m', 'core/calc_sobol_indices.m', 'app/CausalPage.m', 'core/causal_discovery.m', 'app/BayesPage.m',
-  'core/hierarchical_bayes.m', 'core/mixed_gpr_kernel.m'];
+  'core/hierarchical_bayes.m', 'core/mixed_gpr_kernel.m', 'core/calc_sobol_given_data.m', 'core/calc_distribution_summary.m',
+  'app/CopulaPage.m', 'core/copula_families.m', 'core/copula_fit_data.m', 'core/copula_from_spec.m', 'core/copula_generate.m',
+  'core/copula_compare.m', 'core/english_stop_words.m'];
 const EDITIONS = [
   { key: 'standard', label: '通常版（配布版）', exe: 'ProcessInsightTool', app: 'Process Insight Tool' },
   { key: 'pro', label: 'Pro版', exe: 'ProcessInsightToolPro', app: 'Process Insight Tool Pro' }];
@@ -126,7 +128,7 @@ ${note('インストーラーの作成で止まった場合', 'exe はできて�
 add('build-pro', 'Pro版をビルドする', 'STEP 5', `
 ${buildSection(EDITIONS[1], 5)}
 ${table(['Pro版だけに含めるファイル（通常版には含めない）'], PRO_FILES.map((file) => [`<code>${file}</code>`]))}
-<p>このほか、次の画面と説明は Pro 版でだけ表示されます。</p><ul><li>Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲</li><li>実験計画作成の拡張 D最適・拡張 I最適（既存の計画に点を追加）と「② 既存の計画」の欄</li><li>学習画面の①のデータのグラフ8種類（ヒストグラム・相関・ANOVA・Parallel Coordinates・Parallel Sets・Sankey・PCA・クラスタリング）</li><li>汎用回帰の EBM・XGBoost・LightGBM・CatBoost、ハイパーパラメータの欄と探索、GPR の加法カーネル（additive）と「質的変数として扱う列」</li><li>メニューの「6 Sobol感度解析」「7 因果探索」「8 階層ベイズ」「10 ワードクラウド」（通常版のメニューにはなく、番号が詰まります）</li><li>「12 Help」の Pro 版だけの用語・操作・関数のリンクと、ビルド・利用手順書（procedure-guide.html）を開くボタン</li></ul><p>Pro 版のインストーラーには、すべての手順書を入れます。</p>
+<p>このほか、次の画面と説明は Pro 版でだけ表示されます。</p><ul><li>Swing Curve学習の周期カーネル（swingperiodic）と周期の探索範囲</li><li>実験計画作成の拡張 D最適・拡張 I最適（既存の計画に点を追加）と「② 既存の計画」の欄</li><li>学習画面の①のデータのグラフ8種類（ヒストグラム・相関・ANOVA・Parallel Coordinates・Parallel Sets・Sankey・PCA・クラスタリング）</li><li>汎用回帰の EBM・XGBoost・LightGBM・CatBoost、ハイパーパラメータの欄と探索、GPR の加法カーネル（additive）と「質的変数として扱う列」</li><li>メニューの「データを解析する」の「6 Sobol感度解析」「7 因果探索」「8 階層ベイズ」「9 コピュラ乱数生成」と「11 ワードクラウド」（通常版のメニューにはなく、番号が詰まります）</li><li>「13 Help」の Pro 版だけの用語・操作・関数のリンクと、ビルド・利用手順書（procedure-guide.html）を開くボタン</li></ul><p>Pro 版のインストーラーには、すべての手順書を入れます。</p>
 `);
 
 add('verify', '版の確認と、MATLAB のない PC での確認', 'STEP 6', `

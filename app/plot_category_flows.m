@@ -1,10 +1,19 @@
-function plot_category_flows(ax, layout, column_names, level_names, color_names)
+function plot_category_flows(ax, layout, column_names, level_names, color_names, color_label)
 % category_flow_layout の配置で、Parallel Sets / Sankey Diagram を描く。
 %   column_names 列（縦軸）の名前、level_names 列ごとの水準名（string の cell）
-%   color_names  帯の色の凡例に使う名前（Parallel Sets は最初の列の水準名）。空なら凡例を出さない（Sankey）
+%   color_names  帯の色の凡例に使う名前（色の番号の順）。空なら凡例を出さない
+%   color_label  数値の列で色を付けたとき（layout.Ribbons.Value がある）の色の目盛りの名前
+% 帯の Value が数値なら、その値を連続した色（parula）で表し、色の目盛り（colorbar）を出す。
+if nargin < 6, color_label = ''; end
 NODE_WIDTH = 0.06; CURVE_POINTS = 40; RIBBON_ALPHA = 0.45; LABEL_LIMIT = 24;
 cla(ax); hold(ax, 'on');
-colors = lines(max(1, max(layout.Ribbons.Color)));
+numeric = any(isfinite(layout.Ribbons.Value));
+colors = lines(max(1, max([layout.Ribbons.Color; 1], [], 'omitnan')));
+if numeric
+    % 数値の列：帯ごとの平均を、値の範囲で 0〜1 にそろえて色の並びから選ぶ。
+    palette = parula(256); range = [min(layout.Ribbons.Value), max(layout.Ribbons.Value)];
+    if diff(range) == 0, range = range + [-0.5, 0.5]; end
+end
 blend = (1 - cos(linspace(0, pi, CURVE_POINTS))) / 2;
 for index = 1:height(layout.Ribbons)
     ribbon = layout.Ribbons(index, :);
@@ -12,7 +21,16 @@ for index = 1:height(layout.Ribbons)
     x = x_left + (x_right - x_left) * linspace(0, 1, CURVE_POINTS);
     lower = ribbon.LeftBottom + (ribbon.RightBottom - ribbon.LeftBottom) * blend;
     upper = ribbon.LeftTop + (ribbon.RightTop - ribbon.LeftTop) * blend;
-    patch(ax, [x, fliplr(x)], [lower, fliplr(upper)], colors(ribbon.Color, :), 'EdgeColor', 'none', ...
+    if numeric
+        if isfinite(ribbon.Value)
+            face = palette(1 + round(255 * (ribbon.Value - range(1)) / diff(range)), :);
+        else
+            face = [0.7, 0.7, 0.7];
+        end
+    else
+        face = colors(ribbon.Color, :);
+    end
+    patch(ax, [x, fliplr(x)], [lower, fliplr(upper)], face, 'EdgeColor', 'none', ...
         'FaceAlpha', RIBBON_ALPHA, 'HitTest', 'off');
 end
 columns = numel(column_names);
@@ -30,7 +48,11 @@ for index = 1:height(layout.Nodes)
 end
 % 凡例は色ごとに見えない線を1本ずつ置いて作る。
 used = unique(layout.Ribbons.Color)'; handles = gobjects(0);
-if isempty(color_names), used = []; end
+if isempty(color_names) || numeric, used = []; end
+if numeric
+    colormap(ax, palette); clim(ax, range); scale = colorbar(ax);
+    scale.Label.String = sprintf('%s（帯ごとの平均）', color_label); scale.Label.Interpreter = 'none';
+end
 for color = used
     handles(end + 1) = plot(ax, NaN, NaN, 's', 'MarkerFaceColor', colors(color, :), 'MarkerEdgeColor', 'none', ...
         'MarkerSize', 10, 'DisplayName', char(color_names(color))); %#ok<AGROW>
