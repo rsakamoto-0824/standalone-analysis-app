@@ -1,0 +1,21 @@
+﻿id,category,title,rows,columns,data_file,objectives_or_edges,license,source_url
+mo01_energy_efficiency,multiobjective,Energy Efficiency,768,10,multiobjective/mo01_energy_efficiency/data.csv,Y_HeatingLoad:min; Y_CoolingLoad:min,CC-BY-4.0,https://archive.ics.uci.edu/dataset/242/energy+efficiency
+mo02_concrete_slump,multiobjective,Concrete Slump Test,103,10,multiobjective/mo02_concrete_slump/data.csv,Y_Slump_cm:max; Y_Flow_cm:max; Y_CompressiveStrength_MPa:max,CC-BY-4.0,https://archive.ics.uci.edu/dataset/182/concrete+slump+test
+mo03_gas_turbine,multiobjective,Gas Turbine CO and NOx Emission,36733,11,multiobjective/mo03_gas_turbine/data.csv,Y_TEY:max; Y_CO:min; Y_NOX:min,CC-BY-4.0,https://archive.ics.uci.edu/dataset/551/gas+turbine+co+and+nox+emission+data+set
+mo04_ss_e,multiobjective,MOOT SS-E,756,5,multiobjective/mo04_ss_e/data.csv,Y_Throughput:max; Y_Latency:min,MIT,https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-E.csv
+mo05_ss_j,multiobjective,MOOT SS-J,3840,8,multiobjective/mo05_ss_j/data.csv,Y_Throughput:max; Y_Latency:min,MIT,https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-J.csv
+mo06_ss_q,multiobjective,MOOT SS-Q,2736,16,multiobjective/mo06_ss_q/data.csv,Y_Performance:min; Y_Energy:min; Y_Cpu:min,MIT,https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-Q.csv
+mo07_ss_d,multiobjective,MOOT SS-D,196,5,multiobjective/mo07_ss_d/data.csv,Y_Throughput:max; Y_Latency:min,MIT,https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-D.csv
+mo08_pom3d,multiobjective,MOOT pom3d,500,12,multiobjective/mo08_pom3d/data.csv,Y_Cost:min; Y_Score:min; Y_Idle:min,MIT,https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/pom3d.csv
+mo09_xomo_flight,multiobjective,MOOT xomo_flight,10000,31,multiobjective/mo09_xomo_flight/data.csv,Y_EFFORT:min; Y_MONTHS:min; Y_DEFECTS:min; Y_RISKS:min,MIT,https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/xomo_flight.csv
+mo10_coc1000,multiobjective,MOOT coc1000,1000,25,multiobjective/mo10_coc1000/data.csv,Y_LOC:max; Y_AEXP:min; Y_PLEx:min; Y_RISK:min; Y_EFFORT:min,MIT,https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/coc1000.csv
+cd01_csuite_lingauss,causal,CSuite lingauss,4000,2,causal/cd01_csuite_lingauss/train.csv,1 edges,MIT,https://github.com/microsoft/csuite#lingauss
+cd02_csuite_linexp,causal,CSuite linexp,4000,2,causal/cd02_csuite_linexp/train.csv,1 edges,MIT,https://github.com/microsoft/csuite#linexp
+cd03_csuite_nonlingauss,causal,CSuite nonlingauss,4000,2,causal/cd03_csuite_nonlingauss/train.csv,1 edges,MIT,https://github.com/microsoft/csuite#nonlingauss
+cd04_csuite_nonlin_simpson,causal,CSuite nonlin_simpson,2000,4,causal/cd04_csuite_nonlin_simpson/train.csv,4 edges,MIT,https://github.com/microsoft/csuite#nonlin_simpson
+cd05_csuite_symprod_simpson,causal,CSuite symprod_simpson,2000,4,causal/cd05_csuite_symprod_simpson/train.csv,4 edges,MIT,https://github.com/microsoft/csuite#symprod_simpson
+cd06_csuite_large_backdoor,causal,CSuite large_backdoor,2000,9,causal/cd06_csuite_large_backdoor/train.csv,9 edges,MIT,https://github.com/microsoft/csuite#large_backdoor
+cd07_csuite_weak_arrows,causal,CSuite weak_arrows,2000,9,causal/cd07_csuite_weak_arrows/train.csv,15 edges,MIT,https://github.com/microsoft/csuite#weak_arrows
+cd08_grandag_er10,causal,GraN-DAG ER 10変数・疎,1000,10,causal/cd08_grandag_er10/data.csv,8 edges,MIT,https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data
+cd09_grandag_er20,causal,GraN-DAG ER 20変数・疎,1000,20,causal/cd09_grandag_er20/data.csv,21 edges,MIT,https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data
+cd10_grandag_sf20,causal,GraN-DAG Scale-free 20変数・密,1000,20,causal/cd10_grandag_sf20/data.csv,48 edges,MIT,https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data

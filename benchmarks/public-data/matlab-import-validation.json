@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "matlab_release": "2022b",
+  "platform": "MACI64",
+  "datasets": 20,
+  "observation_files": 34,
+  "rows_checked": 107632,
+  "scope": "read_input_data / extract_numeric_columns; header, shape, finite values, min/max",
+  "modeling_and_causal_scores_run": false
+}

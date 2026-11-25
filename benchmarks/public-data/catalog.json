@@ -1,0 +1,4326 @@
+{
+  "version": "1.0",
+  "retrieved_on": "2026-11-25",
+  "datasets": [
+    {
+      "id": "mo01_energy_efficiency",
+      "category": "multiobjective",
+      "source": "uci",
+      "title": "Energy Efficiency",
+      "kind": "建物エネルギーシミュレーション",
+      "archive": "energy.zip",
+      "download_url": "https://archive.ics.uci.edu/static/public/242/energy+efficiency.zip",
+      "page": "https://archive.ics.uci.edu/dataset/242/energy+efficiency",
+      "format": "energy_xlsx",
+      "inputs": [
+        "RelativeCompactness",
+        "SurfaceArea",
+        "WallArea",
+        "RoofArea",
+        "OverallHeight",
+        "Orientation",
+        "GlazingArea",
+        "GlazingAreaDistribution"
+      ],
+      "objectives": [
+        {
+          "column": "Y_HeatingLoad",
+          "direction": "min"
+        },
+        {
+          "column": "Y_CoolingLoad",
+          "direction": "min"
+        }
+      ],
+      "expected_rows": 768,
+      "citation": "A. Tsanas and A. Xifara (2012), Energy Efficiency, UCI, doi:10.24432/C51307.",
+      "notes": "2つの負荷を最小化する例。形状列は互いに制約されるので、公開済みの候補行の範囲で比較する。向き・窓配置は離散値。熱負荷の単位はUCI変数表に明記されていないため変換しない。",
+      "source_sha256": "499441eee27929a4b00417f58fd8c63c9cc14b8a71520cd0dd27fcb626738351",
+      "data_file": "data.csv",
+      "headers": [
+        "RelativeCompactness",
+        "SurfaceArea",
+        "WallArea",
+        "RoofArea",
+        "OverallHeight",
+        "Orientation",
+        "GlazingArea",
+        "GlazingAreaDistribution",
+        "Y_HeatingLoad",
+        "Y_CoolingLoad"
+      ],
+      "recommended_inputs": [
+        "RelativeCompactness",
+        "SurfaceArea",
+        "WallArea",
+        "RoofArea",
+        "OverallHeight",
+        "Orientation",
+        "GlazingArea",
+        "GlazingAreaDistribution"
+      ],
+      "source_column_mapping": {
+        "RelativeCompactness": "X1",
+        "SurfaceArea": "X2",
+        "WallArea": "X3",
+        "RoofArea": "X4",
+        "OverallHeight": "X5",
+        "Orientation": "X6",
+        "GlazingArea": "X7",
+        "GlazingAreaDistribution": "X8",
+        "Y_HeatingLoad": "Y1",
+        "Y_CoolingLoad": "Y2"
+      },
+      "quality": {
+        "rows": 768,
+        "columns": 10,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "RelativeCompactness": {
+            "min": 0.62,
+            "max": 0.98,
+            "distinct": 12
+          },
+          "SurfaceArea": {
+            "min": 514.5,
+            "max": 808.5,
+            "distinct": 12
+          },
+          "WallArea": {
+            "min": 245.0,
+            "max": 416.5,
+            "distinct": 7
+          },
+          "RoofArea": {
+            "min": 110.25,
+            "max": 220.5,
+            "distinct": 4
+          },
+          "OverallHeight": {
+            "min": 3.5,
+            "max": 7.0,
+            "distinct": 2
+          },
+          "Orientation": {
+            "min": 2.0,
+            "max": 5.0,
+            "distinct": 4
+          },
+          "GlazingArea": {
+            "min": 0.0,
+            "max": 0.4,
+            "distinct": 4
+          },
+          "GlazingAreaDistribution": {
+            "min": 0.0,
+            "max": 5.0,
+            "distinct": 6
+          },
+          "Y_HeatingLoad": {
+            "min": 6.01,
+            "max": 43.1,
+            "distinct": 587
+          },
+          "Y_CoolingLoad": {
+            "min": 10.9,
+            "max": 48.03,
+            "distinct": 636
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 2,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "XLSXの非空データ行のみをCSV化。単位・数値は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "UCI Machine Learning Repository",
+        "license": "CC-BY-4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/legalcode.txt",
+        "license_file": "CC-BY-4.0.txt",
+        "license_sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "6d6d0fff988e3e5e500eac0602b494afc107f061d37ed53d0333fad427aee7c5",
+          "bytes": 2325
+        },
+        "data.csv": {
+          "sha256": "f5c70bc44ecb320a63c36b498d6fe72b42d07ada215c7832227110ca60e84889",
+          "bytes": 65399
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "364429969e248fce12ce3e28b6d3baadf657190b96da846fb1fdd66741f15653",
+          "bytes": 25
+        },
+        "split.csv": {
+          "sha256": "435968acedb1620cbc330305aa2a4ec96757eddb07574326729d0cd8d1398071",
+          "bytes": 7443
+        }
+      }
+    },
+    {
+      "id": "mo02_concrete_slump",
+      "category": "multiobjective",
+      "source": "uci",
+      "title": "Concrete Slump Test",
+      "kind": "コンクリート配合の実測",
+      "archive": "slump.zip",
+      "download_url": "https://archive.ics.uci.edu/static/public/182/concrete+slump+test.zip",
+      "page": "https://archive.ics.uci.edu/dataset/182/concrete+slump+test",
+      "format": "slump_csv",
+      "inputs": [
+        "Cement",
+        "Slag",
+        "FlyAsh",
+        "Water",
+        "SP",
+        "CoarseAggregate",
+        "FineAggregate"
+      ],
+      "objectives": [
+        {
+          "column": "Y_Slump_cm",
+          "direction": "max"
+        },
+        {
+          "column": "Y_Flow_cm",
+          "direction": "max"
+        },
+        {
+          "column": "Y_CompressiveStrength_MPa",
+          "direction": "max"
+        }
+      ],
+      "expected_rows": 103,
+      "citation": "I-Cheng Yeh (2007), Concrete Slump Test, UCI, doi:10.24432/C5FG7D.",
+      "notes": "成分量はkg/m^3、Slump/Flowはcm、28日圧縮強度はMPa。3値の最大化は動作比較用の設定であり、実務ではSlump/Flowに目標範囲を設ける。元のNo列は測定IDなので入力から除いた。配合量の独立な連続変更を推奨するデータではない。",
+      "source_sha256": "68d6a6813261bf8ecf79d8d7cc82b665bd5e9e6800c7705a16e671688c78e491",
+      "data_file": "data.csv",
+      "headers": [
+        "Cement",
+        "Slag",
+        "FlyAsh",
+        "Water",
+        "SP",
+        "CoarseAggregate",
+        "FineAggregate",
+        "Y_Slump_cm",
+        "Y_Flow_cm",
+        "Y_CompressiveStrength_MPa"
+      ],
+      "recommended_inputs": [
+        "Cement",
+        "Slag",
+        "FlyAsh",
+        "Water",
+        "SP",
+        "CoarseAggregate",
+        "FineAggregate"
+      ],
+      "source_column_mapping": {
+        "Cement": "Cement",
+        "Slag": "Slag",
+        "FlyAsh": "Fly ash",
+        "Water": "Water",
+        "SP": "SP",
+        "CoarseAggregate": "Coarse Aggr.",
+        "FineAggregate": "Fine Aggr.",
+        "Y_Slump_cm": "SLUMP(cm)",
+        "Y_Flow_cm": "FLOW(cm)",
+        "Y_CompressiveStrength_MPa": "Compressive Strength (28-day)(Mpa)"
+      },
+      "quality": {
+        "rows": 103,
+        "columns": 10,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "Cement": {
+            "min": 137.0,
+            "max": 374.0,
+            "distinct": 80
+          },
+          "Slag": {
+            "min": 0.0,
+            "max": 193.0,
+            "distinct": 63
+          },
+          "FlyAsh": {
+            "min": 0.0,
+            "max": 260.0,
+            "distinct": 58
+          },
+          "Water": {
+            "min": 160.0,
+            "max": 240.0,
+            "distinct": 70
+          },
+          "SP": {
+            "min": 4.4,
+            "max": 19.0,
+            "distinct": 32
+          },
+          "CoarseAggregate": {
+            "min": 708.0,
+            "max": 1049.9,
+            "distinct": 92
+          },
+          "FineAggregate": {
+            "min": 640.6,
+            "max": 902.0,
+            "distinct": 90
+          },
+          "Y_Slump_cm": {
+            "min": 0.0,
+            "max": 29.0,
+            "distinct": 39
+          },
+          "Y_Flow_cm": {
+            "min": 20.0,
+            "max": 78.0,
+            "distinct": 51
+          },
+          "Y_CompressiveStrength_MPa": {
+            "min": 17.19,
+            "max": 58.53,
+            "distinct": 83
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 4,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "元のNo列を除外。その他の値は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "UCI Machine Learning Repository",
+        "license": "CC-BY-4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/legalcode.txt",
+        "license_file": "CC-BY-4.0.txt",
+        "license_sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "b7ebd9c9db13776c9af91de7a3536b2a26c1ee2e7d9c38cb1bde011b632ee322",
+          "bytes": 2360
+        },
+        "data.csv": {
+          "sha256": "32c188210aa9788b7891a91fff2b66520bd05782b17f2e99c33f2e646713fa0c",
+          "bytes": 7288
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "360854c762c7abd644c29b425a9d00355d1a0e35b5d458558ca0db806263d7f8",
+          "bytes": 33
+        },
+        "split.csv": {
+          "sha256": "9dca1917bf1c2174d3794d2cc35ea83751e037890527f3ffa386cdf936fb2d19",
+          "bytes": 926
+        }
+      }
+    },
+    {
+      "id": "mo03_gas_turbine",
+      "category": "multiobjective",
+      "source": "uci",
+      "title": "Gas Turbine CO and NOx Emission",
+      "kind": "タービンの時系列実測",
+      "archive": "turbine.zip",
+      "download_url": "https://archive.ics.uci.edu/static/public/551/gas+turbine+co+and+nox+emission+data+set.zip",
+      "page": "https://archive.ics.uci.edu/dataset/551/gas+turbine+co+and+nox+emission+data+set",
+      "format": "turbine_csv",
+      "inputs": [
+        "AT",
+        "AP",
+        "AH",
+        "AFDP",
+        "GTEP",
+        "TIT",
+        "TAT",
+        "CDP"
+      ],
+      "objectives": [
+        {
+          "column": "Y_TEY",
+          "direction": "max"
+        },
+        {
+          "column": "Y_CO",
+          "direction": "min"
+        },
+        {
+          "column": "Y_NOX",
+          "direction": "min"
+        }
+      ],
+      "expected_rows": 36733,
+      "citation": "Gas Turbine CO and NOx Emission Data Set (2019), UCI, doi:10.24432/C5WC95.",
+      "notes": "入力は環境・装置の計測値。環境量を操作可能とは扱わず、候補行を比較するベンチマークに限る。TEY:MWh、CO/NOX:mg/m^3。2011→2015年の順に連結し、2011～2013年をtrain、2014～2015年をtestとする。時間依存があるのでランダム行分割では評価しない。",
+      "source_sha256": "55fdb1acc25f05bd9c77aac285c424e9154ffb0dbf1bbadb56b69a1142231295",
+      "data_file": "data.csv",
+      "headers": [
+        "AT",
+        "AP",
+        "AH",
+        "AFDP",
+        "GTEP",
+        "TIT",
+        "TAT",
+        "CDP",
+        "Y_TEY",
+        "Y_CO",
+        "Y_NOX"
+      ],
+      "recommended_inputs": [
+        "AT",
+        "AP",
+        "AH",
+        "AFDP",
+        "GTEP",
+        "TIT",
+        "TAT",
+        "CDP"
+      ],
+      "source_column_mapping": {
+        "AT": "AT",
+        "AP": "AP",
+        "AH": "AH",
+        "AFDP": "AFDP",
+        "GTEP": "GTEP",
+        "TIT": "TIT",
+        "TAT": "TAT",
+        "CDP": "CDP",
+        "Y_TEY": "TEY",
+        "Y_CO": "CO",
+        "Y_NOX": "NOX"
+      },
+      "quality": {
+        "rows": 36733,
+        "columns": 11,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 7,
+        "constant_columns": [],
+        "ranges": {
+          "AT": {
+            "min": -6.2348,
+            "max": 37.103,
+            "distinct": 22523
+          },
+          "AP": {
+            "min": 985.85,
+            "max": 1036.6,
+            "distinct": 791
+          },
+          "AH": {
+            "min": 24.085,
+            "max": 100.2,
+            "distinct": 25708
+          },
+          "AFDP": {
+            "min": 2.0874,
+            "max": 7.6106,
+            "distinct": 20495
+          },
+          "GTEP": {
+            "min": 17.698,
+            "max": 40.716,
+            "distinct": 12967
+          },
+          "TIT": {
+            "min": 1000.8,
+            "max": 1100.9,
+            "distinct": 799
+          },
+          "TAT": {
+            "min": 511.04,
+            "max": 550.61,
+            "distinct": 2769
+          },
+          "CDP": {
+            "min": 9.8518,
+            "max": 15.159,
+            "distinct": 4447
+          },
+          "Y_TEY": {
+            "min": 100.02,
+            "max": 179.5,
+            "distinct": 6236
+          },
+          "Y_CO": {
+            "min": 0.00038751,
+            "max": 44.103,
+            "distinct": 26185
+          },
+          "Y_NOX": {
+            "min": 25.905,
+            "max": 119.91,
+            "distinct": 23637
+          }
+        }
+      },
+      "duplicate_input_rows": 7,
+      "reference_pareto_rows": 75,
+      "split_method": "UCIの年別分割（2011～2013 train、2014～2015 test）。",
+      "transformations": [
+        "2011～2015年を年順・元の行順で連結。列を入力→目的の順へ並べ替え。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "UCI Machine Learning Repository",
+        "license": "CC-BY-4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/legalcode.txt",
+        "license_file": "CC-BY-4.0.txt",
+        "license_sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "f93b25c64cb1fd1cdd1caefefef51a6298c0a3f6f5d8cbb7b58716e1af7ea8e0",
+          "bytes": 2320
+        },
+        "data.csv": {
+          "sha256": "cae8c26face92ae1f30e8ff5c2eddf63787346d331f214533b29ccf9717f4bdb",
+          "bytes": 5911177
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "05ce43033772d3790d9213361e856dc8ff6938547b4cf98a84c09c4a4c91eed0",
+          "bytes": 433
+        },
+        "split.csv": {
+          "sha256": "db2f5dc220050e8ef5eeab4295091f91cac54a2cf586ca2f12984381c77b1793",
+          "bytes": 598850
+        }
+      }
+    },
+    {
+      "id": "mo04_ss_e",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-E",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-E.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-E.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-E.csv",
+      "format": "moot_csv",
+      "expected_rows": 756,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "d7415e875dd7071e51ef8ea45f932184eaf86582a16eac41b1f90d4b5db84a7d",
+      "inputs": [
+        "Max_spout",
+        "Spliters",
+        "Counters"
+      ],
+      "objectives": [
+        {
+          "column": "Y_Throughput",
+          "direction": "max"
+        },
+        {
+          "column": "Y_Latency",
+          "direction": "min"
+        }
+      ],
+      "data_file": "data.csv",
+      "headers": [
+        "Max_spout",
+        "Spliters",
+        "Counters",
+        "Y_Throughput",
+        "Y_Latency"
+      ],
+      "recommended_inputs": [
+        "Max_spout",
+        "Spliters",
+        "Counters"
+      ],
+      "source_column_mapping": {
+        "Max_spout": "Max_spout",
+        "Spliters": "Spliters",
+        "Counters": "Counters",
+        "Y_Throughput": "Throughput+",
+        "Y_Latency": "Latency-"
+      },
+      "quality": {
+        "rows": 756,
+        "columns": 5,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "Max_spout": {
+            "min": 1.0,
+            "max": 1000000.0,
+            "distinct": 7
+          },
+          "Spliters": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 6
+          },
+          "Counters": {
+            "min": 1.0,
+            "max": 18.0,
+            "distinct": 18
+          },
+          "Y_Throughput": {
+            "min": 5042.6,
+            "max": 95094.0,
+            "distinct": 750
+          },
+          "Y_Latency": {
+            "min": 1.2994,
+            "max": 94553.0,
+            "distinct": 749
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 16,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "列名の空白・記号を整理。目的列にY_を付加。数値・行順は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "MOOT",
+        "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+        "page": "https://github.com/timm/moot",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+        "license_file": "MOOT-MIT.txt",
+        "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+        "citation_url": "https://arxiv.org/abs/2511.16882",
+        "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "25cfa43ad2db6e7741ed6c9deb3981558200d93446b513455cf443efc3bb8af0",
+          "bytes": 2208
+        },
+        "data.csv": {
+          "sha256": "b365688a8dcac99eb34c825e319f883e09e7bf44e872fcdf0a0398584ece10d4",
+          "bytes": 23816
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "002081519e1ed61c9709f8312fd86388f255554a7d839b5ffb874f8b447c2fd5",
+          "bytes": 82
+        },
+        "split.csv": {
+          "sha256": "30e931998192e6906d5a2a4f2a90c3f13e4702e7db2186e478d87bc56363450b",
+          "bytes": 7325
+        }
+      }
+    },
+    {
+      "id": "mo05_ss_j",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-J",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-J.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-J.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-J.csv",
+      "format": "moot_csv",
+      "expected_rows": 3840,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "53acac1c67b1b1e5c74d39d47b27b9c8f0aea14851da66a56e55370f6e526b52",
+      "inputs": [
+        "Spouts",
+        "Max_spout",
+        "Sorters",
+        "Emit_freq",
+        "Chunk_size",
+        "Message_size"
+      ],
+      "objectives": [
+        {
+          "column": "Y_Throughput",
+          "direction": "max"
+        },
+        {
+          "column": "Y_Latency",
+          "direction": "min"
+        }
+      ],
+      "data_file": "data.csv",
+      "headers": [
+        "Spouts",
+        "Max_spout",
+        "Sorters",
+        "Emit_freq",
+        "Chunk_size",
+        "Message_size",
+        "Y_Throughput",
+        "Y_Latency"
+      ],
+      "recommended_inputs": [
+        "Spouts",
+        "Max_spout",
+        "Sorters",
+        "Emit_freq",
+        "Chunk_size",
+        "Message_size"
+      ],
+      "source_column_mapping": {
+        "Spouts": "Spouts",
+        "Max_spout": "Max_spout",
+        "Sorters": "Sorters",
+        "Emit_freq": "Emit_freq",
+        "Chunk_size": "Chunk_size",
+        "Message_size": "Message_size",
+        "Y_Throughput": "Throughput+",
+        "Y_Latency": "Latency-"
+      },
+      "quality": {
+        "rows": 3840,
+        "columns": 8,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "Spouts": {
+            "min": 1.0,
+            "max": 3.0,
+            "distinct": 2
+          },
+          "Max_spout": {
+            "min": 10.0,
+            "max": 10000.0,
+            "distinct": 4
+          },
+          "Sorters": {
+            "min": 1.0,
+            "max": 18.0,
+            "distinct": 8
+          },
+          "Emit_freq": {
+            "min": 1.0,
+            "max": 300.0,
+            "distinct": 5
+          },
+          "Chunk_size": {
+            "min": 100000.0,
+            "max": 10000000.0,
+            "distinct": 4
+          },
+          "Message_size": {
+            "min": 1000.0,
+            "max": 100000.0,
+            "distinct": 3
+          },
+          "Y_Throughput": {
+            "min": 68.062,
+            "max": 232000.0,
+            "distinct": 2797
+          },
+          "Y_Latency": {
+            "min": 1.9,
+            "max": 34733.0,
+            "distinct": 3700
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 34,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "列名の空白・記号を整理。目的列にY_を付加。数値・行順は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "MOOT",
+        "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+        "page": "https://github.com/timm/moot",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+        "license_file": "MOOT-MIT.txt",
+        "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+        "citation_url": "https://arxiv.org/abs/2511.16882",
+        "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "1e181dd1ed01b9d6156258193a3b3b5785fc2a0006f083b08eaa5c70ee0dcd4f",
+          "bytes": 2342
+        },
+        "data.csv": {
+          "sha256": "3ae00dd9cbdeb64473bd81390b87981211e2259fff6af899ee9fc14a6154ad8a",
+          "bytes": 186396
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "a7381e3849d876bf32cc13290ec3ae968b05b34dda26e5b9e81abb5bdc9cb568",
+          "bytes": 180
+        },
+        "split.csv": {
+          "sha256": "6913e1609364caf67bfc0c300936ef04ce9434d85db7bf0f65726e4937836a63",
+          "bytes": 40390
+        }
+      }
+    },
+    {
+      "id": "mo06_ss_q",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-Q",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-Q.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-Q.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-Q.csv",
+      "format": "moot_csv",
+      "expected_rows": 2736,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "f3a335e9b12930653d84ad89eacc84d7fcc76a6fd26b217942cd92b439eb81f0",
+      "inputs": [
+        "twoPass",
+        "quality",
+        "bestQuality",
+        "goodQuality",
+        "rtQuality",
+        "constantBitrate",
+        "autoAltRef",
+        "noAltRef",
+        "allowResize",
+        "Threads",
+        "TokenParts",
+        "ArnrMaxFrames",
+        "ArnrStrength"
+      ],
+      "objectives": [
+        {
+          "column": "Y_Performance",
+          "direction": "min"
+        },
+        {
+          "column": "Y_Energy",
+          "direction": "min"
+        },
+        {
+          "column": "Y_Cpu",
+          "direction": "min"
+        }
+      ],
+      "data_file": "data.csv",
+      "headers": [
+        "twoPass",
+        "quality",
+        "bestQuality",
+        "goodQuality",
+        "rtQuality",
+        "constantBitrate",
+        "autoAltRef",
+        "noAltRef",
+        "allowResize",
+        "Threads",
+        "TokenParts",
+        "ArnrMaxFrames",
+        "ArnrStrength",
+        "Y_Performance",
+        "Y_Energy",
+        "Y_Cpu"
+      ],
+      "recommended_inputs": [
+        "twoPass",
+        "bestQuality",
+        "goodQuality",
+        "rtQuality",
+        "constantBitrate",
+        "autoAltRef",
+        "noAltRef",
+        "allowResize",
+        "Threads",
+        "TokenParts",
+        "ArnrMaxFrames",
+        "ArnrStrength"
+      ],
+      "source_column_mapping": {
+        "twoPass": "twoPass",
+        "quality": "quality",
+        "bestQuality": "bestQuality",
+        "goodQuality": "goodQuality",
+        "rtQuality": "rtQuality",
+        "constantBitrate": "constantBitrate",
+        "autoAltRef": "autoAltRef",
+        "noAltRef": "noAltRef",
+        "allowResize": "allowResize",
+        "Threads": "Threads",
+        "TokenParts": "TokenParts",
+        "ArnrMaxFrames": "ArnrMaxFrames",
+        "ArnrStrength": "ArnrStrength",
+        "Y_Performance": "Performance-",
+        "Y_Energy": "Energy-",
+        "Y_Cpu": "Cpu-"
+      },
+      "quality": {
+        "rows": 2736,
+        "columns": 16,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [
+          "quality"
+        ],
+        "ranges": {
+          "twoPass": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "quality": {
+            "min": 1.0,
+            "max": 1.0,
+            "distinct": 1
+          },
+          "bestQuality": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "goodQuality": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "rtQuality": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "constantBitrate": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "autoAltRef": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "noAltRef": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "allowResize": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 2
+          },
+          "Threads": {
+            "min": 1.0,
+            "max": 4.0,
+            "distinct": 4
+          },
+          "TokenParts": {
+            "min": 0.0,
+            "max": 2.0,
+            "distinct": 3
+          },
+          "ArnrMaxFrames": {
+            "min": 0.0,
+            "max": 15.0,
+            "distinct": 3
+          },
+          "ArnrStrength": {
+            "min": 0.0,
+            "max": 6.0,
+            "distinct": 3
+          },
+          "Y_Performance": {
+            "min": 5183.8,
+            "max": 61545.0,
+            "distinct": 2636
+          },
+          "Y_Energy": {
+            "min": 217.6,
+            "max": 2217.0,
+            "distinct": 1971
+          },
+          "Y_Cpu": {
+            "min": 25.599007,
+            "max": 84.642095,
+            "distinct": 2719
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 57,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "列名の空白・記号を整理。目的列にY_を付加。数値・行順は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "MOOT",
+        "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+        "page": "https://github.com/timm/moot",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+        "license_file": "MOOT-MIT.txt",
+        "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+        "citation_url": "https://arxiv.org/abs/2511.16882",
+        "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "ab5e80076a66e548e3786268f087b235234df3aa9aa95fd501a6f980225a7f99",
+          "bytes": 2724
+        },
+        "data.csv": {
+          "sha256": "c8d0b2c0eebcbebb7b7730cf4491f72ce71124a168c773fccf0c573a7e523231",
+          "bytes": 200536
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "30ea00aa7866b7c757aab3ab002ba47f43f3c797d078f61de44101b2106c879f",
+          "bytes": 274
+        },
+        "split.csv": {
+          "sha256": "d83360dc1a076d0b5c709e71ecd5c07c57cbf8bf145ff573ea0eddca6c82bb5c",
+          "bytes": 28466
+        }
+      }
+    },
+    {
+      "id": "mo07_ss_d",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-D",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-D.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-D.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-D.csv",
+      "format": "moot_csv",
+      "expected_rows": 196,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "90e4bda9f1925895399f073e6a05248841c309511f9297cd59f6a900da7e4515",
+      "inputs": [
+        "Max_spout",
+        "Spliters",
+        "Counters"
+      ],
+      "objectives": [
+        {
+          "column": "Y_Throughput",
+          "direction": "max"
+        },
+        {
+          "column": "Y_Latency",
+          "direction": "min"
+        }
+      ],
+      "data_file": "data.csv",
+      "headers": [
+        "Max_spout",
+        "Spliters",
+        "Counters",
+        "Y_Throughput",
+        "Y_Latency"
+      ],
+      "recommended_inputs": [
+        "Max_spout",
+        "Spliters",
+        "Counters"
+      ],
+      "source_column_mapping": {
+        "Max_spout": "Max_spout",
+        "Spliters": "Spliters",
+        "Counters": "Counters",
+        "Y_Throughput": "Throughput+",
+        "Y_Latency": "Latency-"
+      },
+      "quality": {
+        "rows": 196,
+        "columns": 5,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "Max_spout": {
+            "min": 1.0,
+            "max": 1000000.0,
+            "distinct": 7
+          },
+          "Spliters": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 4
+          },
+          "Counters": {
+            "min": 1.0,
+            "max": 18.0,
+            "distinct": 7
+          },
+          "Y_Throughput": {
+            "min": 3964.2,
+            "max": 65823.0,
+            "distinct": 195
+          },
+          "Y_Latency": {
+            "min": 2.0815,
+            "max": 105000.0,
+            "distinct": 194
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 15,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "列名の空白・記号を整理。目的列にY_を付加。数値・行順は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "MOOT",
+        "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+        "page": "https://github.com/timm/moot",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+        "license_file": "MOOT-MIT.txt",
+        "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+        "citation_url": "https://arxiv.org/abs/2511.16882",
+        "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "8c7fc6e38432eee0d10276b0f641e77bc0e6c8c25ee7c4b1c4208ecf10e03fd9",
+          "bytes": 2208
+        },
+        "data.csv": {
+          "sha256": "71c115139d7dbfd30d358fc9433448efd1c6ee06cff8dbd61c812925dac6741a",
+          "bytes": 6251
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "7c34761a3ce4a7345c89924eaab8f16a083d44407be6204ac1f2f58725d2eddc",
+          "bytes": 70
+        },
+        "split.csv": {
+          "sha256": "ce3048b8a0eb717d34999cae1126197d1cd9ca41e42b44ef891689f176c54fe6",
+          "bytes": 1837
+        }
+      }
+    },
+    {
+      "id": "mo08_pom3d",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT pom3d",
+      "kind": "開発プロセスのシミュレーション",
+      "archive": "pom3d.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/pom3d.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/pom3d.csv",
+      "format": "moot_csv",
+      "expected_rows": 500,
+      "notes": "公開済みシミュレーションの候補表。原本の列名末尾 + / - の目的方向を保持。 Scoreは原本で最小化と指定されているため、その符号を保持し、完了率の最大化へ読み替えない。",
+      "source_sha256": "2c794157433db9d786e788f5efe21a3acadab3856743bc99a64f92d0d16b75af",
+      "inputs": [
+        "Culture",
+        "Criticality",
+        "Criticality_Modifier",
+        "Initial_Known",
+        "Inter_Dependency",
+        "Dynamism",
+        "Size",
+        "Plan",
+        "Team_Size"
+      ],
+      "objectives": [
+        {
+          "column": "Y_Cost",
+          "direction": "min"
+        },
+        {
+          "column": "Y_Score",
+          "direction": "min"
+        },
+        {
+          "column": "Y_Idle",
+          "direction": "min"
+        }
+      ],
+      "data_file": "data.csv",
+      "headers": [
+        "Culture",
+        "Criticality",
+        "Criticality_Modifier",
+        "Initial_Known",
+        "Inter_Dependency",
+        "Dynamism",
+        "Size",
+        "Plan",
+        "Team_Size",
+        "Y_Cost",
+        "Y_Score",
+        "Y_Idle"
+      ],
+      "recommended_inputs": [
+        "Culture",
+        "Criticality",
+        "Criticality_Modifier",
+        "Initial_Known",
+        "Inter_Dependency",
+        "Dynamism",
+        "Size",
+        "Plan",
+        "Team_Size"
+      ],
+      "source_column_mapping": {
+        "Culture": "Culture",
+        "Criticality": "Criticality",
+        "Criticality_Modifier": "Criticality Modifier",
+        "Initial_Known": "Initial Known",
+        "Inter_Dependency": "Inter-Dependency",
+        "Dynamism": "Dynamism",
+        "Size": "Size",
+        "Plan": "Plan",
+        "Team_Size": "Team Size",
+        "Y_Cost": "Cost-",
+        "Y_Score": "Score-",
+        "Y_Idle": "Idle-"
+      },
+      "quality": {
+        "rows": 500,
+        "columns": 12,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "Culture": {
+            "min": 0.0008438965265021858,
+            "max": 0.9990844361683612,
+            "distinct": 500
+          },
+          "Criticality": {
+            "min": 0.002577849643514485,
+            "max": 0.9991562853549872,
+            "distinct": 500
+          },
+          "Criticality_Modifier": {
+            "min": 0.0007367356696418303,
+            "max": 0.999729195801954,
+            "distinct": 500
+          },
+          "Initial_Known": {
+            "min": 0.0032956974819147167,
+            "max": 0.9996826423448932,
+            "distinct": 500
+          },
+          "Inter_Dependency": {
+            "min": 0.0009772746143527078,
+            "max": 0.9986242597711538,
+            "distinct": 500
+          },
+          "Dynamism": {
+            "min": 0.002071274869490658,
+            "max": 0.9985645959369129,
+            "distinct": 500
+          },
+          "Size": {
+            "min": 6.34265641163978e-05,
+            "max": 0.998200731013447,
+            "distinct": 500
+          },
+          "Plan": {
+            "min": 0.0007746918516795542,
+            "max": 0.9984870167243224,
+            "distinct": 500
+          },
+          "Team_Size": {
+            "min": 0.001991490281051167,
+            "max": 0.9976339610486817,
+            "distinct": 500
+          },
+          "Y_Cost": {
+            "min": 0.0,
+            "max": 0.9907761057215961,
+            "distinct": 500
+          },
+          "Y_Score": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 500
+          },
+          "Y_Idle": {
+            "min": 0.0,
+            "max": 1.0,
+            "distinct": 225
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 7,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "列名の空白・記号を整理。目的列にY_を付加。数値・行順は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "MOOT",
+        "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+        "page": "https://github.com/timm/moot",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+        "license_file": "MOOT-MIT.txt",
+        "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+        "citation_url": "https://arxiv.org/abs/2511.16882",
+        "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "c4cccd9d88c9040f4944fa405d736aed81f8fb6c61f9e63dde60418383251b31",
+          "bytes": 2528
+        },
+        "data.csv": {
+          "sha256": "21178e151933f87bef711a05d95822c7c5b59604c030111831295772118afb26",
+          "bytes": 118069
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "242568412fe7c8c9c3abee536241ec6f6351c6780d0786451bb0e527a48381e8",
+          "bytes": 45
+        },
+        "split.csv": {
+          "sha256": "31b2477cd175729ff915400648c2c1be80c75947cc7cb3588f40cf416f40c62d",
+          "bytes": 4817
+        }
+      }
+    },
+    {
+      "id": "mo09_xomo_flight",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT xomo_flight",
+      "kind": "開発プロセスのシミュレーション",
+      "archive": "xomo_flight.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/xomo_flight.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/xomo_flight.csv",
+      "format": "moot_csv",
+      "expected_rows": 10000,
+      "notes": "公開済みシミュレーションの候補表。原本の列名末尾 + / - の目的方向を保持。 EFFORT・MONTHS・DEFECTS・RISKSの4値を最小化する。",
+      "source_sha256": "07808a197f304723280860d6c98d011548953db6b59328eae58e3cf866542dca",
+      "inputs": [
+        "DATA",
+        "AAX",
+        "ACAP",
+        "AEXP",
+        "BX",
+        "CPLx",
+        "DOCU",
+        "ETAT",
+        "FLEx",
+        "KLOC",
+        "LTEx",
+        "PCAP",
+        "PCON",
+        "PLEx",
+        "PMAT",
+        "PRX",
+        "PREC",
+        "PVOL",
+        "RELY",
+        "RESL",
+        "RUSE",
+        "SCED",
+        "SITE",
+        "STOR",
+        "TEAM",
+        "TIME",
+        "TOOL"
+      ],
+      "objectives": [
+        {
+          "column": "Y_EFFORT",
+          "direction": "min"
+        },
+        {
+          "column": "Y_MONTHS",
+          "direction": "min"
+        },
+        {
+          "column": "Y_DEFECTS",
+          "direction": "min"
+        },
+        {
+          "column": "Y_RISKS",
+          "direction": "min"
+        }
+      ],
+      "data_file": "data.csv",
+      "headers": [
+        "DATA",
+        "AAX",
+        "ACAP",
+        "AEXP",
+        "BX",
+        "CPLx",
+        "DOCU",
+        "ETAT",
+        "FLEx",
+        "KLOC",
+        "LTEx",
+        "PCAP",
+        "PCON",
+        "PLEx",
+        "PMAT",
+        "PRX",
+        "PREC",
+        "PVOL",
+        "RELY",
+        "RESL",
+        "RUSE",
+        "SCED",
+        "SITE",
+        "STOR",
+        "TEAM",
+        "TIME",
+        "TOOL",
+        "Y_EFFORT",
+        "Y_MONTHS",
+        "Y_DEFECTS",
+        "Y_RISKS"
+      ],
+      "recommended_inputs": [
+        "DATA",
+        "AAX",
+        "ACAP",
+        "AEXP",
+        "BX",
+        "CPLx",
+        "DOCU",
+        "ETAT",
+        "FLEx",
+        "KLOC",
+        "LTEx",
+        "PCAP",
+        "PCON",
+        "PLEx",
+        "PMAT",
+        "PRX",
+        "PREC",
+        "PVOL",
+        "RELY",
+        "RESL",
+        "RUSE",
+        "SITE",
+        "STOR",
+        "TEAM",
+        "TIME"
+      ],
+      "source_column_mapping": {
+        "DATA": "DATA",
+        "AAX": "AAX",
+        "ACAP": "ACAP",
+        "AEXP": "AEXP",
+        "BX": "BX",
+        "CPLx": "CPLx",
+        "DOCU": "DOCU",
+        "ETAT": "ETAT",
+        "FLEx": "FLEx",
+        "KLOC": "KLOC",
+        "LTEx": "LTEx",
+        "PCAP": "PCAP",
+        "PCON": "PCON",
+        "PLEx": "PLEx",
+        "PMAT": "PMAT",
+        "PRX": "PRX",
+        "PREC": "PREC",
+        "PVOL": "PVOL",
+        "RELY": "RELY",
+        "RESL": "RESL",
+        "RUSE": "RUSE",
+        "SCED": "SCED",
+        "SITE": "SITE",
+        "STOR": "STOR",
+        "TEAM": "TEAM",
+        "TIME": "TIME",
+        "TOOL": "TOOL",
+        "Y_EFFORT": "EFFORT-",
+        "Y_MONTHS": "MONTHS-",
+        "Y_DEFECTS": "DEFECTS-",
+        "Y_RISKS": "RISKS-"
+      },
+      "quality": {
+        "rows": 10000,
+        "columns": 31,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [
+          "SCED",
+          "TOOL"
+        ],
+        "ranges": {
+          "DATA": {
+            "min": 2.002,
+            "max": 5.0,
+            "distinct": 2894
+          },
+          "AAX": {
+            "min": 1.002,
+            "max": 6.0,
+            "distinct": 4312
+          },
+          "ACAP": {
+            "min": 3.0,
+            "max": 5.0,
+            "distinct": 1990
+          },
+          "AEXP": {
+            "min": 1.0,
+            "max": 4.999,
+            "distinct": 3671
+          },
+          "BX": {
+            "min": 3.001,
+            "max": 10.0,
+            "distinct": 5370
+          },
+          "CPLx": {
+            "min": 3.0,
+            "max": 6.0,
+            "distinct": 2922
+          },
+          "DOCU": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 3674
+          },
+          "ETAT": {
+            "min": 1.0,
+            "max": 5.999,
+            "distinct": 4358
+          },
+          "FLEx": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 3657
+          },
+          "KLOC": {
+            "min": 7.043,
+            "max": 417.858,
+            "distinct": 9882
+          },
+          "LTEx": {
+            "min": 1.0,
+            "max": 4.0,
+            "distinct": 2884
+          },
+          "PCAP": {
+            "min": 3.0,
+            "max": 5.0,
+            "distinct": 1985
+          },
+          "PCON": {
+            "min": 1.001,
+            "max": 5.0,
+            "distinct": 3661
+          },
+          "PLEx": {
+            "min": 1.0,
+            "max": 3.999,
+            "distinct": 2899
+          },
+          "PMAT": {
+            "min": 2.0,
+            "max": 3.0,
+            "distinct": 1001
+          },
+          "PRX": {
+            "min": 1.001,
+            "max": 6.0,
+            "distinct": 4359
+          },
+          "PREC": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 3671
+          },
+          "PVOL": {
+            "min": 2.0,
+            "max": 5.0,
+            "distinct": 2882
+          },
+          "RELY": {
+            "min": 3.0,
+            "max": 5.0,
+            "distinct": 1987
+          },
+          "RESL": {
+            "min": 1.0,
+            "max": 4.999,
+            "distinct": 3676
+          },
+          "RUSE": {
+            "min": 2.001,
+            "max": 6.0,
+            "distinct": 3690
+          },
+          "SCED": {
+            "min": 3.0,
+            "max": 3.0,
+            "distinct": 1
+          },
+          "SITE": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 4317
+          },
+          "STOR": {
+            "min": 3.0,
+            "max": 4.0,
+            "distinct": 1001
+          },
+          "TEAM": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 3670
+          },
+          "TIME": {
+            "min": 3.0,
+            "max": 4.0,
+            "distinct": 1001
+          },
+          "TOOL": {
+            "min": 2.0,
+            "max": 2.0,
+            "distinct": 1
+          },
+          "Y_EFFORT": {
+            "min": 16.513,
+            "max": 7236.929,
+            "distinct": 9975
+          },
+          "Y_MONTHS": {
+            "min": 8.575,
+            "max": 58.756,
+            "distinct": 8414
+          },
+          "Y_DEFECTS": {
+            "min": 43.461,
+            "max": 156928.585,
+            "distinct": 9998
+          },
+          "Y_RISKS": {
+            "min": 0.0,
+            "max": 2.413,
+            "distinct": 10
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 2,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "列名の空白・記号を整理。目的列にY_を付加。数値・行順は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "MOOT",
+        "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+        "page": "https://github.com/timm/moot",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+        "license_file": "MOOT-MIT.txt",
+        "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+        "citation_url": "https://arxiv.org/abs/2511.16882",
+        "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "654e2abfd113ba6d14b49987d5bbd599e950cf0a2bffa1bb75f9e1ba60fad41c",
+          "bytes": 2860
+        },
+        "data.csv": {
+          "sha256": "cef81ec57b080e6c9e83d4c2009832bf8b989ecc173c1f1ad0a6958fad896b53",
+          "bytes": 4639810
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "40262b0d216ea988149e7281e5d6c49734992e4531eaa900fa32d752cff8a211",
+          "bytes": 29
+        },
+        "split.csv": {
+          "sha256": "257c317648ed88a7a54c100dfb8af11c65a60bd92326c2a3614bfe6e89d2602c",
+          "bytes": 106919
+        }
+      }
+    },
+    {
+      "id": "mo10_coc1000",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT coc1000",
+      "kind": "開発プロセスのシミュレーション",
+      "archive": "coc1000.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/coc1000.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/coc1000.csv",
+      "format": "moot_csv",
+      "expected_rows": 1000,
+      "notes": "公開済みシミュレーションの候補表。原本の列名末尾 + / - の目的方向を保持。 LOC・AEXP・PLExも配布元が目的列としているため、5目的として保持する。実プロジェクトの推奨目標を意味しない。",
+      "source_sha256": "75cb3abd8f02fdceba835d9cc3c8989613d7af1d9504ae956cca0b823abe9530",
+      "inputs": [
+        "ACAP",
+        "ARCH",
+        "CPLx",
+        "DATA",
+        "DOCU",
+        "FLEx",
+        "LTEx",
+        "PCAP",
+        "PCON",
+        "PMAT",
+        "PREC",
+        "PVOL",
+        "RELY",
+        "RUSE",
+        "SCED",
+        "SITE",
+        "STOR",
+        "TEAM",
+        "TIME",
+        "TOOL"
+      ],
+      "objectives": [
+        {
+          "column": "Y_LOC",
+          "direction": "max"
+        },
+        {
+          "column": "Y_AEXP",
+          "direction": "min"
+        },
+        {
+          "column": "Y_PLEx",
+          "direction": "min"
+        },
+        {
+          "column": "Y_RISK",
+          "direction": "min"
+        },
+        {
+          "column": "Y_EFFORT",
+          "direction": "min"
+        }
+      ],
+      "data_file": "data.csv",
+      "headers": [
+        "Y_LOC",
+        "ACAP",
+        "Y_AEXP",
+        "ARCH",
+        "CPLx",
+        "DATA",
+        "DOCU",
+        "FLEx",
+        "LTEx",
+        "PCAP",
+        "PCON",
+        "Y_PLEx",
+        "PMAT",
+        "PREC",
+        "PVOL",
+        "RELY",
+        "RUSE",
+        "SCED",
+        "SITE",
+        "STOR",
+        "TEAM",
+        "TIME",
+        "TOOL",
+        "Y_RISK",
+        "Y_EFFORT"
+      ],
+      "recommended_inputs": [
+        "ACAP",
+        "ARCH",
+        "CPLx",
+        "DATA",
+        "DOCU",
+        "FLEx",
+        "LTEx",
+        "PCAP",
+        "PCON",
+        "PMAT",
+        "PREC",
+        "PVOL",
+        "RELY",
+        "RUSE",
+        "SCED",
+        "SITE",
+        "STOR",
+        "TEAM",
+        "TIME",
+        "TOOL"
+      ],
+      "source_column_mapping": {
+        "Y_LOC": "LOC+",
+        "ACAP": "ACAP",
+        "Y_AEXP": "AEXP-",
+        "ARCH": "ARCH",
+        "CPLx": "CPLx",
+        "DATA": "DATA",
+        "DOCU": "DOCU",
+        "FLEx": "FLEx",
+        "LTEx": "LTEx",
+        "PCAP": "PCAP",
+        "PCON": "PCON",
+        "Y_PLEx": "PLEx-",
+        "PMAT": "PMAT",
+        "PREC": "PREC",
+        "PVOL": "PVOL",
+        "RELY": "RELY",
+        "RUSE": "RUSE",
+        "SCED": "SCED",
+        "SITE": "SITE",
+        "STOR": "STOR",
+        "TEAM": "TEAM",
+        "TIME": "TIME",
+        "TOOL": "TOOL",
+        "Y_RISK": "RISK-",
+        "Y_EFFORT": "EFFORT-"
+      },
+      "quality": {
+        "rows": 1000,
+        "columns": 25,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "Y_LOC": {
+            "min": 4.0,
+            "max": 1999.0,
+            "distinct": 790
+          },
+          "ACAP": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "Y_AEXP": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "ARCH": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 6
+          },
+          "CPLx": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 6
+          },
+          "DATA": {
+            "min": 2.0,
+            "max": 5.0,
+            "distinct": 4
+          },
+          "DOCU": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "FLEx": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 6
+          },
+          "LTEx": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "PCAP": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "PCON": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "Y_PLEx": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "PMAT": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 6
+          },
+          "PREC": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 6
+          },
+          "PVOL": {
+            "min": 2.0,
+            "max": 5.0,
+            "distinct": 4
+          },
+          "RELY": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "RUSE": {
+            "min": 2.0,
+            "max": 6.0,
+            "distinct": 5
+          },
+          "SCED": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "SITE": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "STOR": {
+            "min": 3.0,
+            "max": 6.0,
+            "distinct": 4
+          },
+          "TEAM": {
+            "min": 1.0,
+            "max": 6.0,
+            "distinct": 6
+          },
+          "TIME": {
+            "min": 3.0,
+            "max": 6.0,
+            "distinct": 4
+          },
+          "TOOL": {
+            "min": 1.0,
+            "max": 5.0,
+            "distinct": 5
+          },
+          "Y_RISK": {
+            "min": 0.0,
+            "max": 42.0,
+            "distinct": 34
+          },
+          "Y_EFFORT": {
+            "min": 19.0,
+            "max": 234541.0,
+            "distinct": 991
+          }
+        }
+      },
+      "duplicate_input_rows": 0,
+      "reference_pareto_rows": 144,
+      "split_method": "同一入力を同じ群にして約80/20に分割。seed=20261125。",
+      "transformations": [
+        "列名の空白・記号を整理。目的列にY_を付加。数値・行順は未変更。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "MOOT",
+        "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+        "page": "https://github.com/timm/moot",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+        "license_file": "MOOT-MIT.txt",
+        "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+        "citation_url": "https://arxiv.org/abs/2511.16882",
+        "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "edabfa53e4a2a500f37afb2629d4e215ef46f1e60d6828e56d53e91232eaee0a",
+          "bytes": 2796
+        },
+        "data.csv": {
+          "sha256": "b6de7a954c8b1fcdb5a1cc416537e5f70959f2c59e015e8c7297c9cd34083cfd",
+          "bytes": 56597
+        },
+        "reference_pareto_indices.csv": {
+          "sha256": "db9951cbe9864bb550129014989fc371209e096cbd1ab795b4c093c1e58d565d",
+          "bytes": 582
+        },
+        "split.csv": {
+          "sha256": "1f38e9302169487ade6ef53fe5ce38fb9886f98bdf085e31d91f93c531dcb5b4",
+          "bytes": 9718
+        }
+      }
+    },
+    {
+      "id": "cd01_csuite_lingauss",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite lingauss",
+      "kind": "線形・正規ノイズ",
+      "archive": "csuite_lingauss.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_lingauss.zip",
+      "page": "https://github.com/microsoft/csuite#lingauss",
+      "format": "csuite_zip",
+      "expected_rows": 4000,
+      "notes": "観測データだけでは2変数の向きは識別できない。PCの無向辺は正常な結果であり、DirectLiNGAMの非正規性の前提を満たさない。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。",
+      "source_sha256": "e788d08a7da7d4d3497b156d10b032ebde2f91f4063a35eaf7b7d5b1003d7f10",
+      "data_file": "train.csv",
+      "headers": [
+        "X0",
+        "X1"
+      ],
+      "profiles": {
+        "train.csv": {
+          "rows": 4000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.6930902004241943,
+              "max": 2.9697015285491943,
+              "distinct": 3998
+            },
+            "X1": {
+              "min": -3.2499406337738037,
+              "max": 3.698697566986084,
+              "distinct": 4000
+            }
+          }
+        },
+        "test.csv": {
+          "rows": 2000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.055046558380127,
+              "max": 3.4139301776885986,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -4.27982234954834,
+              "max": 3.165297508239746,
+              "distinct": 2000
+            }
+          }
+        },
+        "val.csv": {
+          "rows": 2000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.1601808071136475,
+              "max": 3.345433473587036,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -3.6974010467529297,
+              "max": 3.2416703701019287,
+              "distinct": 2000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 4000,
+        "columns": 2,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -3.6930902004241943,
+            "max": 2.9697015285491943,
+            "distinct": 3998
+          },
+          "X1": {
+            "min": -3.2499406337738037,
+            "max": 3.698697566986084,
+            "distinct": 4000
+          }
+        }
+      },
+      "nodes": 2,
+      "edges": 1,
+      "source_column_mapping": {
+        "X0": "x0_0",
+        "X1": "x1_0"
+      },
+      "source_members": [
+        "train.csv",
+        "test.csv",
+        "val.csv",
+        "adj_matrix.csv",
+        "variables.json"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "Microsoft CSuite",
+        "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+        "page": "https://github.com/microsoft/csuite",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+        "license_file": "CSuite-MIT.txt",
+        "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+        "citation_url": "https://arxiv.org/abs/2202.02195",
+        "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "501f53c95d2870e0fe7953a09433aa0eadf6364022b3d351b591c4a50d18cc23",
+          "bytes": 1968
+        },
+        "reference_adjacency.csv": {
+          "sha256": "7fe2e94ac2c997db342f738600704a864c56bad12d2d5b7cd79a277e0281d25b",
+          "bytes": 17
+        },
+        "reference_edges.csv": {
+          "sha256": "ed7b0234726a2ba9e814d68a480eff6d15573730096b675236310da574fd0def",
+          "bytes": 23
+        },
+        "test.csv": {
+          "sha256": "5575fa1f2e1a4c797c6be1e9ad54b4c05befd95e1614ac4df28e71a5f5025caa",
+          "bytes": 80709
+        },
+        "train.csv": {
+          "sha256": "f86d529f9ea494fe391fe45e6a8abcc477403daab83e58b848e62d43a0219fe5",
+          "bytes": 161337
+        },
+        "val.csv": {
+          "sha256": "06510ff8a92dc461827c8ae73389ab55fda595524525cd99e8549bbde7a67965",
+          "bytes": 80648
+        }
+      }
+    },
+    {
+      "id": "cd02_csuite_linexp",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite linexp",
+      "kind": "線形・指数分布ノイズ",
+      "archive": "csuite_linexp.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_linexp.zip",
+      "page": "https://github.com/microsoft/csuite#linexp",
+      "format": "csuite_zip",
+      "expected_rows": 4000,
+      "notes": "線形かつ非正規ノイズ。DirectLiNGAMの基本的な適用条件を試す。2変数のPCは向きを決められない。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。",
+      "source_sha256": "14b9c11af2dc111f6b6fbfd784e3c24b0a90d4708b3ff46a843218851845147e",
+      "data_file": "train.csv",
+      "headers": [
+        "X0",
+        "X1"
+      ],
+      "profiles": {
+        "train.csv": {
+          "rows": 4000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9998892545700073,
+              "max": 5.508661270141602,
+              "distinct": 3998
+            },
+            "X1": {
+              "min": -1.3537800312042236,
+              "max": 6.929033279418945,
+              "distinct": 4000
+            }
+          }
+        },
+        "test.csv": {
+          "rows": 2000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9988742470741272,
+              "max": 7.046576499938965,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -1.3508046865463257,
+              "max": 5.7751383781433105,
+              "distinct": 2000
+            }
+          }
+        },
+        "val.csv": {
+          "rows": 2000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9992113709449768,
+              "max": 6.797415733337402,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -1.3612256050109863,
+              "max": 5.140453338623047,
+              "distinct": 2000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 4000,
+        "columns": 2,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -0.9998892545700073,
+            "max": 5.508661270141602,
+            "distinct": 3998
+          },
+          "X1": {
+            "min": -1.3537800312042236,
+            "max": 6.929033279418945,
+            "distinct": 4000
+          }
+        }
+      },
+      "nodes": 2,
+      "edges": 1,
+      "source_column_mapping": {
+        "X0": "x0_0",
+        "X1": "x1_0"
+      },
+      "source_members": [
+        "train.csv",
+        "test.csv",
+        "val.csv",
+        "adj_matrix.csv",
+        "variables.json"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "Microsoft CSuite",
+        "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+        "page": "https://github.com/microsoft/csuite",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+        "license_file": "CSuite-MIT.txt",
+        "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+        "citation_url": "https://arxiv.org/abs/2202.02195",
+        "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "ec4f90070d50bdeff3195ca1c9b82826782037a2291c3d7227b1d69c1b34221c",
+          "bytes": 1929
+        },
+        "reference_adjacency.csv": {
+          "sha256": "7fe2e94ac2c997db342f738600704a864c56bad12d2d5b7cd79a277e0281d25b",
+          "bytes": 17
+        },
+        "reference_edges.csv": {
+          "sha256": "ed7b0234726a2ba9e814d68a480eff6d15573730096b675236310da574fd0def",
+          "bytes": 23
+        },
+        "test.csv": {
+          "sha256": "9c2ce2c0fac912fd33acb48fc1308f261ed6cc67ee69f75783b47d679d62264f",
+          "bytes": 81597
+        },
+        "train.csv": {
+          "sha256": "5711b2bb9e89316e3d330350b83b8eebbaad81c55a1521ae1eeac4881a2f6938",
+          "bytes": 163205
+        },
+        "val.csv": {
+          "sha256": "a9559e34f93940f3d130551382bdefe00f7683cc8114355c2259025da5692e33",
+          "bytes": 81647
+        }
+      }
+    },
+    {
+      "id": "cd03_csuite_nonlingauss",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite nonlingauss",
+      "kind": "非線形・正規ノイズ",
+      "archive": "csuite_nonlingauss.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_nonlingauss.zip",
+      "page": "https://github.com/microsoft/csuite#nonlingauss",
+      "format": "csuite_zip",
+      "expected_rows": 4000,
+      "notes": "原因と結果の共分散が0になる非線形の例。アプリの偏相関PCや線形DirectLiNGAMでは関係を見落とし得る。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。",
+      "source_sha256": "bc17eb887a848c4bc129cdf3282ffebe5f1810019c6299b7901a058394142b38",
+      "data_file": "train.csv",
+      "headers": [
+        "X0",
+        "X1"
+      ],
+      "profiles": {
+        "train.csv": {
+          "rows": 4000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.6930902004241943,
+              "max": 2.9697015285491943,
+              "distinct": 3998
+            },
+            "X1": {
+              "min": -1.4600733518600464,
+              "max": 3.974425792694092,
+              "distinct": 4000
+            }
+          }
+        },
+        "test.csv": {
+          "rows": 2000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.055046558380127,
+              "max": 3.4139301776885986,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -2.0987391471862793,
+              "max": 4.112100124359131,
+              "distinct": 2000
+            }
+          }
+        },
+        "val.csv": {
+          "rows": 2000,
+          "columns": 2,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.1601808071136475,
+              "max": 3.345433473587036,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -1.4929202795028687,
+              "max": 4.18991231918335,
+              "distinct": 1999
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 4000,
+        "columns": 2,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -3.6930902004241943,
+            "max": 2.9697015285491943,
+            "distinct": 3998
+          },
+          "X1": {
+            "min": -1.4600733518600464,
+            "max": 3.974425792694092,
+            "distinct": 4000
+          }
+        }
+      },
+      "nodes": 2,
+      "edges": 1,
+      "source_column_mapping": {
+        "X0": "x0_0",
+        "X1": "x1_0"
+      },
+      "source_members": [
+        "train.csv",
+        "test.csv",
+        "val.csv",
+        "adj_matrix.csv",
+        "variables.json"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "Microsoft CSuite",
+        "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+        "page": "https://github.com/microsoft/csuite",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+        "license_file": "CSuite-MIT.txt",
+        "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+        "citation_url": "https://arxiv.org/abs/2202.02195",
+        "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "557098303fc2c832de7113bc973aa872fc3e928631ee27856eb2e772f0be0304",
+          "bytes": 1950
+        },
+        "reference_adjacency.csv": {
+          "sha256": "7fe2e94ac2c997db342f738600704a864c56bad12d2d5b7cd79a277e0281d25b",
+          "bytes": 17
+        },
+        "reference_edges.csv": {
+          "sha256": "ed7b0234726a2ba9e814d68a480eff6d15573730096b675236310da574fd0def",
+          "bytes": 23
+        },
+        "test.csv": {
+          "sha256": "ee0ccc7f4403e56572c30b1a8559d4dc2972b5ba1f6e6efb2dea3979d5b42375",
+          "bytes": 79111
+        },
+        "train.csv": {
+          "sha256": "e9800bc9b9cba8dbcc349f2c2b7610bf30d42e30e1bf57b45a2d236abed731d6",
+          "bytes": 158060
+        },
+        "val.csv": {
+          "sha256": "d7573966204f2ad52c201f4e3c0c9d668904ff1c282734b4517f70389847d9b5",
+          "bytes": 79085
+        }
+      }
+    },
+    {
+      "id": "cd04_csuite_nonlin_simpson",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite nonlin_simpson",
+      "kind": "非線形・Simpsonの逆転",
+      "archive": "csuite_nonlin_simpson.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_nonlin_simpson.zip",
+      "page": "https://github.com/microsoft/csuite#nonlin_simpson",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "単純な相関と条件つきの関係が逆転する例。非線形なので現在の2方式の前提外のストレステスト。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "dda75c813fb81dc463a274cc454766d1753a96cc13da15b5b3d43e200530cd75",
+      "data_file": "train.csv",
+      "headers": [
+        "X0",
+        "X1",
+        "X2",
+        "X3"
+      ],
+      "profiles": {
+        "train.csv": {
+          "rows": 2000,
+          "columns": 4,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.8515584468841553,
+              "max": 3.6187140941619873,
+              "distinct": 1999
+            },
+            "X1": {
+              "min": -1.4909788370132446,
+              "max": 3.4338531494140625,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -6.727383136749268,
+              "max": 3.529266357421875,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.0695693492889404,
+              "max": 2.458561897277832,
+              "distinct": 2000
+            }
+          }
+        },
+        "test.csv": {
+          "rows": 2000,
+          "columns": 4,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.420759439468384,
+              "max": 3.725464105606079,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -1.6881080865859985,
+              "max": 2.8928654193878174,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -5.743928909301758,
+              "max": 4.560900688171387,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -1.858323335647583,
+              "max": 3.932307720184326,
+              "distinct": 2000
+            }
+          }
+        },
+        "val.csv": {
+          "rows": 2000,
+          "columns": 4,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.1601808071136475,
+              "max": 3.345433473587036,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -1.642604947090149,
+              "max": 2.7335968017578125,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -4.942310333251953,
+              "max": 3.503671169281006,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.1784088611602783,
+              "max": 2.4582607746124268,
+              "distinct": 2000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 2000,
+        "columns": 4,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -3.8515584468841553,
+            "max": 3.6187140941619873,
+            "distinct": 1999
+          },
+          "X1": {
+            "min": -1.4909788370132446,
+            "max": 3.4338531494140625,
+            "distinct": 2000
+          },
+          "X2": {
+            "min": -6.727383136749268,
+            "max": 3.529266357421875,
+            "distinct": 2000
+          },
+          "X3": {
+            "min": -2.0695693492889404,
+            "max": 2.458561897277832,
+            "distinct": 2000
+          }
+        }
+      },
+      "nodes": 4,
+      "edges": 4,
+      "source_column_mapping": {
+        "X0": "x0_0",
+        "X1": "x1_0",
+        "X2": "x2_0",
+        "X3": "x3_0"
+      },
+      "source_members": [
+        "train.csv",
+        "test.csv",
+        "val.csv",
+        "adj_matrix.csv",
+        "variables.json"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "Microsoft CSuite",
+        "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+        "page": "https://github.com/microsoft/csuite",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+        "license_file": "CSuite-MIT.txt",
+        "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+        "citation_url": "https://arxiv.org/abs/2202.02195",
+        "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "3bb6e5475fe13bab5bd0cbd5343412f1bd1d37e477593576924b6c2fb4fe15b8",
+          "bytes": 2152
+        },
+        "reference_adjacency.csv": {
+          "sha256": "5819ef773c1d91e5d0e0bf2f2b3803191e06f90f6a28a19e5f5da56040ad35bc",
+          "bytes": 47
+        },
+        "reference_edges.csv": {
+          "sha256": "b9281c992b12023dd54fbb4484eb4f5c3aff93789611c349e4331c68edcef466",
+          "bytes": 41
+        },
+        "test.csv": {
+          "sha256": "24dec60370d5256c357fcfca9461d944123609e6f81be5a6237b9fa2befcf82b",
+          "bytes": 162540
+        },
+        "train.csv": {
+          "sha256": "fbb30cc79728ba4d384cf4f7654511eeb30c7d21cec06b9b28abf915afc0c09d",
+          "bytes": 162491
+        },
+        "val.csv": {
+          "sha256": "19027cdc40a1f6d858f781818b1b55ee3e6fd384a6073523c31527a74e432931",
+          "bytes": 162507
+        }
+      }
+    },
+    {
+      "id": "cd05_csuite_symprod_simpson",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite symprod_simpson",
+      "kind": "積の相互作用・多峰性",
+      "archive": "csuite_symprod_simpson.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_symprod_simpson.zip",
+      "page": "https://github.com/microsoft/csuite#symprod_simpson",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "積の非線形相互作用があり、一部の共分散が0となる。現在の2方式の前提外のストレステスト。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "ff5674410912e1deef9ee156e0fb4fe932089d768d264395d3f291858b70da1c",
+      "data_file": "train.csv",
+      "headers": [
+        "X0",
+        "X1",
+        "X2",
+        "X3"
+      ],
+      "profiles": {
+        "train.csv": {
+          "rows": 2000,
+          "columns": 4,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.8515584468841553,
+              "max": 3.6187140941619873,
+              "distinct": 1999
+            },
+            "X1": {
+              "min": -3.3952150344848633,
+              "max": 2.879502773284912,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -3.523027181625366,
+              "max": 4.8061442375183105,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -1.9294366836547852,
+              "max": 1.884728193283081,
+              "distinct": 2000
+            }
+          }
+        },
+        "test.csv": {
+          "rows": 2000,
+          "columns": 4,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.420759439468384,
+              "max": 3.725464105606079,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -2.7901699542999268,
+              "max": 2.5548393726348877,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -3.0653421878814697,
+              "max": 4.190434455871582,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -1.9666012525558472,
+              "max": 1.8493947982788086,
+              "distinct": 2000
+            }
+          }
+        },
+        "val.csv": {
+          "rows": 2000,
+          "columns": 4,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -3.1601808071136475,
+              "max": 3.345433473587036,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -3.8366217613220215,
+              "max": 2.659268856048584,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -2.7872893810272217,
+              "max": 4.80731201171875,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -1.878136396408081,
+              "max": 1.9493842124938965,
+              "distinct": 1999
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 2000,
+        "columns": 4,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -3.8515584468841553,
+            "max": 3.6187140941619873,
+            "distinct": 1999
+          },
+          "X1": {
+            "min": -3.3952150344848633,
+            "max": 2.879502773284912,
+            "distinct": 2000
+          },
+          "X2": {
+            "min": -3.523027181625366,
+            "max": 4.8061442375183105,
+            "distinct": 2000
+          },
+          "X3": {
+            "min": -1.9294366836547852,
+            "max": 1.884728193283081,
+            "distinct": 2000
+          }
+        }
+      },
+      "nodes": 4,
+      "edges": 4,
+      "source_column_mapping": {
+        "X0": "x0_0",
+        "X1": "x1_0",
+        "X2": "x2_0",
+        "X3": "x3_0"
+      },
+      "source_members": [
+        "train.csv",
+        "test.csv",
+        "val.csv",
+        "adj_matrix.csv",
+        "variables.json"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "Microsoft CSuite",
+        "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+        "page": "https://github.com/microsoft/csuite",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+        "license_file": "CSuite-MIT.txt",
+        "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+        "citation_url": "https://arxiv.org/abs/2202.02195",
+        "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "12eba7669a8d983b5cfe700d60b9f2ad55b0fec78b3d1a6396f3825e14258581",
+          "bytes": 2152
+        },
+        "reference_adjacency.csv": {
+          "sha256": "d18a3176f54bc65b632e7c9b4e122bcdb717571c9969b974cff1e431ed9b4f49",
+          "bytes": 47
+        },
+        "reference_edges.csv": {
+          "sha256": "63a55f512481afd32ce2a3f6ab46c7a3e582588c14f23315e50297ce575e2488",
+          "bytes": 41
+        },
+        "test.csv": {
+          "sha256": "02fbd9c1725fb0b1b4bc1fa2c8a4614d25b6a9d8a462d1c5159c99fb213af2ac",
+          "bytes": 159643
+        },
+        "train.csv": {
+          "sha256": "3269cc5b80d1f8b940f23049224caef164841019e9c4a5ad1bfdf93696142d19",
+          "bytes": 159665
+        },
+        "val.csv": {
+          "sha256": "655f2f5cd4908282543ac30e4d9a027e527851f4b62b97da402099b41185ea88",
+          "bytes": 159754
+        }
+      }
+    },
+    {
+      "id": "cd06_csuite_large_backdoor",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite large_backdoor",
+      "kind": "9変数・バックドア",
+      "archive": "csuite_large_backdoor.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_large_backdoor.zip",
+      "page": "https://github.com/microsoft/csuite#large_backdoor",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "交絡調整の候補が複数ある構造。正解は同梱adj_matrix.csvを採用。配布元READMEは10辺と記すが、v0.1の行列は9辺のため、実ファイルを基準にする。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "fbf552117c7b4a6ae544528868502b23b603574951650fb26e03ea1cddc0b51a",
+      "data_file": "train.csv",
+      "headers": [
+        "X0",
+        "X1",
+        "X2",
+        "X3",
+        "X4",
+        "X5",
+        "X6",
+        "X7",
+        "X8"
+      ],
+      "profiles": {
+        "train.csv": {
+          "rows": 2000,
+          "columns": 9,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9990252256393433,
+              "max": 5.515167236328125,
+              "distinct": 1999
+            },
+            "X1": {
+              "min": -2.6690778732299805,
+              "max": 6.883259296417236,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -2.2091002464294434,
+              "max": 4.678674697875977,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.6837899684906006,
+              "max": 5.47080135345459,
+              "distinct": 2000
+            },
+            "X4": {
+              "min": -2.5708303451538086,
+              "max": 4.235017776489258,
+              "distinct": 2000
+            },
+            "X5": {
+              "min": -2.627681016921997,
+              "max": 4.996190547943115,
+              "distinct": 2000
+            },
+            "X6": {
+              "min": -2.6261825561523438,
+              "max": 3.3169617652893066,
+              "distinct": 2000
+            },
+            "X7": {
+              "min": -1.5853729248046875,
+              "max": 8.037145614624023,
+              "distinct": 2000
+            },
+            "X8": {
+              "min": -3.9690732955932617,
+              "max": 4.219199180603027,
+              "distinct": 2000
+            }
+          }
+        },
+        "test.csv": {
+          "rows": 2000,
+          "columns": 9,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9978843927383423,
+              "max": 5.707058429718018,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -2.654062032699585,
+              "max": 7.222509860992432,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -2.1387906074523926,
+              "max": 6.267058372497559,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.6048781871795654,
+              "max": 5.381511688232422,
+              "distinct": 2000
+            },
+            "X4": {
+              "min": -2.5321993827819824,
+              "max": 4.988225936889648,
+              "distinct": 2000
+            },
+            "X5": {
+              "min": -2.680361270904541,
+              "max": 5.790034294128418,
+              "distinct": 2000
+            },
+            "X6": {
+              "min": -2.696892261505127,
+              "max": 3.7494468688964844,
+              "distinct": 2000
+            },
+            "X7": {
+              "min": -1.4864380359649658,
+              "max": 8.936354637145996,
+              "distinct": 2000
+            },
+            "X8": {
+              "min": -3.323533058166504,
+              "max": 5.827915668487549,
+              "distinct": 1999
+            }
+          }
+        },
+        "val.csv": {
+          "rows": 2000,
+          "columns": 9,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9966204762458801,
+              "max": 5.024202346801758,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -2.654029607772827,
+              "max": 6.291420936584473,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -2.165010452270508,
+              "max": 5.0610809326171875,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.6609745025634766,
+              "max": 4.762338638305664,
+              "distinct": 2000
+            },
+            "X4": {
+              "min": -2.610048294067383,
+              "max": 5.171928405761719,
+              "distinct": 2000
+            },
+            "X5": {
+              "min": -2.6971611976623535,
+              "max": 4.555788040161133,
+              "distinct": 2000
+            },
+            "X6": {
+              "min": -2.683166742324829,
+              "max": 3.7539215087890625,
+              "distinct": 2000
+            },
+            "X7": {
+              "min": -1.6331169605255127,
+              "max": 7.304932594299316,
+              "distinct": 2000
+            },
+            "X8": {
+              "min": -3.9591269493103027,
+              "max": 4.569268703460693,
+              "distinct": 2000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 2000,
+        "columns": 9,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -0.9990252256393433,
+            "max": 5.515167236328125,
+            "distinct": 1999
+          },
+          "X1": {
+            "min": -2.6690778732299805,
+            "max": 6.883259296417236,
+            "distinct": 2000
+          },
+          "X2": {
+            "min": -2.2091002464294434,
+            "max": 4.678674697875977,
+            "distinct": 2000
+          },
+          "X3": {
+            "min": -2.6837899684906006,
+            "max": 5.47080135345459,
+            "distinct": 2000
+          },
+          "X4": {
+            "min": -2.5708303451538086,
+            "max": 4.235017776489258,
+            "distinct": 2000
+          },
+          "X5": {
+            "min": -2.627681016921997,
+            "max": 4.996190547943115,
+            "distinct": 2000
+          },
+          "X6": {
+            "min": -2.6261825561523438,
+            "max": 3.3169617652893066,
+            "distinct": 2000
+          },
+          "X7": {
+            "min": -1.5853729248046875,
+            "max": 8.037145614624023,
+            "distinct": 2000
+          },
+          "X8": {
+            "min": -3.9690732955932617,
+            "max": 4.219199180603027,
+            "distinct": 2000
+          }
+        }
+      },
+      "nodes": 9,
+      "edges": 9,
+      "source_column_mapping": {
+        "X0": "x0_0",
+        "X1": "x1_0",
+        "X2": "x2_0",
+        "X3": "x3_0",
+        "X4": "x4_0",
+        "X5": "x5_0",
+        "X6": "x6_0",
+        "X7": "x7_0",
+        "X8": "x8_0"
+      },
+      "source_members": [
+        "train.csv",
+        "test.csv",
+        "val.csv",
+        "adj_matrix.csv",
+        "variables.json"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "Microsoft CSuite",
+        "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+        "page": "https://github.com/microsoft/csuite",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+        "license_file": "CSuite-MIT.txt",
+        "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+        "citation_url": "https://arxiv.org/abs/2202.02195",
+        "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "816d6231aba65aab5459934f46df55f8aa6b848021c03b087dabde15ccad4ccb",
+          "bytes": 2328
+        },
+        "reference_adjacency.csv": {
+          "sha256": "6074ec00ef8a83ec4d0a69fc94ec746be197b72b129203abae3d580fc26b5c7a",
+          "bytes": 192
+        },
+        "reference_edges.csv": {
+          "sha256": "a5a31219bf04e76c6ac0560f0738d6a1d444a0418355f0e5ad384b781ccdc62b",
+          "bytes": 71
+        },
+        "test.csv": {
+          "sha256": "e60dcee3e88e104b082c79f07b15ef47def880899a147ec026e97e1aaafd2d48",
+          "bytes": 363894
+        },
+        "train.csv": {
+          "sha256": "a5d95e20e27cc2f0058d3ba09f502189e18a4010b5133921eb326049cf9b85f5",
+          "bytes": 363932
+        },
+        "val.csv": {
+          "sha256": "e910850766fb3cdc451cecc492f387cc20cab175831deaf52e3616f3ba2d4e22",
+          "bytes": 364116
+        }
+      }
+    },
+    {
+      "id": "cd07_csuite_weak_arrows",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite weak_arrows",
+      "kind": "9変数・弱い多数の辺",
+      "archive": "csuite_weak_arrows.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_weak_arrows.zip",
+      "page": "https://github.com/microsoft/csuite#weak_arrows",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "弱い辺をどこまで検出するかを試す。検出漏れと余分な辺の双方を評価する。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "9314f961f0cdb217430f58dcce48382e7822e42e82707b28c456f339437baa14",
+      "data_file": "train.csv",
+      "headers": [
+        "X0",
+        "X1",
+        "X2",
+        "X3",
+        "X4",
+        "X5",
+        "X6",
+        "X7",
+        "X8"
+      ],
+      "profiles": {
+        "train.csv": {
+          "rows": 2000,
+          "columns": 9,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9990252256393433,
+              "max": 5.515167236328125,
+              "distinct": 1999
+            },
+            "X1": {
+              "min": -3.226221799850464,
+              "max": 3.8095645904541016,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -2.613708019256592,
+              "max": 3.4363155364990234,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.4075613021850586,
+              "max": 4.124657154083252,
+              "distinct": 2000
+            },
+            "X4": {
+              "min": -2.7135937213897705,
+              "max": 3.0541505813598633,
+              "distinct": 2000
+            },
+            "X5": {
+              "min": -2.4473862648010254,
+              "max": 4.164302825927734,
+              "distinct": 1999
+            },
+            "X6": {
+              "min": -2.6641454696655273,
+              "max": 2.736217498779297,
+              "distinct": 2000
+            },
+            "X7": {
+              "min": -1.4402490854263306,
+              "max": 6.745577812194824,
+              "distinct": 2000
+            },
+            "X8": {
+              "min": -5.022120475769043,
+              "max": 4.240067005157471,
+              "distinct": 2000
+            }
+          }
+        },
+        "test.csv": {
+          "rows": 2000,
+          "columns": 9,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9978843927383423,
+              "max": 5.707058429718018,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -3.478001117706299,
+              "max": 4.108691692352295,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -2.660487174987793,
+              "max": 3.252105712890625,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.770220994949341,
+              "max": 4.071340560913086,
+              "distinct": 1999
+            },
+            "X4": {
+              "min": -2.516191244125366,
+              "max": 3.363614559173584,
+              "distinct": 2000
+            },
+            "X5": {
+              "min": -2.523634910583496,
+              "max": 3.4316253662109375,
+              "distinct": 2000
+            },
+            "X6": {
+              "min": -2.6245017051696777,
+              "max": 2.8042469024658203,
+              "distinct": 2000
+            },
+            "X7": {
+              "min": -1.15934157371521,
+              "max": 5.78274393081665,
+              "distinct": 2000
+            },
+            "X8": {
+              "min": -4.4679460525512695,
+              "max": 3.772878646850586,
+              "distinct": 2000
+            }
+          }
+        },
+        "val.csv": {
+          "rows": 2000,
+          "columns": 9,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -0.9966204762458801,
+              "max": 5.024202346801758,
+              "distinct": 2000
+            },
+            "X1": {
+              "min": -3.0599851608276367,
+              "max": 3.871652603149414,
+              "distinct": 2000
+            },
+            "X2": {
+              "min": -2.7510619163513184,
+              "max": 2.818178176879883,
+              "distinct": 2000
+            },
+            "X3": {
+              "min": -2.667080879211426,
+              "max": 3.716869354248047,
+              "distinct": 2000
+            },
+            "X4": {
+              "min": -2.6694462299346924,
+              "max": 3.7562055587768555,
+              "distinct": 2000
+            },
+            "X5": {
+              "min": -2.5894246101379395,
+              "max": 4.167738914489746,
+              "distinct": 2000
+            },
+            "X6": {
+              "min": -2.5989794731140137,
+              "max": 3.025056838989258,
+              "distinct": 1999
+            },
+            "X7": {
+              "min": -1.505422830581665,
+              "max": 6.8273091316223145,
+              "distinct": 2000
+            },
+            "X8": {
+              "min": -4.509899139404297,
+              "max": 4.340611457824707,
+              "distinct": 2000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 2000,
+        "columns": 9,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -0.9990252256393433,
+            "max": 5.515167236328125,
+            "distinct": 1999
+          },
+          "X1": {
+            "min": -3.226221799850464,
+            "max": 3.8095645904541016,
+            "distinct": 2000
+          },
+          "X2": {
+            "min": -2.613708019256592,
+            "max": 3.4363155364990234,
+            "distinct": 2000
+          },
+          "X3": {
+            "min": -2.4075613021850586,
+            "max": 4.124657154083252,
+            "distinct": 2000
+          },
+          "X4": {
+            "min": -2.7135937213897705,
+            "max": 3.0541505813598633,
+            "distinct": 2000
+          },
+          "X5": {
+            "min": -2.4473862648010254,
+            "max": 4.164302825927734,
+            "distinct": 1999
+          },
+          "X6": {
+            "min": -2.6641454696655273,
+            "max": 2.736217498779297,
+            "distinct": 2000
+          },
+          "X7": {
+            "min": -1.4402490854263306,
+            "max": 6.745577812194824,
+            "distinct": 2000
+          },
+          "X8": {
+            "min": -5.022120475769043,
+            "max": 4.240067005157471,
+            "distinct": 2000
+          }
+        }
+      },
+      "nodes": 9,
+      "edges": 15,
+      "source_column_mapping": {
+        "X0": "x0_0",
+        "X1": "x1_0",
+        "X2": "x2_0",
+        "X3": "x3_0",
+        "X4": "x4_0",
+        "X5": "x5_0",
+        "X6": "x6_0",
+        "X7": "x7_0",
+        "X8": "x8_0"
+      },
+      "source_members": [
+        "train.csv",
+        "test.csv",
+        "val.csv",
+        "adj_matrix.csv",
+        "variables.json"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "Microsoft CSuite",
+        "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+        "page": "https://github.com/microsoft/csuite",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+        "license_file": "CSuite-MIT.txt",
+        "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+        "citation_url": "https://arxiv.org/abs/2202.02195",
+        "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "d644a7187215537f4579c58016bcae9b8259fbc5daf374586cbb357c1f834cf7",
+          "bytes": 2236
+        },
+        "reference_adjacency.csv": {
+          "sha256": "97754ce16e2164b1bf1665a6e77ca6d1023bc342addf21c19a44c83f508de0fd",
+          "bytes": 192
+        },
+        "reference_edges.csv": {
+          "sha256": "2ccff8ceb101c057304fca46c302f91bce2d4fd9512a1cd94369180af20e266b",
+          "bytes": 107
+        },
+        "test.csv": {
+          "sha256": "10874098998cdbc947b4efbbb0225552ab17a16bd426ba203cb58c550b799e89",
+          "bytes": 364122
+        },
+        "train.csv": {
+          "sha256": "6ac1b941eb6f846de9142cca2e2843135019face6f23a2ebf394fd17525a12fd",
+          "bytes": 364059
+        },
+        "val.csv": {
+          "sha256": "e70e069640aaf3d94b2ca15c7dbc37e0a50a2b75c59d2d943db9f6651c39c087",
+          "bytes": 364066
+        }
+      }
+    },
+    {
+      "id": "cd08_grandag_er10",
+      "category": "causal",
+      "source": "grandag",
+      "title": "GraN-DAG ER 10変数・疎",
+      "kind": "公開済み非線形GPシミュレーション",
+      "archive": "data_p10_e10_n1000_GP.zip",
+      "download_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/data/data_p10_e10_n1000_GP.zip",
+      "page": "https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data",
+      "format": "grandag_npy",
+      "member_prefix": "data_p10_e10_n1000_GP",
+      "replicate": 1,
+      "expected_rows": 1000,
+      "notes": "各公開パッケージのreplicate 1（data1/DAG1/CPDAG1）を1件として採用。独自生成・再学習は行わない。非線形GPのため現在の偏相関PC・線形DirectLiNGAMに対するストレステスト。公開元のDAG・CPDAGをともに収録する。",
+      "source_sha256": "979ba7b78e82c76d27aa56e86bd17bc020e7105bbb0bae32d9f7863b2ed42303",
+      "data_file": "data.csv",
+      "headers": [
+        "X0",
+        "X1",
+        "X2",
+        "X3",
+        "X4",
+        "X5",
+        "X6",
+        "X7",
+        "X8",
+        "X9"
+      ],
+      "profiles": {
+        "data.csv": {
+          "rows": 1000,
+          "columns": 10,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -1.9309291062468232,
+              "max": 0.2683683385592524,
+              "distinct": 1000
+            },
+            "X1": {
+              "min": -3.954450826599561,
+              "max": 3.3982320924563814,
+              "distinct": 1000
+            },
+            "X2": {
+              "min": -4.063881091883465,
+              "max": 3.540736052085744,
+              "distinct": 1000
+            },
+            "X3": {
+              "min": -4.1976761429131715,
+              "max": 3.8991002633711735,
+              "distinct": 1000
+            },
+            "X4": {
+              "min": -2.534769252736207,
+              "max": 2.59331106565734,
+              "distinct": 1000
+            },
+            "X5": {
+              "min": -0.4476288778923602,
+              "max": 2.1927064973403305,
+              "distinct": 1000
+            },
+            "X6": {
+              "min": -3.4569850205625947,
+              "max": 3.47983978763751,
+              "distinct": 1000
+            },
+            "X7": {
+              "min": -2.2480692023837245,
+              "max": 0.7447920531801038,
+              "distinct": 1000
+            },
+            "X8": {
+              "min": -3.4358241597812182,
+              "max": 2.7967648218658745,
+              "distinct": 1000
+            },
+            "X9": {
+              "min": -3.1172574717834904,
+              "max": 3.052382855139091,
+              "distinct": 1000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 1000,
+        "columns": 10,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -1.9309291062468232,
+            "max": 0.2683683385592524,
+            "distinct": 1000
+          },
+          "X1": {
+            "min": -3.954450826599561,
+            "max": 3.3982320924563814,
+            "distinct": 1000
+          },
+          "X2": {
+            "min": -4.063881091883465,
+            "max": 3.540736052085744,
+            "distinct": 1000
+          },
+          "X3": {
+            "min": -4.1976761429131715,
+            "max": 3.8991002633711735,
+            "distinct": 1000
+          },
+          "X4": {
+            "min": -2.534769252736207,
+            "max": 2.59331106565734,
+            "distinct": 1000
+          },
+          "X5": {
+            "min": -0.4476288778923602,
+            "max": 2.1927064973403305,
+            "distinct": 1000
+          },
+          "X6": {
+            "min": -3.4569850205625947,
+            "max": 3.47983978763751,
+            "distinct": 1000
+          },
+          "X7": {
+            "min": -2.2480692023837245,
+            "max": 0.7447920531801038,
+            "distinct": 1000
+          },
+          "X8": {
+            "min": -3.4358241597812182,
+            "max": 2.7967648218658745,
+            "distinct": 1000
+          },
+          "X9": {
+            "min": -3.1172574717834904,
+            "max": 3.052382855139091,
+            "distinct": 1000
+          }
+        }
+      },
+      "nodes": 10,
+      "edges": 8,
+      "source_column_mapping": {
+        "X0": "source_column_0",
+        "X1": "source_column_1",
+        "X2": "source_column_2",
+        "X3": "source_column_3",
+        "X4": "source_column_4",
+        "X5": "source_column_5",
+        "X6": "source_column_6",
+        "X7": "source_column_7",
+        "X8": "source_column_8",
+        "X9": "source_column_9"
+      },
+      "source_members": [
+        "data_p10_e10_n1000_GP/data1.npy",
+        "data_p10_e10_n1000_GP/DAG1.npy",
+        "data_p10_e10_n1000_GP/CPDAG1.npy"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "GraN-DAG",
+        "revision": "d86ab59325730d742d67b4a1c964bde5145a9b9c",
+        "page": "https://github.com/kurowasan/GraN-DAG",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/LICENSE",
+        "license_file": "GraN-DAG-MIT.txt",
+        "citation": "Sébastien Lachapelle, Philippe Brouillard, Tristan Deleu and Simon Lacoste-Julien (2020), Gradient-Based Neural DAG Learning, ICLR 2020, arXiv:1906.02226.",
+        "citation_url": "https://arxiv.org/abs/1906.02226",
+        "license_sha256": "87a621efb4ebf90534de99cc0d8ebb851bfaf284f85d5c886087836975e5c19a"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "681553e0f4673a95e955a72c40fe2df58662e22e91321923a0d221e19e75301d",
+          "bytes": 2523
+        },
+        "data.csv": {
+          "sha256": "9910bc84b7a2ee2a54a5a4bc54537fedd6fb9f06b4df631d22900f5e19f2ac36",
+          "bytes": 200822
+        },
+        "reference_adjacency.csv": {
+          "sha256": "8795a8783a886bdb420f469deb25b5351bc392dc40b8e7c696e778f899c21453",
+          "bytes": 233
+        },
+        "reference_cpdag.csv": {
+          "sha256": "2902db2f325270c54b8d1e72989de54604b9a1656684a95a144290c911ba50d9",
+          "bytes": 233
+        },
+        "reference_edges.csv": {
+          "sha256": "8ca35168f16321ff63507bd46152b132bb8a66f817302b0b6808f78d7d01c73b",
+          "bytes": 65
+        }
+      }
+    },
+    {
+      "id": "cd09_grandag_er20",
+      "category": "causal",
+      "source": "grandag",
+      "title": "GraN-DAG ER 20変数・疎",
+      "kind": "公開済み非線形GPシミュレーション",
+      "archive": "data_p20_e20_n1000_GP.zip",
+      "download_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/data/data_p20_e20_n1000_GP.zip",
+      "page": "https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data",
+      "format": "grandag_npy",
+      "member_prefix": "data_p20_e20_n1000_GP",
+      "replicate": 1,
+      "expected_rows": 1000,
+      "notes": "各公開パッケージのreplicate 1（data1/DAG1/CPDAG1）を1件として採用。独自生成・再学習は行わない。非線形GPのため現在の偏相関PC・線形DirectLiNGAMに対するストレステスト。公開元のDAG・CPDAGをともに収録する。",
+      "source_sha256": "3a2f25f234f5baecb1f2b3e1b7d864e13fec1c5ba4f4f47f233dcee0fe8d0a06",
+      "data_file": "data.csv",
+      "headers": [
+        "X0",
+        "X1",
+        "X2",
+        "X3",
+        "X4",
+        "X5",
+        "X6",
+        "X7",
+        "X8",
+        "X9",
+        "X10",
+        "X11",
+        "X12",
+        "X13",
+        "X14",
+        "X15",
+        "X16",
+        "X17",
+        "X18",
+        "X19"
+      ],
+      "profiles": {
+        "data.csv": {
+          "rows": 1000,
+          "columns": 20,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -1.4131841562413465,
+              "max": 2.0827460200761543,
+              "distinct": 1000
+            },
+            "X1": {
+              "min": -2.2073677353025865,
+              "max": 2.4700417104590997,
+              "distinct": 1000
+            },
+            "X2": {
+              "min": -0.7964964035111739,
+              "max": 1.5651486455875823,
+              "distinct": 1000
+            },
+            "X3": {
+              "min": -2.408735454954979,
+              "max": 1.7508897141027446,
+              "distinct": 1000
+            },
+            "X4": {
+              "min": -2.073165236780135,
+              "max": 1.4361796523376889,
+              "distinct": 1000
+            },
+            "X5": {
+              "min": -0.3429167852036871,
+              "max": 1.6481776681784486,
+              "distinct": 1000
+            },
+            "X6": {
+              "min": -3.3477201664422838,
+              "max": 4.418764576547056,
+              "distinct": 1000
+            },
+            "X7": {
+              "min": -4.415783882961232,
+              "max": 4.169895629322444,
+              "distinct": 1000
+            },
+            "X8": {
+              "min": -3.168984327453399,
+              "max": 2.6098373032811533,
+              "distinct": 1000
+            },
+            "X9": {
+              "min": -1.5040950912374187,
+              "max": 1.0860476174697506,
+              "distinct": 1000
+            },
+            "X10": {
+              "min": -1.8783811652269984,
+              "max": 1.4775987302158708,
+              "distinct": 1000
+            },
+            "X11": {
+              "min": -4.577509154558661,
+              "max": 3.923233776093726,
+              "distinct": 1000
+            },
+            "X12": {
+              "min": -3.405448815019784,
+              "max": 3.276928276879885,
+              "distinct": 1000
+            },
+            "X13": {
+              "min": -1.822389155930105,
+              "max": 1.279172379137601,
+              "distinct": 1000
+            },
+            "X14": {
+              "min": -1.478911997393981,
+              "max": 0.8416956240231944,
+              "distinct": 1000
+            },
+            "X15": {
+              "min": -1.0771257468628266,
+              "max": 2.4092290164395473,
+              "distinct": 1000
+            },
+            "X16": {
+              "min": -4.176912946563483,
+              "max": 3.8922824028631906,
+              "distinct": 1000
+            },
+            "X17": {
+              "min": -3.3807530347463075,
+              "max": 3.0892703685962104,
+              "distinct": 1000
+            },
+            "X18": {
+              "min": -3.091691337789064,
+              "max": 3.090556291438036,
+              "distinct": 1000
+            },
+            "X19": {
+              "min": -4.6187500852138506,
+              "max": 4.408477634496475,
+              "distinct": 1000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 1000,
+        "columns": 20,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -1.4131841562413465,
+            "max": 2.0827460200761543,
+            "distinct": 1000
+          },
+          "X1": {
+            "min": -2.2073677353025865,
+            "max": 2.4700417104590997,
+            "distinct": 1000
+          },
+          "X2": {
+            "min": -0.7964964035111739,
+            "max": 1.5651486455875823,
+            "distinct": 1000
+          },
+          "X3": {
+            "min": -2.408735454954979,
+            "max": 1.7508897141027446,
+            "distinct": 1000
+          },
+          "X4": {
+            "min": -2.073165236780135,
+            "max": 1.4361796523376889,
+            "distinct": 1000
+          },
+          "X5": {
+            "min": -0.3429167852036871,
+            "max": 1.6481776681784486,
+            "distinct": 1000
+          },
+          "X6": {
+            "min": -3.3477201664422838,
+            "max": 4.418764576547056,
+            "distinct": 1000
+          },
+          "X7": {
+            "min": -4.415783882961232,
+            "max": 4.169895629322444,
+            "distinct": 1000
+          },
+          "X8": {
+            "min": -3.168984327453399,
+            "max": 2.6098373032811533,
+            "distinct": 1000
+          },
+          "X9": {
+            "min": -1.5040950912374187,
+            "max": 1.0860476174697506,
+            "distinct": 1000
+          },
+          "X10": {
+            "min": -1.8783811652269984,
+            "max": 1.4775987302158708,
+            "distinct": 1000
+          },
+          "X11": {
+            "min": -4.577509154558661,
+            "max": 3.923233776093726,
+            "distinct": 1000
+          },
+          "X12": {
+            "min": -3.405448815019784,
+            "max": 3.276928276879885,
+            "distinct": 1000
+          },
+          "X13": {
+            "min": -1.822389155930105,
+            "max": 1.279172379137601,
+            "distinct": 1000
+          },
+          "X14": {
+            "min": -1.478911997393981,
+            "max": 0.8416956240231944,
+            "distinct": 1000
+          },
+          "X15": {
+            "min": -1.0771257468628266,
+            "max": 2.4092290164395473,
+            "distinct": 1000
+          },
+          "X16": {
+            "min": -4.176912946563483,
+            "max": 3.8922824028631906,
+            "distinct": 1000
+          },
+          "X17": {
+            "min": -3.3807530347463075,
+            "max": 3.0892703685962104,
+            "distinct": 1000
+          },
+          "X18": {
+            "min": -3.091691337789064,
+            "max": 3.090556291438036,
+            "distinct": 1000
+          },
+          "X19": {
+            "min": -4.6187500852138506,
+            "max": 4.408477634496475,
+            "distinct": 1000
+          }
+        }
+      },
+      "nodes": 20,
+      "edges": 21,
+      "source_column_mapping": {
+        "X0": "source_column_0",
+        "X1": "source_column_1",
+        "X2": "source_column_2",
+        "X3": "source_column_3",
+        "X4": "source_column_4",
+        "X5": "source_column_5",
+        "X6": "source_column_6",
+        "X7": "source_column_7",
+        "X8": "source_column_8",
+        "X9": "source_column_9",
+        "X10": "source_column_10",
+        "X11": "source_column_11",
+        "X12": "source_column_12",
+        "X13": "source_column_13",
+        "X14": "source_column_14",
+        "X15": "source_column_15",
+        "X16": "source_column_16",
+        "X17": "source_column_17",
+        "X18": "source_column_18",
+        "X19": "source_column_19"
+      },
+      "source_members": [
+        "data_p20_e20_n1000_GP/data1.npy",
+        "data_p20_e20_n1000_GP/DAG1.npy",
+        "data_p20_e20_n1000_GP/CPDAG1.npy"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "GraN-DAG",
+        "revision": "d86ab59325730d742d67b4a1c964bde5145a9b9c",
+        "page": "https://github.com/kurowasan/GraN-DAG",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/LICENSE",
+        "license_file": "GraN-DAG-MIT.txt",
+        "citation": "Sébastien Lachapelle, Philippe Brouillard, Tristan Deleu and Simon Lacoste-Julien (2020), Gradient-Based Neural DAG Learning, ICLR 2020, arXiv:1906.02226.",
+        "citation_url": "https://arxiv.org/abs/1906.02226",
+        "license_sha256": "87a621efb4ebf90534de99cc0d8ebb851bfaf284f85d5c886087836975e5c19a"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "402721c5f55dfe30316bad16093766874e10d2c8b3bbbf2c965aae8cefcbd52d",
+          "bytes": 2904
+        },
+        "data.csv": {
+          "sha256": "5cca2d279af83fa620049090f868808da7d8851a1c4dce4d88ea1bffd0781514",
+          "bytes": 403667
+        },
+        "reference_adjacency.csv": {
+          "sha256": "bfb48198e5e6f6020393baf1ebf30f4535ce2608f23a3fe131f2debd0f680655",
+          "bytes": 873
+        },
+        "reference_cpdag.csv": {
+          "sha256": "7dfb7a8ed716afae2a7649e6a0a6067f9236534f603e3aeeb503017adf0565ba",
+          "bytes": 873
+        },
+        "reference_edges.csv": {
+          "sha256": "b7fc3fbbe197d351cbb1974ce507898215a6129449bca9b6aeb86bc1eae50927",
+          "bytes": 164
+        }
+      }
+    },
+    {
+      "id": "cd10_grandag_sf20",
+      "category": "causal",
+      "source": "grandag",
+      "title": "GraN-DAG Scale-free 20変数・密",
+      "kind": "公開済み非線形GPシミュレーション",
+      "archive": "data_sf_p20_e80_n1000_GP.zip",
+      "download_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/data/data_sf_p20_e80_n1000_GP.zip",
+      "page": "https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data",
+      "format": "grandag_npy",
+      "member_prefix": "data_sf_p20_e80_n1000_GP",
+      "replicate": 1,
+      "expected_rows": 1000,
+      "notes": "各公開パッケージのreplicate 1（data1/DAG1/CPDAG1）を1件として採用。独自生成・再学習は行わない。非線形GPのため現在の偏相関PC・線形DirectLiNGAMに対するストレステスト。公開元のDAG・CPDAGをともに収録する。",
+      "source_sha256": "68a519adf7a8682bf2b3c13dba0eb8e6d579a7e3397eae349a5dafda68794b5f",
+      "data_file": "data.csv",
+      "headers": [
+        "X0",
+        "X1",
+        "X2",
+        "X3",
+        "X4",
+        "X5",
+        "X6",
+        "X7",
+        "X8",
+        "X9",
+        "X10",
+        "X11",
+        "X12",
+        "X13",
+        "X14",
+        "X15",
+        "X16",
+        "X17",
+        "X18",
+        "X19"
+      ],
+      "profiles": {
+        "data.csv": {
+          "rows": 1000,
+          "columns": 20,
+          "missing_cells": 0,
+          "nonfinite_cells": 0,
+          "duplicate_rows": 0,
+          "constant_columns": [],
+          "ranges": {
+            "X0": {
+              "min": -4.528912279860866,
+              "max": 4.79551048938769,
+              "distinct": 1000
+            },
+            "X1": {
+              "min": -3.451421699994986,
+              "max": 4.148976900361826,
+              "distinct": 1000
+            },
+            "X2": {
+              "min": -2.2726722324664475,
+              "max": 1.9236230274253152,
+              "distinct": 1000
+            },
+            "X3": {
+              "min": -4.743570683748746,
+              "max": 4.4313410639327095,
+              "distinct": 1000
+            },
+            "X4": {
+              "min": -0.7974522691546241,
+              "max": 2.3142345798643897,
+              "distinct": 1000
+            },
+            "X5": {
+              "min": -4.107254720386826,
+              "max": 3.770622214117346,
+              "distinct": 1000
+            },
+            "X6": {
+              "min": -2.9419878402594133,
+              "max": 2.470834267952749,
+              "distinct": 1000
+            },
+            "X7": {
+              "min": -3.250097144599179,
+              "max": 3.102940838240612,
+              "distinct": 1000
+            },
+            "X8": {
+              "min": -4.015859564338977,
+              "max": 3.4769652450922592,
+              "distinct": 1000
+            },
+            "X9": {
+              "min": -0.29994566399755734,
+              "max": 1.7953515206609914,
+              "distinct": 1000
+            },
+            "X10": {
+              "min": -3.5267273456509303,
+              "max": 3.085378181839939,
+              "distinct": 1000
+            },
+            "X11": {
+              "min": -3.6003930751236823,
+              "max": 3.9845701829129547,
+              "distinct": 1000
+            },
+            "X12": {
+              "min": -3.665425599133797,
+              "max": 3.879278162273537,
+              "distinct": 1000
+            },
+            "X13": {
+              "min": -2.384433022333301,
+              "max": 1.6685000649437634,
+              "distinct": 1000
+            },
+            "X14": {
+              "min": -3.0806556842234905,
+              "max": 2.8089981456100634,
+              "distinct": 1000
+            },
+            "X15": {
+              "min": -3.4289964646520317,
+              "max": 4.503030339186228,
+              "distinct": 1000
+            },
+            "X16": {
+              "min": -2.9629051004192046,
+              "max": 2.9822696860037383,
+              "distinct": 1000
+            },
+            "X17": {
+              "min": -3.195459231280275,
+              "max": 3.8179640835432664,
+              "distinct": 1000
+            },
+            "X18": {
+              "min": -1.2346929423441924,
+              "max": 1.0192646405280292,
+              "distinct": 1000
+            },
+            "X19": {
+              "min": -2.3832676903533514,
+              "max": 1.7162258806063362,
+              "distinct": 1000
+            }
+          }
+        }
+      },
+      "quality": {
+        "rows": 1000,
+        "columns": 20,
+        "missing_cells": 0,
+        "nonfinite_cells": 0,
+        "duplicate_rows": 0,
+        "constant_columns": [],
+        "ranges": {
+          "X0": {
+            "min": -4.528912279860866,
+            "max": 4.79551048938769,
+            "distinct": 1000
+          },
+          "X1": {
+            "min": -3.451421699994986,
+            "max": 4.148976900361826,
+            "distinct": 1000
+          },
+          "X2": {
+            "min": -2.2726722324664475,
+            "max": 1.9236230274253152,
+            "distinct": 1000
+          },
+          "X3": {
+            "min": -4.743570683748746,
+            "max": 4.4313410639327095,
+            "distinct": 1000
+          },
+          "X4": {
+            "min": -0.7974522691546241,
+            "max": 2.3142345798643897,
+            "distinct": 1000
+          },
+          "X5": {
+            "min": -4.107254720386826,
+            "max": 3.770622214117346,
+            "distinct": 1000
+          },
+          "X6": {
+            "min": -2.9419878402594133,
+            "max": 2.470834267952749,
+            "distinct": 1000
+          },
+          "X7": {
+            "min": -3.250097144599179,
+            "max": 3.102940838240612,
+            "distinct": 1000
+          },
+          "X8": {
+            "min": -4.015859564338977,
+            "max": 3.4769652450922592,
+            "distinct": 1000
+          },
+          "X9": {
+            "min": -0.29994566399755734,
+            "max": 1.7953515206609914,
+            "distinct": 1000
+          },
+          "X10": {
+            "min": -3.5267273456509303,
+            "max": 3.085378181839939,
+            "distinct": 1000
+          },
+          "X11": {
+            "min": -3.6003930751236823,
+            "max": 3.9845701829129547,
+            "distinct": 1000
+          },
+          "X12": {
+            "min": -3.665425599133797,
+            "max": 3.879278162273537,
+            "distinct": 1000
+          },
+          "X13": {
+            "min": -2.384433022333301,
+            "max": 1.6685000649437634,
+            "distinct": 1000
+          },
+          "X14": {
+            "min": -3.0806556842234905,
+            "max": 2.8089981456100634,
+            "distinct": 1000
+          },
+          "X15": {
+            "min": -3.4289964646520317,
+            "max": 4.503030339186228,
+            "distinct": 1000
+          },
+          "X16": {
+            "min": -2.9629051004192046,
+            "max": 2.9822696860037383,
+            "distinct": 1000
+          },
+          "X17": {
+            "min": -3.195459231280275,
+            "max": 3.8179640835432664,
+            "distinct": 1000
+          },
+          "X18": {
+            "min": -1.2346929423441924,
+            "max": 1.0192646405280292,
+            "distinct": 1000
+          },
+          "X19": {
+            "min": -2.3832676903533514,
+            "max": 1.7162258806063362,
+            "distinct": 1000
+          }
+        }
+      },
+      "nodes": 20,
+      "edges": 48,
+      "source_column_mapping": {
+        "X0": "source_column_0",
+        "X1": "source_column_1",
+        "X2": "source_column_2",
+        "X3": "source_column_3",
+        "X4": "source_column_4",
+        "X5": "source_column_5",
+        "X6": "source_column_6",
+        "X7": "source_column_7",
+        "X8": "source_column_8",
+        "X9": "source_column_9",
+        "X10": "source_column_10",
+        "X11": "source_column_11",
+        "X12": "source_column_12",
+        "X13": "source_column_13",
+        "X14": "source_column_14",
+        "X15": "source_column_15",
+        "X16": "source_column_16",
+        "X17": "source_column_17",
+        "X18": "source_column_18",
+        "X19": "source_column_19"
+      },
+      "source_members": [
+        "data_sf_p20_e80_n1000_GP/data1.npy",
+        "data_sf_p20_e80_n1000_GP/DAG1.npy",
+        "data_sf_p20_e80_n1000_GP/CPDAG1.npy"
+      ],
+      "graph_convention": "A[i,j]=1 means Xi -> Xj; data and matrix columns have the same order; no index column.",
+      "transformations": [
+        "元の列順・行順・数値を保持し、X0から始まるヘッダーを付加。NPYは17桁CSVへ変換。",
+        "観測データのみを収録。値の補間・標準化・外れ値削除は行わない。"
+      ],
+      "retrieved_on": "2026-11-25",
+      "source_info": {
+        "name": "GraN-DAG",
+        "revision": "d86ab59325730d742d67b4a1c964bde5145a9b9c",
+        "page": "https://github.com/kurowasan/GraN-DAG",
+        "license": "MIT",
+        "license_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/LICENSE",
+        "license_file": "GraN-DAG-MIT.txt",
+        "citation": "Sébastien Lachapelle, Philippe Brouillard, Tristan Deleu and Simon Lacoste-Julien (2020), Gradient-Based Neural DAG Learning, ICLR 2020, arXiv:1906.02226.",
+        "citation_url": "https://arxiv.org/abs/1906.02226",
+        "license_sha256": "87a621efb4ebf90534de99cc0d8ebb851bfaf284f85d5c886087836975e5c19a"
+      },
+      "files": {
+        "README.md": {
+          "sha256": "6f11821a6ad1fd2840b30b831b3795460fcc44fc155ca26f1b87c56c2811ac57",
+          "bytes": 2915
+        },
+        "data.csv": {
+          "sha256": "9da03a07ed343d14590a45ce401fe405a9170c3a06b363b08d266f1badb7d10a",
+          "bytes": 401815
+        },
+        "reference_adjacency.csv": {
+          "sha256": "55b8f71715086dbec9bb2873e6952d0619c752520988220d8d22a8467f7b9d5f",
+          "bytes": 873
+        },
+        "reference_cpdag.csv": {
+          "sha256": "0b75fd20323029cb3301260588d8b1ef2a6b1836c5213a09aeef683a38d6719b",
+          "bytes": 873
+        },
+        "reference_edges.csv": {
+          "sha256": "aec7eff1cdbf594359a0cc7480459838bfef9accd245459a20d2ae1956c24c66",
+          "bytes": 341
+        }
+      }
+    }
+  ]
+}

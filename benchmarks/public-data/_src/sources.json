@@ -1,0 +1,404 @@
+{
+  "version": "1.0",
+  "retrieved_on": "2026-11-25",
+  "sources": {
+    "uci": {
+      "name": "UCI Machine Learning Repository",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/legalcode.txt",
+      "license_file": "CC-BY-4.0.txt",
+      "license_sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411"
+    },
+    "moot": {
+      "name": "MOOT",
+      "revision": "ca6163861db7b231824ecabc11b15a492b75df34",
+      "page": "https://github.com/timm/moot",
+      "license": "MIT",
+      "license_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/LICENSE.md",
+      "license_file": "MOOT-MIT.txt",
+      "citation": "Tim Menzies et al. (2025), MOOT: a Repository of Many Multi-Objective Optimization Tasks, arXiv:2511.16882.",
+      "citation_url": "https://arxiv.org/abs/2511.16882",
+      "license_sha256": "fa12ac4ef526bfb4f4109ae751c16f7d0ccc238a74eb1562f3887da27e397abc"
+    },
+    "csuite": {
+      "name": "Microsoft CSuite",
+      "revision": "v0.1 (README/LICENSE: 512f35af68e5408aed80e6890d5124a1c1d1fcbe)",
+      "page": "https://github.com/microsoft/csuite",
+      "license": "MIT",
+      "license_url": "https://raw.githubusercontent.com/microsoft/csuite/512f35af68e5408aed80e6890d5124a1c1d1fcbe/LICENSE",
+      "license_file": "CSuite-MIT.txt",
+      "citation": "Tomas Geffner et al. (2022), Deep End-to-end Causal Inference, arXiv:2202.02195.",
+      "citation_url": "https://arxiv.org/abs/2202.02195",
+      "license_sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+    },
+    "grandag": {
+      "name": "GraN-DAG",
+      "revision": "d86ab59325730d742d67b4a1c964bde5145a9b9c",
+      "page": "https://github.com/kurowasan/GraN-DAG",
+      "license": "MIT",
+      "license_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/LICENSE",
+      "license_file": "GraN-DAG-MIT.txt",
+      "citation": "Sébastien Lachapelle, Philippe Brouillard, Tristan Deleu and Simon Lacoste-Julien (2020), Gradient-Based Neural DAG Learning, ICLR 2020, arXiv:1906.02226.",
+      "citation_url": "https://arxiv.org/abs/1906.02226",
+      "license_sha256": "87a621efb4ebf90534de99cc0d8ebb851bfaf284f85d5c886087836975e5c19a"
+    }
+  },
+  "datasets": [
+    {
+      "id": "mo01_energy_efficiency",
+      "category": "multiobjective",
+      "source": "uci",
+      "title": "Energy Efficiency",
+      "kind": "建物エネルギーシミュレーション",
+      "archive": "energy.zip",
+      "download_url": "https://archive.ics.uci.edu/static/public/242/energy+efficiency.zip",
+      "page": "https://archive.ics.uci.edu/dataset/242/energy+efficiency",
+      "format": "energy_xlsx",
+      "inputs": [
+        "RelativeCompactness",
+        "SurfaceArea",
+        "WallArea",
+        "RoofArea",
+        "OverallHeight",
+        "Orientation",
+        "GlazingArea",
+        "GlazingAreaDistribution"
+      ],
+      "objectives": [
+        [
+          "HeatingLoad",
+          "min"
+        ],
+        [
+          "CoolingLoad",
+          "min"
+        ]
+      ],
+      "expected_rows": 768,
+      "citation": "A. Tsanas and A. Xifara (2012), Energy Efficiency, UCI, doi:10.24432/C51307.",
+      "notes": "2つの負荷を最小化する例。形状列は互いに制約されるので、公開済みの候補行の範囲で比較する。向き・窓配置は離散値。熱負荷の単位はUCI変数表に明記されていないため変換しない。",
+      "source_sha256": "499441eee27929a4b00417f58fd8c63c9cc14b8a71520cd0dd27fcb626738351"
+    },
+    {
+      "id": "mo02_concrete_slump",
+      "category": "multiobjective",
+      "source": "uci",
+      "title": "Concrete Slump Test",
+      "kind": "コンクリート配合の実測",
+      "archive": "slump.zip",
+      "download_url": "https://archive.ics.uci.edu/static/public/182/concrete+slump+test.zip",
+      "page": "https://archive.ics.uci.edu/dataset/182/concrete+slump+test",
+      "format": "slump_csv",
+      "inputs": [
+        "Cement",
+        "Slag",
+        "FlyAsh",
+        "Water",
+        "SP",
+        "CoarseAggregate",
+        "FineAggregate"
+      ],
+      "objectives": [
+        [
+          "Slump_cm",
+          "max"
+        ],
+        [
+          "Flow_cm",
+          "max"
+        ],
+        [
+          "CompressiveStrength_MPa",
+          "max"
+        ]
+      ],
+      "expected_rows": 103,
+      "citation": "I-Cheng Yeh (2007), Concrete Slump Test, UCI, doi:10.24432/C5FG7D.",
+      "notes": "成分量はkg/m^3、Slump/Flowはcm、28日圧縮強度はMPa。3値の最大化は動作比較用の設定であり、実務ではSlump/Flowに目標範囲を設ける。元のNo列は測定IDなので入力から除いた。配合量の独立な連続変更を推奨するデータではない。",
+      "source_sha256": "68d6a6813261bf8ecf79d8d7cc82b665bd5e9e6800c7705a16e671688c78e491"
+    },
+    {
+      "id": "mo03_gas_turbine",
+      "category": "multiobjective",
+      "source": "uci",
+      "title": "Gas Turbine CO and NOx Emission",
+      "kind": "タービンの時系列実測",
+      "archive": "turbine.zip",
+      "download_url": "https://archive.ics.uci.edu/static/public/551/gas+turbine+co+and+nox+emission+data+set.zip",
+      "page": "https://archive.ics.uci.edu/dataset/551/gas+turbine+co+and+nox+emission+data+set",
+      "format": "turbine_csv",
+      "inputs": [
+        "AT",
+        "AP",
+        "AH",
+        "AFDP",
+        "GTEP",
+        "TIT",
+        "TAT",
+        "CDP"
+      ],
+      "objectives": [
+        [
+          "TEY",
+          "max"
+        ],
+        [
+          "CO",
+          "min"
+        ],
+        [
+          "NOX",
+          "min"
+        ]
+      ],
+      "expected_rows": 36733,
+      "citation": "Gas Turbine CO and NOx Emission Data Set (2019), UCI, doi:10.24432/C5WC95.",
+      "notes": "入力は環境・装置の計測値。環境量を操作可能とは扱わず、候補行を比較するベンチマークに限る。TEY:MWh、CO/NOX:mg/m^3。2011→2015年の順に連結し、2011～2013年をtrain、2014～2015年をtestとする。時間依存があるのでランダム行分割では評価しない。",
+      "source_sha256": "55fdb1acc25f05bd9c77aac285c424e9154ffb0dbf1bbadb56b69a1142231295"
+    },
+    {
+      "id": "mo04_ss_e",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-E",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-E.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-E.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-E.csv",
+      "format": "moot_csv",
+      "expected_rows": 756,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "d7415e875dd7071e51ef8ea45f932184eaf86582a16eac41b1f90d4b5db84a7d"
+    },
+    {
+      "id": "mo05_ss_j",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-J",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-J.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-J.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-J.csv",
+      "format": "moot_csv",
+      "expected_rows": 3840,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "53acac1c67b1b1e5c74d39d47b27b9c8f0aea14851da66a56e55370f6e526b52"
+    },
+    {
+      "id": "mo06_ss_q",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-Q",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-Q.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-Q.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-Q.csv",
+      "format": "moot_csv",
+      "expected_rows": 2736,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "f3a335e9b12930653d84ad89eacc84d7fcc76a6fd26b217942cd92b439eb81f0"
+    },
+    {
+      "id": "mo07_ss_d",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT SS-D",
+      "kind": "ソフトウェア設定の計測",
+      "archive": "SS-D.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-D.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/config/SS-D.csv",
+      "format": "moot_csv",
+      "expected_rows": 196,
+      "notes": "原本の列名末尾の + を最大化、- を最小化として採用。設定値は離散候補を含むため、既存の候補行を比較する。SSのA/B等の詳細な物理的意味・単位は公開資料に明記されないため補わない。",
+      "source_sha256": "90e4bda9f1925895399f073e6a05248841c309511f9297cd59f6a900da7e4515"
+    },
+    {
+      "id": "mo08_pom3d",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT pom3d",
+      "kind": "開発プロセスのシミュレーション",
+      "archive": "pom3d.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/pom3d.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/pom3d.csv",
+      "format": "moot_csv",
+      "expected_rows": 500,
+      "notes": "公開済みシミュレーションの候補表。原本の列名末尾 + / - の目的方向を保持。 Scoreは原本で最小化と指定されているため、その符号を保持し、完了率の最大化へ読み替えない。",
+      "source_sha256": "2c794157433db9d786e788f5efe21a3acadab3856743bc99a64f92d0d16b75af"
+    },
+    {
+      "id": "mo09_xomo_flight",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT xomo_flight",
+      "kind": "開発プロセスのシミュレーション",
+      "archive": "xomo_flight.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/xomo_flight.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/xomo_flight.csv",
+      "format": "moot_csv",
+      "expected_rows": 10000,
+      "notes": "公開済みシミュレーションの候補表。原本の列名末尾 + / - の目的方向を保持。 EFFORT・MONTHS・DEFECTS・RISKSの4値を最小化する。",
+      "source_sha256": "07808a197f304723280860d6c98d011548953db6b59328eae58e3cf866542dca"
+    },
+    {
+      "id": "mo10_coc1000",
+      "category": "multiobjective",
+      "source": "moot",
+      "title": "MOOT coc1000",
+      "kind": "開発プロセスのシミュレーション",
+      "archive": "coc1000.csv",
+      "download_url": "https://raw.githubusercontent.com/timm/moot/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/coc1000.csv",
+      "page": "https://github.com/timm/moot/blob/ca6163861db7b231824ecabc11b15a492b75df34/optimize/process/coc1000.csv",
+      "format": "moot_csv",
+      "expected_rows": 1000,
+      "notes": "公開済みシミュレーションの候補表。原本の列名末尾 + / - の目的方向を保持。 LOC・AEXP・PLExも配布元が目的列としているため、5目的として保持する。実プロジェクトの推奨目標を意味しない。",
+      "source_sha256": "75cb3abd8f02fdceba835d9cc3c8989613d7af1d9504ae956cca0b823abe9530"
+    },
+    {
+      "id": "cd01_csuite_lingauss",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite lingauss",
+      "kind": "線形・正規ノイズ",
+      "archive": "csuite_lingauss.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_lingauss.zip",
+      "page": "https://github.com/microsoft/csuite#lingauss",
+      "format": "csuite_zip",
+      "expected_rows": 4000,
+      "notes": "観測データだけでは2変数の向きは識別できない。PCの無向辺は正常な結果であり、DirectLiNGAMの非正規性の前提を満たさない。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。",
+      "source_sha256": "e788d08a7da7d4d3497b156d10b032ebde2f91f4063a35eaf7b7d5b1003d7f10"
+    },
+    {
+      "id": "cd02_csuite_linexp",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite linexp",
+      "kind": "線形・指数分布ノイズ",
+      "archive": "csuite_linexp.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_linexp.zip",
+      "page": "https://github.com/microsoft/csuite#linexp",
+      "format": "csuite_zip",
+      "expected_rows": 4000,
+      "notes": "線形かつ非正規ノイズ。DirectLiNGAMの基本的な適用条件を試す。2変数のPCは向きを決められない。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。",
+      "source_sha256": "14b9c11af2dc111f6b6fbfd784e3c24b0a90d4708b3ff46a843218851845147e"
+    },
+    {
+      "id": "cd03_csuite_nonlingauss",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite nonlingauss",
+      "kind": "非線形・正規ノイズ",
+      "archive": "csuite_nonlingauss.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_nonlingauss.zip",
+      "page": "https://github.com/microsoft/csuite#nonlingauss",
+      "format": "csuite_zip",
+      "expected_rows": 4000,
+      "notes": "原因と結果の共分散が0になる非線形の例。アプリの偏相関PCや線形DirectLiNGAMでは関係を見落とし得る。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。",
+      "source_sha256": "bc17eb887a848c4bc129cdf3282ffebe5f1810019c6299b7901a058394142b38"
+    },
+    {
+      "id": "cd04_csuite_nonlin_simpson",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite nonlin_simpson",
+      "kind": "非線形・Simpsonの逆転",
+      "archive": "csuite_nonlin_simpson.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_nonlin_simpson.zip",
+      "page": "https://github.com/microsoft/csuite#nonlin_simpson",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "単純な相関と条件つきの関係が逆転する例。非線形なので現在の2方式の前提外のストレステスト。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "dda75c813fb81dc463a274cc454766d1753a96cc13da15b5b3d43e200530cd75"
+    },
+    {
+      "id": "cd05_csuite_symprod_simpson",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite symprod_simpson",
+      "kind": "積の相互作用・多峰性",
+      "archive": "csuite_symprod_simpson.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_symprod_simpson.zip",
+      "page": "https://github.com/microsoft/csuite#symprod_simpson",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "積の非線形相互作用があり、一部の共分散が0となる。現在の2方式の前提外のストレステスト。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "ff5674410912e1deef9ee156e0fb4fe932089d768d264395d3f291858b70da1c"
+    },
+    {
+      "id": "cd06_csuite_large_backdoor",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite large_backdoor",
+      "kind": "9変数・バックドア",
+      "archive": "csuite_large_backdoor.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_large_backdoor.zip",
+      "page": "https://github.com/microsoft/csuite#large_backdoor",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "交絡調整の候補が複数ある構造。正解は同梱adj_matrix.csvを採用。配布元READMEは10辺と記すが、v0.1の行列は9辺のため、実ファイルを基準にする。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "fbf552117c7b4a6ae544528868502b23b603574951650fb26e03ea1cddc0b51a"
+    },
+    {
+      "id": "cd07_csuite_weak_arrows",
+      "category": "causal",
+      "source": "csuite",
+      "title": "CSuite weak_arrows",
+      "kind": "9変数・弱い多数の辺",
+      "archive": "csuite_weak_arrows.zip",
+      "download_url": "https://github.com/microsoft/csuite/releases/download/v0.1/csuite_weak_arrows.zip",
+      "page": "https://github.com/microsoft/csuite#weak_arrows",
+      "format": "csuite_zip",
+      "expected_rows": 2000,
+      "notes": "弱い辺をどこまで検出するかを試す。検出漏れと余分な辺の双方を評価する。 正解は生成過程のDAG。介入データは観測データに混ぜず、今回は収録しない。 配布元の概要は学習4,000行と記すが、このv0.1ファイルの学習行数は2000行。収録数は実ファイルを基準にする。",
+      "source_sha256": "9314f961f0cdb217430f58dcce48382e7822e42e82707b28c456f339437baa14"
+    },
+    {
+      "id": "cd08_grandag_er10",
+      "category": "causal",
+      "source": "grandag",
+      "title": "GraN-DAG ER 10変数・疎",
+      "kind": "公開済み非線形GPシミュレーション",
+      "archive": "data_p10_e10_n1000_GP.zip",
+      "download_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/data/data_p10_e10_n1000_GP.zip",
+      "page": "https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data",
+      "format": "grandag_npy",
+      "member_prefix": "data_p10_e10_n1000_GP",
+      "replicate": 1,
+      "expected_rows": 1000,
+      "notes": "各公開パッケージのreplicate 1（data1/DAG1/CPDAG1）を1件として採用。独自生成・再学習は行わない。非線形GPのため現在の偏相関PC・線形DirectLiNGAMに対するストレステスト。公開元のDAG・CPDAGをともに収録する。",
+      "source_sha256": "979ba7b78e82c76d27aa56e86bd17bc020e7105bbb0bae32d9f7863b2ed42303"
+    },
+    {
+      "id": "cd09_grandag_er20",
+      "category": "causal",
+      "source": "grandag",
+      "title": "GraN-DAG ER 20変数・疎",
+      "kind": "公開済み非線形GPシミュレーション",
+      "archive": "data_p20_e20_n1000_GP.zip",
+      "download_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/data/data_p20_e20_n1000_GP.zip",
+      "page": "https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data",
+      "format": "grandag_npy",
+      "member_prefix": "data_p20_e20_n1000_GP",
+      "replicate": 1,
+      "expected_rows": 1000,
+      "notes": "各公開パッケージのreplicate 1（data1/DAG1/CPDAG1）を1件として採用。独自生成・再学習は行わない。非線形GPのため現在の偏相関PC・線形DirectLiNGAMに対するストレステスト。公開元のDAG・CPDAGをともに収録する。",
+      "source_sha256": "3a2f25f234f5baecb1f2b3e1b7d864e13fec1c5ba4f4f47f233dcee0fe8d0a06"
+    },
+    {
+      "id": "cd10_grandag_sf20",
+      "category": "causal",
+      "source": "grandag",
+      "title": "GraN-DAG Scale-free 20変数・密",
+      "kind": "公開済み非線形GPシミュレーション",
+      "archive": "data_sf_p20_e80_n1000_GP.zip",
+      "download_url": "https://raw.githubusercontent.com/kurowasan/GraN-DAG/d86ab59325730d742d67b4a1c964bde5145a9b9c/data/data_sf_p20_e80_n1000_GP.zip",
+      "page": "https://github.com/kurowasan/GraN-DAG/tree/d86ab59325730d742d67b4a1c964bde5145a9b9c/data",
+      "format": "grandag_npy",
+      "member_prefix": "data_sf_p20_e80_n1000_GP",
+      "replicate": 1,
+      "expected_rows": 1000,
+      "notes": "各公開パッケージのreplicate 1（data1/DAG1/CPDAG1）を1件として採用。独自生成・再学習は行わない。非線形GPのため現在の偏相関PC・線形DirectLiNGAMに対するストレステスト。公開元のDAG・CPDAGをともに収録する。",
+      "source_sha256": "68a519adf7a8682bf2b3c13dba0eb8e6d579a7e3397eae349a5dafda68794b5f"
+    }
+  ]
+}
