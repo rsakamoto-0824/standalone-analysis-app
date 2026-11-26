@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "dataset_counts": {
+    "multiobjective": 10,
+    "causal": 10
+  },
+  "primary_data_rows": 79632,
+  "dataset_files_verified": 97,
+  "checks": [
+    "SHA-256",
+    "unique headers",
+    "finite numeric values",
+    "source numeric round-trip during build",
+    "profile consistency",
+    "DAG acyclicity and node order",
+    "Pareto membership and independent dominance check",
+    "split row coverage and replicate isolation",
+    "license checksums",
+    "edge list and CPDAG consistency"
+  ],
+  "not_run": [
+    "MATLAB app modeling/causal algorithm scores",
+    "MATLAB R2025b / Windows execution"
+  ]
+}

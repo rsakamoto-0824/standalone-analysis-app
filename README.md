@@ -1,5 +1,7 @@
 # Process Insight Tool
 
+多目的最適化と因果探索の評価には、[公開ベンチマークデータ20件](benchmarks/public-data/README.md)を利用できます。CSV本体、選択する列、目的の向き、正解グラフ・候補内パレート解、出典とライセンスを収録しています。
+
 成膜・露光プロセスのモデリング・補間・実験計画をまとめて扱う解析アプリです。通常版は **Process Insight Tool**（`ProcessInsightTool.exe`）、プロ版は **Process Insight Tool Pro**（`ProcessInsightToolPro.exe`）です。MATLAB R2025b 向けのソースで、すべての処理をローカルで実行します。
 
 紹介用の[インフォグラフ](docs/promotion/process-insight-tool-infographic.png)と[グラレコ風サムネイル](docs/promotion/process-insight-tool-sketchnote-thumbnail.png)を用意しています。[素材の説明・制作指示](docs/promotion/README.md)も参照できます。

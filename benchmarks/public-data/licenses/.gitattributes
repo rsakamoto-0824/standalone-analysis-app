@@ -1,0 +1,2 @@
+# Keep the upstream license bytes, including its final blank line.
+CC-BY-4.0.txt whitespace=-blank-at-eof
