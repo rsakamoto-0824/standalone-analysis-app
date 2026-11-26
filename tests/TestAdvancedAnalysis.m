@@ -57,8 +57,9 @@ classdef TestAdvancedAnalysis < matlab.unittest.TestCase
             testCase.verifyError(@()encode_categories(other,'Tool',levels{2}),'encode_categories:unknownLevel');
             conditions=modeling_conditions({'additive'},{'gpr'},'exact',2,100,struct(),[],struct('Mask',[false,true],'Levels',{levels}));
             testCase.verifyEqual(modeling_condition_label(conditions(1)),'GPR（加法カーネル・質的変数）');
-            testCase.verifyError(@()modeling_conditions({'additive'},{'gpr','linear'},'exact',2,100,struct(),[],struct('Mask',[false,true],'Levels',{levels})), ...
-                'modeling:categoricalRegressor');
+            % 質的変数は GPR 以外の方式でも使える（2026-11-26 から）。各条件に同じ質的変数の情報を持たせる。
+            mixed=modeling_conditions({'additive'},{'gpr','linear'},'exact',2,100,struct(),[],struct('Mask',[false,true],'Levels',{levels}));
+            testCase.verifyEqual(mixed(2).Categorical.Mask,[false,true]); testCase.verifyEqual(modeling_condition_label(mixed(2)),'重回帰');
         end
         function sobolMatchesIshigamiFunction(testCase)
             % Ishigami 関数（a=7, b=0.1）の理論値：S1 = [0.314, 0.442, 0]、ST = [0.558, 0.442, 0.244]。

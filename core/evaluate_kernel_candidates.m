@@ -23,6 +23,8 @@ previous_rng = rng; cleanup = onCleanup(@() rng(previous_rng));
 rng(seed, 'twister'); fold_id = zeros(rows, 1);
 fold_id(randperm(rows)) = mod((0:rows - 1)', folds) + 1;
 models = cell(count, 1); details = cell(count, 1); warnings = cell(count, 1);
+% 学習関数が5つ目の引数を受け取るときは、学習に使う行（論理値）も渡す（行ごとの情報を学習の行に合わせるため）。
+with_rows = nargin(trainer) >= 5 || nargin(trainer) < 0;
 oof = NaN(rows, count); training_prediction = NaN(rows, count);
 values = NaN(count, 8); training_values = values; seconds = zeros(count, 1); periods = NaN(count, 1);
 status = repmat("失敗", count, 1); notes = strings(count, 1); all_metrics = table(); fold_metrics = table();
@@ -37,7 +39,7 @@ for candidate = 1:count
             held_out = fold_id == fold;
             % 候補順や失敗の有無で、次の候補の乱数条件が変わらないようにする。
             rng(mod(seed + fold, 2^32), 'twister');
-            [model, messages, fold_details] = trainer(X(~held_out, :), y(~held_out), kernels{candidate}, @periodProgress);
+            [model, messages, fold_details] = train(~held_out);
             warnings{candidate} = [warnings{candidate}; string(messages(:))];
             predicted = checkedPrediction(model, X(held_out, :)); oof(held_out, candidate) = predicted;
             fold_metrics = [fold_metrics; table(string(kernels{candidate}), fold, sum(~held_out), sum(held_out), ...
@@ -48,7 +50,7 @@ for candidate = 1:count
         cv_metrics = evaluate_predictions(y, oof(:, candidate), bins);
         event.Stage = '全データで学習'; event.Fold = 0; notify(event);
         rng(mod(seed + folds + 1, 2^32), 'twister');
-        [model, messages, detail] = trainer(X, y, kernels{candidate}, @periodProgress);
+        [model, messages, detail] = train(true(rows, 1));
         warnings{candidate} = unique([warnings{candidate}; string(messages(:))], 'stable');
         prediction = checkedPrediction(model, X);
         train_metrics = evaluate_predictions(y, prediction, bins);
@@ -80,6 +82,13 @@ report = struct('Summary', summary, 'Metrics', all_metrics, 'FoldMetrics', fold_
     'OOFPredictions', oof, 'TrainingPredictions', training_prediction, 'Models', {models}, ...
     'Details', {details}, 'Warnings', {warnings}, 'Folds', folds, 'Seed', seed);
 
+    function [model, messages, fold_details] = train(used)
+        if with_rows
+            [model, messages, fold_details] = trainer(X(used, :), y(used), kernels{candidate}, @periodProgress, used);
+        else
+            [model, messages, fold_details] = trainer(X(used, :), y(used), kernels{candidate}, @periodProgress);
+        end
+    end
     function prediction = checkedPrediction(model, inputs)
         prediction = predictor(model, inputs);
         validate_numeric_data(prediction, '予測値', 'evaluate_kernel_candidates');

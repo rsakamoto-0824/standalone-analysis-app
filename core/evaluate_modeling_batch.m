@@ -75,9 +75,12 @@ end
     function record = addCVSeconds(record)
         if ~isempty(report), record.Seconds = record.Seconds + report.Summary.Seconds(candidate); end
     end
-    function [model, warnings, details] = train(x,y,label,callback)
+    function [model, warnings, details] = train(x,y,label,callback,rows)
         condition_index = str2double(extractAfter(label,'condition_'));
-        [model,warnings,details] = services.Trainer(x,y,conditions(condition_index),callback);
+        condition = conditions(condition_index);
+        % CatBoost の並べ替えの値は、交差検証で学習に使う行の分だけを渡す。
+        if isfield(condition,'Order') && ~isempty(condition.Order), condition.Order = condition.Order(rows); end
+        [model,warnings,details] = services.Trainer(x,y,condition,callback);
         trained = trained + 1; partial = 0;
     end
     function notifyCV(update)

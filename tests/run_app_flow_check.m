@@ -370,18 +370,37 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
             'GPR の Permutation Importance が想定と違います（X1 が最も効くはず）。');
         % 質的変数：APC サンプルの文字の列 Lot を質的変数として GPR を学習し、保存する。
         page.Source.open(sample, 'APC', 1); page.selectPredictors({'SIN_TH', 'RESIST_TH', 'Lot'}); page.selectTargets({'CD_X'});
+        % 質的変数は GPR 以外の方式でも使える（PLS はダミー変数にする）。
         page.Qualitative.Value = {'Lot'}; page.Qualitative.ValueChangedFcn([], []);
-        expectAlert(@() page.runModeling(), '回帰方式は GPR だけ');
-        page.Regressors.pls.Value = false; page.Regressors.pls.ValueChangedFcn([], []);
         page.Kernels.Value = {'additive', 'matern52'}; page.Kernels.ValueChangedFcn([], []);
         before = numel(page.Records); page.runModeling(); added = page.Records(before + 1:end);
         labels = cellfun(@(record) modeling_condition_label(record.Condition), added, 'UniformOutput', false);
-        assert(isequal(sort(labels), sort({'GPR（加法カーネル・質的変数）', 'GPR（ARD二乗指数×質的変数）'})) && all(cellfun(@(record) strcmp(record.Status, '成功'), added)), ...
-            '質的変数の GPR の学習に失敗しました: %s', strjoin(labels, ', '));
+        assert(isequal(sort(labels), sort({'GPR（加法カーネル・質的変数）', 'GPR（ARD二乗指数×質的変数）', 'PLS（2成分）'})) && all(cellfun(@(record) strcmp(record.Status, '成功'), added)), ...
+            '質的変数の GPR・PLS の学習に失敗しました: %s', strjoin(labels, ', '));
+        [mask, levels] = added{strcmp(labels, 'PLS（2成分）')}.Model.categoricalInfo();
+        assert(isequal(mask, [false, false, true]) && numel(levels{3}) == 6, 'PLS のモデルに質的変数 Lot の水準がありません。');
         page.selectRow(before + 1); report = page.saveSelectedTo(pro_gpr_path);
         assert(report.Success, '質的変数の GPR の保存後検証に失敗しました。');
         loaded = load_analysis_model(pro_gpr_path);
         assert(isequal(loaded.GPOptions.Levels{3}, "Lot-" + string(1:6)'), '保存したモデルに Lot の水準がありません。');
+        % 損失関数を分位点（τ = 0.8）にして、質的変数 Lot のまま重回帰と CatBoost（並べ替え列 SIN_TH）を学習する。
+        page.Regressors.gpr.Value = false; page.Regressors.pls.Value = false; page.Regressors.linear.Value = true; page.Regressors.catboost.Value = true;
+        page.Regressors.catboost.ValueChangedFcn([], []);
+        assert(logical(page.CatBoostOrder.Enable) && ~logical(page.QuantileLevel.Enable), 'CatBoost の並べ替え列か分位点 τ の有効・無効が違います。');
+        page.LossChoice.Value = page.LOSS_QUANTILE; page.LossChoice.ValueChangedFcn([], []);
+        assert(logical(page.QuantileLevel.Enable), '損失関数を分位点にしても τ を入力できません。');
+        page.QuantileLevel.Value = 0.8; page.CatBoostOrder.Value = 'SIN_TH'; page.CatBoostOrder.ValueChangedFcn([], []);
+        before = numel(page.Records); page.runModeling(); added = page.Records(before + 1:end);
+        labels = cellfun(@(record) modeling_condition_label(record.Condition), added, 'UniformOutput', false);
+        assert(numel(added) == 2 && all(contains(labels, '分位点τ=0.8')) && all(cellfun(@(record) strcmp(record.Status, '成功'), added)), ...
+            '分位点回帰（重回帰・CatBoost）の学習に失敗しました: %s', strjoin(labels, ', '));
+        catboost = added{startsWith(labels, 'CatBoost')};
+        assert(numel(catboost.Condition.Order) == numel(catboost.Actual) && strcmp(catboost.Model.Loss, 'quantile'), ...
+            'CatBoost に並べ替え列の値か分位点の損失関数が渡っていません。');
+        coverage = mean(catboost.Actual <= catboost.Prediction);
+        assert(coverage > 0.6 && coverage < 0.98, '分位点 τ = 0.8 の予測以下の割合が想定と違います（%.2f）。', coverage);
+        page.LossChoice.Value = page.LOSS_SQUARED; page.CatBoostOrder.Value = page.ORDER_NONE;
+        page.Regressors.linear.Value = false; page.Regressors.catboost.Value = false; page.Regressors.gpr.Value = true; page.Regressors.gpr.ValueChangedFcn([], []);
         page.Qualitative.Value = {}; page.Qualitative.ValueChangedFcn([], []); page.Kernels.Value = {'squaredexponential'}; page.Kernels.ValueChangedFcn([], []);
         % 後の確認は Generic サンプルを使うため、開き直す（学習結果の一覧は残る）。
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1'});
@@ -423,6 +442,18 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
             assert(any(strcmp(page.Result.ChartNames, page.CHART_GRAPH)), '因果グラフがありません。');
         end
         assert(~isempty(page.Result.tableData(page.TABLE_ORDER)), 'DirectLiNGAM の因果の順序がありません。');
+        % 事前の知識：CD_X と SIN_TH の間に因果はない、RESIST_TH → CD_X の因果がある。選んでいない列（CD_Y）の指定は使わない。
+        page.setKnowledge({'CD_X', 'none', 'SIN_TH'; 'RESIST_TH', 'required', 'CD_X'; 'CD_Y', 'forbidden', 'CD_X'});
+        assert(size(page.KnowledgeTable.Data, 1) == 3 && strcmp(page.KnowledgeTable.Data{1, 2}, page.KNOWLEDGE_NAMES{2}), '事前の知識の表が違います。');
+        for method = page.METHOD_CODES
+            page.Method.Value = method{1}; page.run();
+            edges = page.Result.tableData(page.TABLE_EDGES);
+            pair = (edges.("元") == "CD_X" & edges.("先") == "SIN_TH") | (edges.("元") == "SIN_TH" & edges.("先") == "CD_X");
+            given = edges.("元") == "RESIST_TH" & edges.("先") == "CD_X" & edges.("向き") == "→";
+            assert(~any(pair) && any(given) && edges.("事前の知識")(given) == "因果がある（指定）", '%s で事前の知識が守られていません。', method{1});
+        end
+        page.setKnowledge({'CD_X', 'required', 'SIN_TH'; 'SIN_TH', 'required', 'CD_X'}); expectAlert(@() page.run(), '両方の向き');
+        page.setKnowledge(cell(0, 3));
     end
     function checkBayes()
         app.selectPage('bayes'); page = app.page('bayes');

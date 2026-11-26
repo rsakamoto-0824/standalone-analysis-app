@@ -138,7 +138,11 @@ if strcmp(edition, 'pro')
     app.selectPage('sobol'); sobol = app.page('sobol'); sobol.selectSource('data'); sobol.Source.open(sample, 'APC', 1);
     sobol.selectColumns('CD_X', {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}); sobol.run(); snap('89-sobol');
     app.selectPage('causal'); causal = app.page('causal'); causal.Source.open(sample, 'APC', 1);
-    causal.selectColumns({'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH', 'CD_X'}); causal.Method.Value = 'lingam'; causal.run(); snap('90-causal');
+    causal.selectColumns({'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH', 'CD_X'}); causal.Method.Value = 'lingam';
+    % 事前の知識の例：露光後に測る CD_X が、前の工程のレジスト膜厚 RESIST_TH の原因になることはない。
+    causal.setKnowledge({'CD_X', 'forbidden', 'RESIST_TH'}); causal.run();
+    % ④ の事前の知識の表が見えるよう、左の列を下までスクロールして撮る。
+    causal_left = findobj(causal.Body, 'Type', 'uigridlayout', 'Scrollable', 'on'); scroll(causal_left(1), 'bottom'); drawnow; snap('90-causal');
     app.selectPage('bayes'); bayes = app.page('bayes'); bayes.Source.open(sample, 'APC', 1);
     bayes.selectColumns('CD_X', {'RESIST_TH'}, 'Lot'); bayes.run(); snap('91-bayes');
     app.selectPage('copula'); copula = app.page('copula'); copula.selectMode('spec');

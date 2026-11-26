@@ -65,7 +65,7 @@ classdef SobolPage < AppPage
             page@AppPage(app, parent);
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
             % 文字を大きくしても欄が切れないよう、各欄に固定の高さを持たせ、入りきらないときは左の列ごと上下にスクロールする。
-            left = uigridlayout(page.Body, [6, 1], 'Scrollable', 'on'); left.Padding = [0, 0, 6, 0]; left.RowHeight = {68, 236, 190, 250, 48, 40};
+            left = uigridlayout(page.Body, [6, 1], 'Scrollable', 'on'); left.Padding = [0, 0, 6, 0]; left.RowHeight = {68, 236, 190, 320, 48, 40};
             % 解析の対象（データ／保存モデル）は、どちらも使えることが一目で分かるよう、2つのボタンで選ぶ。
             row = uigridlayout(left, [2, 2]); row.Padding = [0, 0, 0, 0]; row.RowHeight = {22, '1x'};
             label = uilabel(row, 'Text', '① 解析の対象（データから、または保存モデルで）', 'FontWeight', 'bold'); label.Layout.Column = [1, 2];
@@ -178,6 +178,7 @@ classdef SobolPage < AppPage
         end
         function buildConditions(page, parent)
             % 文字の大きさを既定（12）にしても説明が切れないよう、行の高さに余裕を持たせる。
+            % 下の説明（2〜3行）まで見えるよう、③ の欄の高さ（左の列の4行目）も合わせて決めている。
             grid = uigridlayout(parent, [7, 2]); grid.RowHeight = {30, 30, 30, 30, 30, '1x', 0}; grid.ColumnWidth = {200, '1x'};
             uilabel(grid, 'Text', '入力の分布');
             page.Distribution = uidropdown(grid, 'Items', page.DISTRIBUTION_NAMES, 'ItemsData', page.DISTRIBUTION_CODES, ...
@@ -292,9 +293,7 @@ classdef SobolPage < AppPage
                 page.ModelEntry = page.App.Models.get(id); page.Model = page.ModelEntry.Model;
                 names = page.displayNames(); training = page.trainingInputs();
                 categorical = false(1, numel(names)); levels = cell(1, numel(names));
-                if isa(page.Model, 'ProcessRegressionModel') && isfield(page.Model.GPOptions, 'Categorical') && ~isempty(page.Model.GPOptions.Categorical)
-                    categorical = page.Model.GPOptions.Categorical; levels = page.Model.GPOptions.Levels;
-                end
+                if isa(page.Model, 'ProcessRegressionModel'), [categorical, levels] = page.Model.categoricalInfo(); end
                 rows = cell(numel(names), 4);
                 for column = 1:numel(names)
                     if categorical(column)

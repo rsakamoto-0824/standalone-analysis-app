@@ -107,7 +107,7 @@ standard = build_windows('standard', 'Tests', false); % テストを省いてす
 
 **入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。** 画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。exe に同梱するのは `core/`、`app/` と、Pro版だけサンプル・手順書（`docs/user-guide`、生成用の `_src` を除く）で、動画などの大きなファイルは含めません。インストーラーを作らず exe だけを作るときは `build_windows('standard', false)` とします。
 
-通常版は Pro 専用の35ファイル（`prepare_edition_build` の一覧）を隔離ソースから除外してコンパイルし、Swing Curve の周期カーネル（swingperiodic）と周期の探索範囲、実験計画の拡張（既存の計画への追加）の画面も表示しません。Help も版ごとの内容で、通常版には Pro 版だけの説明を出しません。通常版の exe とインストーラーには、サンプルも手順書も入れません（2026-11-26 から。別に配ります）。Pro版には含めます。実行時の設定や引数で版を変更する機能はありません。
+通常版は Pro 専用の37ファイル（`prepare_edition_build` の一覧）を隔離ソースから除外してコンパイルし、Swing Curve の周期カーネル（swingperiodic）と周期の探索範囲、実験計画の拡張（既存の計画への追加）の画面も表示しません。Help も版ごとの内容で、通常版には Pro 版だけの説明を出しません。通常版の exe とインストーラーには、サンプルも手順書も入れません（2026-11-26 から。別に配ります）。Pro版には含めます。実行時の設定や引数で版を変更する機能はありません。
 
 画像なしの詳しい手順は [ビルド手順書（HTML）](user-guide/build-guide.html) を参照してください。
 

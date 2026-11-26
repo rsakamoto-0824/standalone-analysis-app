@@ -96,8 +96,9 @@ strings = cellfun(@(item) richText(item{1}), items, 'UniformOutput', false);
 end
 
 function text = richText(xml)
-% 書式つきの文字（<r><t>…</t></r> の並び）は、<t> の中身をつなぐ。ふりがな（<rPh>）は除く。
-xml = regexprep(xml, '<rPh\b.*?</rPh>', '');
+% 書式つきの文字（<r><t>…</t></r> の並び）は、<t> の中身をつなぐ。ふりがな（<rPh>…</rPh>）は除く。
+% MATLAB の正規表現では \b が単語の区切りでなくバックスペースになるため、属性の有無で書き分ける。
+xml = regexprep(xml, '<rPh(?:\s[^>]*)?>.*?</rPh>', '');
 parts = regexp(xml, '<t(?:\s[^>]*)?>(.*?)</t>', 'tokens');
 text = decodeXml(strjoin(cellfun(@(part) part{1}, parts, 'UniformOutput', false), ''));
 end
