@@ -26,6 +26,7 @@ classdef AnalysisController < handle
         PageBuilders
         LastFolder = ''
         SettingsWarning = ''
+        ChosenSample = ''
     end
     properties (Constant)
         WINDOW_SIZE = [1360, 860]
@@ -72,11 +73,13 @@ classdef AnalysisController < handle
             app.addPage('furnace', titles.furnace, @(parent) FurnacePage(app, parent));
             app.Navigation.addHeading('モデルを使う・調べる');
             app.addPage('predict', titles.predict, @(parent) ModelUsePage(app, parent));
-            if pro, app.addPage('sobol', titles.sobol, @(parent) SobolPage(app, parent)); end
             if pro
+                % データ（Excel / CSV）を取り込んで解析する画面。Sobol感度解析は保存モデルでも使える。
                 app.Navigation.addHeading('データを解析する（Pro版）');
+                app.addPage('sobol', titles.sobol, @(parent) SobolPage(app, parent));
                 app.addPage('causal', titles.causal, @(parent) CausalPage(app, parent));
                 app.addPage('bayes', titles.bayes, @(parent) BayesPage(app, parent));
+                app.addPage('copula', titles.copula, @(parent) CopulaPage(app, parent));
             end
             app.Navigation.addHeading('計画・その他');
             app.addPage('doe', titles.doe, @(parent) DesignPage(app, parent));
@@ -142,6 +145,15 @@ classdef AnalysisController < handle
                 owner.message(['ログを保存できませんでした: ' err.message]);
             end
         end
+        function path = samplePath(app, file_name)
+            % 「サンプルデータを開く」が開くブック。同梱していれば同梱のもの、なければ（通常版はサンプルを別に配る）
+            % 利用者に選んでもらい、起動中は同じブックを使う。選ばなかったときは空を返す。
+            path = app.resourcePath('samples', file_name);
+            if isfile(path), return; end
+            if isfile(app.ChosenSample), path = app.ChosenSample; return; end
+            path = app.chooseOpenFile({'*.xlsx', 'サンプルのブック（*.xlsx）'}, sprintf('サンプルのブック（%s）を選択', file_name));
+            if ~isempty(path), app.ChosenSample = path; end
+        end
         function path = resourcePath(app, varargin)
             % 同梱ファイル（samples、docs）の場所。ソース実行・ZIPで配った exe・インストーラーで入れた exe で
             % 置き場所が異なるため、exe のフォルダ、起動時のフォルダ、展開先（ctfroot）の順に探す。
@@ -176,11 +188,11 @@ classdef AnalysisController < handle
             if ~isempty(dialog) && isvalid(dialog), close(dialog); end
         end
         function titles = menuTitles(edition)
-            % 左のメニューの名前（番号つき）。Pro 版だけの画面（Sobol感度解析・因果探索・階層ベイズ・ワードクラウド）は通常版に出さない。
-            keys = {'apc', 'swing', 'generic', 'furnace', 'predict', 'sobol', 'causal', 'bayes', 'doe', 'words', 'settings', 'help'};
+            % 左のメニューの名前（番号つき）。Pro 版だけの画面（Sobol感度解析・因果探索・階層ベイズ・コピュラ乱数生成・ワードクラウド）は通常版に出さない。
+            keys = {'apc', 'swing', 'generic', 'furnace', 'predict', 'sobol', 'causal', 'bayes', 'copula', 'doe', 'words', 'settings', 'help'};
             names = {'APC 学習', 'Swing Curve学習', '汎用回帰学習', '炉内補間', '保存モデルで推定・SHAP', 'Sobol感度解析', ...
-                '因果探索', '階層ベイズ', '実験計画作成', 'ワードクラウド', '設定', 'Help'};
-            pro_only = {'sobol', 'causal', 'bayes', 'words'};
+                '因果探索', '階層ベイズ', 'コピュラ乱数生成', '実験計画作成', 'ワードクラウド', '設定', 'Help'};
+            pro_only = {'sobol', 'causal', 'bayes', 'copula', 'words'};
             titles = struct(); number = 0;
             for index = 1:numel(keys)
                 if ~strcmp(edition, 'pro') && ismember(keys{index}, pro_only), continue; end

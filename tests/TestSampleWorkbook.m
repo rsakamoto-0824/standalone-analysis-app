@@ -34,6 +34,9 @@ classdef TestSampleWorkbook < matlab.unittest.TestCase
             testCase.verifyTrue(all(report.Comparison.Status=="成功"));
             testCase.verifyEqual(height(report.Comparison),12);
         end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function codedExistingDesignAndWordCloudAreUsable(testCase)
             source=read_input_data(testCase.File,'DOE_Existing',1); design=extract_numeric_columns(source,{'F1','F2','F3'});
             testCase.verifySize(design,[10,3]); testCase.verifyTrue(all(abs(design)<=1,'all'));

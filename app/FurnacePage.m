@@ -110,7 +110,8 @@ classdef FurnacePage < AppPage
             page.message(sprintf('保存して、保存前後の予測が一致することを確認しました: %s（専用の Furnace_Model 形式。制御用 Train_Model とは別です）', [base extension]));
         end
         function openSample(page)
-            path = page.App.resourcePath('samples', page.SAMPLE_FILE);
+            path = page.App.samplePath(page.SAMPLE_FILE);
+            if isempty(path), return; end
             if ~isfile(path)
                 page.showError(MException('furnace:noSample', 'サンプルファイルが見つかりません: %s', path)); return;
             end

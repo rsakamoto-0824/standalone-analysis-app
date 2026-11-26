@@ -27,18 +27,19 @@ step('起動とホーム画面', @() app.selectPage('home'));
 step('APC：2カーネルを交差検証あり・なしで比較・SHAP・保存', @checkApc);
 step('Swing Curve：下地あり', @checkSwingWithBase);
 step('Swing Curve：下地なし・周期カーネル', @checkSwingPeriodic);
-step('データの傾向：単変量（質的・量的な色）と Pro 版の8種類のグラフ', @checkExplorer);
+step('データの傾向：単変量・Pro 版の8種類・一括描画と結果の保持・帯の色の列', @checkExplorer);
 step('汎用回帰：GPR・重回帰・PLS・ランダムフォレスト・バギング木の比較と保存', @checkGeneric);
 step('Pro版の回帰：EBM・XGBoost・LightGBM・CatBoost・ハイパーパラメータ探索・目的変数ごとの並べ替え', @checkBoosting);
 step('Pro版のGPR：加法カーネル・質的変数（Lot）・変数重要度（Permutation Importance・VIP）', @checkProGpr);
 step('炉内補間：2Run・6方式・目的変数ごとの棒グラフ・保存', @checkFurnace);
 step('保存モデルで推定・SHAP：評価つき・SHAP依存図', @checkPredict);
 step('保存モデルで推定・SHAP：起動中のモデル・質的変数のモデル', @checkShapPage);
-step('Sobol感度解析：保存モデルの範囲から1次・全効果', @checkSobol);
+step('Sobol感度解析：データ（代替モデル）と保存モデル（MAT・起動中）・予測値の分布の統計', @checkSobol);
 step('因果探索：PCアルゴリズムと DirectLiNGAM', @checkCausal);
 step('階層ベイズ：Lot ごとの切片と傾き', @checkBayes);
+step('コピュラ乱数生成：データの関係をまねる・関係を指定して作る', @checkCopula);
 step('実験計画：D最適・I最適・直交表・拡張と評価指標', @checkDesign);
-step('ワードクラウド：形と色', @checkWords);
+step('ワードクラウド：形と色・除く語', @checkWords);
 step('設定：テーマ・文字の大きさの変更で結果が消えない', @checkSettings);
 step('Help', @() app.selectPage('help'));
 step('通常版：Pro版だけの機能（周期カーネル・拡張計画・データのグラフ・回帰方式・加法カーネル・質的変数・Sobol・因果探索・階層ベイズ・ワードクラウド）と説明を出さない', @checkStandardEdition);
@@ -218,7 +219,7 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         page = app.page('apc'); page.openSample(); explorer = page.Explorer;
         assert(numel(explorer.Kind.Items) == 9, 'Pro版では9種類のグラフを選べます。');
         explorer.configure(struct('Kind', 'trend', 'X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot', 'ColorMode', 'auto')); explorer.draw();
-        groups = explorer.Result.tableData('縦軸の要約');
+        groups = explorer.latestTable('縦軸の要約');
         assert(height(groups) == 7 && groups.("グループ")(1) == "全体", '文字の列（Lot）で色分けすると、6グループの要約が出ます。');
         explorer.configure(struct('Color', 'SIN_TH', 'ColorMode', 'numeric')); explorer.draw();
         explorer.configure(struct('X', 'Lot', 'Color', explorer.NO_COLOR)); explorer.draw();
@@ -228,19 +229,29 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
             struct('Kind', 'correlation', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH', 'CD_X'}}), '相関マトリックス'
             struct('Kind', 'anova', 'Y', 'CD_X', 'Columns', {{'Lot', 'SIN_TH'}}), '箱ひげ図: Lot'
             struct('Kind', 'parallel', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'CD_X'}}, 'Color', 'Lot'), 'Parallel Coordinates'
-            struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}), 'Parallel Sets'
-            struct('Kind', 'sankey', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}), 'Sankey Diagram'
+            struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', explorer.NO_COLOR), 'Parallel Sets'
+            struct('Kind', 'sankey', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', explorer.NO_COLOR), 'Sankey Diagram'
             struct('Kind', 'pca', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'Color', 'Lot', 'ColorMode', 'auto'), '主成分得点（PC1 × PC2）'
             struct('Kind', 'cluster', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'ClusterMethod', 'ward', 'ClusterCount', 3), '樹形図（Ward 法）'};
         for index = 1:size(settings, 1)
             explorer.configure(settings{index, 1}); explorer.draw();
-            assert(any(strcmp(explorer.Result.ChartNames, settings{index, 2})), '「%s」のグラフがありません。', settings{index, 2});
+            assert(any(strcmp(explorer.chartNames(), settings{index, 2})), '「%s」のグラフがありません。', settings{index, 2});
         end
+        % 種類を変えて描き直しても、前に描いたグラフは残る（番号を付けて追加する）。
+        assert(numel(explorer.chartNames()) >= 11 && any(strcmp(explorer.chartNames(), 'CD_X の傾向')), '前に描いたグラフが消えています。');
+        % 複数の種類を一括で描く。Parallel Sets・Sankey は任意の列（数値は連続した色）で色を付ける。
+        before = numel(explorer.Result.ChartNames);
+        explorer.configure(struct('Kind', {{'histogram', 'sets', 'sankey'}}, 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', 'RESIST_TH', 'ColorMode', 'numeric'));
+        explorer.draw();
+        added = explorer.chartNames(); added = added(before + 1:end);
+        assert(all(ismember({'ヒストグラム: SIN_TH', 'Parallel Sets', 'Sankey Diagram'}, added)), '一括で描いたグラフが足りません: %s', strjoin(added, ', '));
+        explorer.configure(struct('Kind', 'sets', 'Color', 'Lot', 'ColorMode', 'auto')); explorer.draw();
+        explorer.clearResults(); assert(isempty(explorer.Result.ChartNames), '「結果を消す」でグラフが消えません。');
         anova = (struct('Kind', 'anova', 'Y', 'CD_X', 'Columns', {{'Lot'}})); explorer.configure(anova); explorer.draw();
-        result = explorer.Result.tableData('ANOVA表');
+        result = explorer.latestTable('ANOVA表');
         assert(any(result.("要因") == "Lot") && all(isfinite(result.("p値")(1))), '分散分析の表が不正です。');
         explorer.configure(struct('Kind', 'parallel', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'CD_X'}})); explorer.draw();
-        png = fullfile(work, 'parallel.png'); explorer.Result.exportFigureTo(1, png);
+        charts = explorer.Result.validCharts(); png = fullfile(work, 'parallel.png'); explorer.Result.exportFigureTo(numel(charts), png);
         info = dir(png); assert(~isempty(info) && info.bytes > 1000, 'Parallel Coordinates をPNG保存できません。');
         page.DataTabs.SelectedTab = page.DataTabs.Children(2); app.selectPage('apc'); drawnow; capture('データの傾向（Parallel Coordinates）');
         page.DataTabs.SelectedTab = page.DataTabs.Children(1);
@@ -248,8 +259,9 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
     function checkBoosting()
         app.selectPage('generic'); page = app.page('generic');
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1', 'Y2'});
-        names = fieldnames(page.Regressors);
-        for index = 1:numel(names), page.Regressors.(names{index}).Value = false; end
+        % 「names」は確認の名前の一覧（親の変数）なので、別の名前にする（入れ子の関数は親の変数を共有する）。
+        regressor_names = fieldnames(page.Regressors);
+        for index = 1:numel(regressor_names), page.Regressors.(regressor_names{index}).Value = false; end
         for name = {'ebm', 'xgboost', 'lightgbm', 'catboost'}, page.Regressors.(name{1}).Value = true; end
         page.Regressors.catboost.ValueChangedFcn([], []);
         % XGBoost だけ 2×2 のグリッドサーチ、他は既定の値で学習する。
@@ -339,8 +351,9 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(any(strcmp(page.Kernels.Items, 'additive')) && ~isempty(page.Qualitative), 'Pro版の汎用回帰に加法カーネルと質的変数の欄がありません。');
         % 加法カーネルと PLS（VIP）を Generic サンプルで学習する。
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1'});
-        names = fieldnames(page.Regressors);
-        for index = 1:numel(names), page.Regressors.(names{index}).Value = false; end
+        % 「names」は確認の名前の一覧（親の変数）なので、別の名前にする（入れ子の関数は親の変数を共有する）。
+        regressor_names = fieldnames(page.Regressors);
+        for index = 1:numel(regressor_names), page.Regressors.(regressor_names{index}).Value = false; end
         page.Regressors.gpr.Value = true; page.Regressors.pls.Value = true; page.Regressors.pls.ValueChangedFcn([], []);
         page.Kernels.Value = {'additive'}; page.Kernels.ValueChangedFcn([], []); page.ComputeShap.Value = false;
         before = numel(page.Records); page.runModeling(); added = page.Records(before + 1:end);
@@ -375,7 +388,24 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
     end
     function checkSobol()
         app.selectPage('sobol'); page = app.page('sobol');
-        [~, ids] = app.Models.list(); page.selectModel(ids(end));
+        % データから：APC サンプルの CD_X を出力に、4列を入力にして、代替モデル（GPR）で求める。
+        page.selectSource('data'); page.Source.open(sample, 'APC', 1); page.selectColumns('CD_X', {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'});
+        page.SampleSize.Value = 256; page.run();
+        indices = page.Result.tableData(page.TABLE_INDICES); fit = page.Result.tableData(page.TABLE_SURROGATE);
+        assert(height(indices) == 4 && ismember('S1_データから直接', indices.Properties.VariableNames), 'データからの Sobol 指数の表が不正です。');
+        [~, top] = max(indices.ST); assert(indices.("説明変数")(top) == "RESIST_TH", '最も効く入力は RESIST_TH のはずです。');
+        assert(fit.R2(1) > 0.9, '代替モデルの交差検証 R² が低すぎます（%.3f）。', fit.R2(1));
+        summary = page.Result.tableData(page.TABLE_DISTRIBUTION);
+        assert(all(ismember(["平均"; "最頻値（密度の山の頂点）"; "95%区間の下限（2.5%点）"; "平均 ± 3σ"], summary.("項目"))), '予測値の分布の統計が足りません。');
+        % 保存モデルで：ボタンで切り替え、学習済み MAT（APC で保存）を開いて求める。続いて起動中のモデル（質的変数あり）でも求める。
+        page.SourceButtons.model.Value = true; page.SourceButtons.model.ValueChangedFcn(page.SourceButtons.model, []);
+        assert(strcmp(page.SourceKind, 'model') && page.ModelPanel.Visible && ~page.DataPanel.Visible && ~page.SourceButtons.data.Value, ...
+            '「保存モデルで」のボタンでモデルの欄に切り替わりません。');
+        [~, ids] = app.Models.list(); qualitative_model = ids(end); page.openModel(apc_path);
+        assert(size(page.Ranges.Data, 1) == 4, 'MAT のモデルの入力が範囲の表に出ません。');
+        page.SampleSize.Value = 256; page.run();
+        assert(height(page.Result.tableData(page.TABLE_INDICES)) == 4, 'MAT のモデルで Sobol 指数を求められません。');
+        page.selectModel(qualitative_model);
         assert(strcmp(page.Ranges.Data{3, 2}, '質的') && page.Ranges.Data{3, 4} == 6, '質的変数（Lot）の範囲が水準の番号になっていません。');
         page.SampleSize.Value = 256; page.run();
         indices = page.Result.tableData(page.TABLE_INDICES);
@@ -428,6 +458,35 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         chart = page.Result.validCharts(); chart = chart{1};
         assert(strcmp(chart.Shape, 'rectangle') && size(chart.Color, 1) > 1, 'ワードクラウドの形・色が反映されていません。');
         page.setStyle(struct('Shape', 'oval', 'Scheme', 'single', 'BaseColor', 3)); page.run();
+        % 英語のよく使う語（I・we・it・be 動詞など）と、追加で指定した語を除く。
+        page.Text.Value = {'I think it is good and we are happy. It was a fine process. Process model data'};
+        page.setExclusion(true, 'data'); page.run();
+        words = page.Result.tableData(page.TABLE_WORDS).Word;
+        assert(~any(ismember(["it"; "is"; "we"; "are"; "was"; "and"; "data"], words)) && any(words == "process"), '除く語が除かれていません: %s', strjoin(words, ', '));
+        page.setExclusion(false, ''); page.run();
+        assert(any(page.Result.tableData(page.TABLE_WORDS).Word == "it"), '除く語を外すと it を数えるはずです。');
+    end
+    function checkCopula()
+        app.selectPage('copula'); page = app.page('copula');
+        % データの関係をまねる：APC サンプルの3列。生成した乱数の順位相関が元のデータに近い。
+        page.selectMode('data'); page.Source.open(sample, 'APC', 1); page.selectColumns({'SIN_TH', 'RESIST_TH', 'CD_X'});
+        page.SampleCount.Value = 3000; page.run();
+        dependence = page.Result.tableData(page.TABLE_DEPENDENCE);
+        assert(height(dependence) == 3 && max(abs(dependence{:, 4} - dependence{:, 3})) < 0.08, 'データの関係を保てていません。');
+        assert(height(page.Result.tableData(page.TABLE_SAMPLES)) == 3000, '生成した乱数の行数が違います。');
+        csv = fullfile(work, 'copula.csv'); page.Result.showTable(page.TABLE_SAMPLES); page.Result.exportTableTo(csv);
+        assert(height(readtable(csv)) == 3000, '生成した乱数を CSV に保存できません。');
+        % 関係を指定して作る（データなし）：Spearman ρ を指定し、生成した乱数で確かめる。
+        page.selectMode('spec');
+        page.setSpec({'A', '正規', 0, 1, []; 'B', '一様', 0, 10, []; 'C', '対数正規', 0, 0.5, []}, [1, 0.6, 0.2; 0.6, 1, 0.4; 0.2, 0.4, 1], 'spearman');
+        page.SampleCount.Value = 5000; page.run();
+        dependence = page.Result.tableData(page.TABLE_DEPENDENCE);
+        assert(max(abs(dependence{:, 6} - dependence{:, 5})) < 0.05, '指定した順位相関になっていません。');
+        samples = page.Result.tableData(page.TABLE_SAMPLES);
+        assert(all(samples.B >= 0 & samples.B <= 10) && all(samples.C > 0), '指定した周辺分布の範囲になっていません。');
+        % 実現できない相関の組み合わせは、分かる言葉で止める。
+        page.setSpec({'A', '正規', 0, 1, []; 'B', '正規', 0, 1, []; 'C', '正規', 0, 1, []}, [1, 0.9, -0.9; 0.9, 1, 0.9; -0.9, 0.9, 1], 'kendall');
+        expectAlert(@() page.run(), '実現できません');
     end
     function checkSettings()
         app.selectPage('settings'); page = app.page('settings');
@@ -507,12 +566,19 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(~any(strcmp(standard.Navigation.Keys, 'words')), '通常版のメニューにワードクラウドがあります。');
         settings_button = standard.Navigation.Buttons{strcmp(standard.Navigation.Keys, 'settings')};
         assert(strcmp(settings_button.Text, '7 設定'), '通常版の設定の番号が違います: %s', settings_button.Text);
-        assert(~any(ismember({'sobol', 'causal', 'bayes', 'shap'}, standard.Navigation.Keys)), '通常版のメニューに Pro 版の画面か古い SHAP 解析の画面があります。');
+        assert(~any(ismember({'sobol', 'causal', 'bayes', 'copula', 'shap'}, standard.Navigation.Keys)), '通常版のメニューに Pro 版の画面か古い SHAP 解析の画面があります。');
         standard_generic = standard.page('generic');
         assert(~any(strcmp(standard_generic.Kernels.Items, 'additive')) && isempty(standard_generic.Qualitative), '通常版に加法カーネルか質的変数の欄があります。');
         % データのグラフは単変量の傾向だけ、汎用回帰は5方式（木の本数欄あり、ハイパーパラメータ欄なし）。
-        explorer = standard.page('apc').Explorer;
-        assert(isequal(explorer.Kind.ItemsData, {'trend'}), '通常版のグラフに Pro 版の種類があります。');
+        % 通常版のグラフは単変量の傾向だけで、グラフの種類・列・群の分け方・群の数の欄を出さない。
+        standard_apc = standard.page('apc'); explorer = standard_apc.Explorer;
+        assert(isempty(explorer.Kind) && isempty(explorer.Columns) && isempty(explorer.ClusterMethod) && isempty(explorer.ClusterCount), ...
+            '通常版のグラフにグラフの種類・列・群の欄があります。');
+        labels = {findobj(explorer.XAxis.Parent, 'Type', 'uilabel').Text};
+        assert(~any(contains(labels, {'群の', 'グラフ（', '列（'})), '通常版のグラフに使わない欄の名前があります。');
+        standard_apc.openSample();
+        explorer.configure(struct('X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot')); explorer.draw();
+        assert(any(strcmp(explorer.chartNames(), 'CD_X の傾向')), '通常版で単変量の傾向を描けません。');
         generic = standard.page('generic');
         assert(isequal(fieldnames(generic.Regressors)', {'gpr', 'linear', 'pls', 'forest', 'bagging'}) && isempty(generic.Hyper) && ~isempty(generic.TreeCount), ...
             '通常版の汎用回帰に Pro 版の方式があります。');

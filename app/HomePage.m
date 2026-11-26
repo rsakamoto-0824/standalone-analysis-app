@@ -10,9 +10,10 @@ classdef HomePage < AppPage
             'generic', '任意の列でGPR・重回帰・PLS・ランダムフォレスト・バギング木を学習して比べます。Permutation Importance・VIPで変数の効き方も確認できます。'
             'furnace', 'LP-CVDのBoatSlotごとの膜厚・屈折率を、計測済みSlotから補間します（Runごと）。'
             'predict', '保存したMAT、または学習直後のモデルで新しいデータを推定し、どのモデルでもSHAPの分布と依存図を確認します。'
-            'sobol',   '保存モデルの各説明変数が予測のばらつきにどれだけ効くかを、Sobol感度解析（1次・全効果）で調べます。'
+            'sobol',   'Excel / CSV のデータ（または保存モデル）で、各入力が出力のばらつきにどれだけ効くかを、Sobol感度解析（1次・全効果）で調べます。'
             'causal',  'データの列どうしの因果の向きの候補を、PCアルゴリズムまたはDirectLiNGAMで推定し、グラフで表示します。'
             'bayes',   'グループ（ロット・装置など）ごとの回帰係数を、全体の傾向に引き寄せて推定する階層ベイズモデルを当てはめます。'
+            'copula',  'データの列どうしの関係（またはご自分で指定した分布と順位相関）を保った乱数を、コピュラで作ります。'
             'doe',     'D最適・I最適・直交表の計画と、D効率・I基準などの評価指標、交絡の確認ができます。'
             'words',   '文章中の単語の出現数を図にします。形や色を変えられます。'}
         PRO_DOE_TEXT = 'D最適・I最適・直交表・既存計画への追加と、D効率・I基準などの評価指標、交絡の確認ができます。'
@@ -45,7 +46,9 @@ classdef HomePage < AppPage
             row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {page.BUTTON_WIDTH, page.BUTTON_WIDTH, '1x'};
             uibutton(row, 'Text', [AnalysisController.settingsTitle(app.Edition) 'を開く'], 'ButtonPushedFcn', @(~, ~) app.selectPage('settings'));
             uibutton(row, 'Text', [AnalysisController.helpTitle(app.Edition) '（用語・手順）を開く'], 'ButtonPushedFcn', @(~, ~) app.selectPage('help'));
-            uilabel(row, 'Text', '同梱のサンプルデータは、各学習画面の「サンプルデータを開く」から試せます。', 'WordWrap', 'on');
+            sample_text = '同梱のサンプルデータは、各学習画面の「サンプルデータを開く」から試せます。';
+            if ~strcmp(app.Edition, 'pro'), sample_text = 'サンプルデータ（別に配るブック）は、各学習画面の「サンプルデータを開く」で選んで試せます。'; end
+            uilabel(row, 'Text', sample_text, 'WordWrap', 'on');
             notice = app.releaseNotice();
             if ~isempty(notice), page.message(notice); end
             page.message('左のメニュー、または上のボタンから機能を選びます。');

@@ -13,21 +13,24 @@
 | 3 汎用回帰学習 | 任意の列で GPR・重回帰・PLS・ランダムフォレスト・バギング木を学習して比較。Pro 版は EBM（GA2M）・XGBoost・LightGBM・CatBoost も選べ、ハイパーパラメータの調整とグリッド／ランダムサーチ（推移と傾向のグラフ）ができる。結果の一覧は目的変数ごとに精度の順位で並ぶ。Permutation Importance と VIP（PLS）で変数重要度を表示。Pro 版の GPR は加法カーネルと質的変数にも対応 |
 | 4 炉内補間 | LP-CVD の BoatSlot ごとの膜厚・屈折率を、成膜Run（バッチ）ごとに補間。検証RMSEは目的変数ごとの棒グラフで並べる |
 | 5 保存モデルで推定・SHAP | 保存したMAT、または学習直後のモデルで推定・評価し、どのモデルでも SHAP の分布と依存図を表示（以前の「保存モデルで推定」と「SHAP 解析」を統合） |
-| 6 Sobol感度解析（Pro 版） | 保存モデルの各説明変数が予測のばらつきに効く割合（1次・全効果の指数） |
-| 7 因果探索（Pro 版） | PC アルゴリズムまたは DirectLiNGAM で、列どうしの因果の向きの候補をグラフ表示 |
+| 6 Sobol感度解析（Pro 版） | Excel / CSV のデータ（代替モデル GPR・ランダムフォレスト）または保存モデルで、各入力が出力のばらつきに効く割合（1次・全効果の指数）。予測値の分布の平均・最頻値・95%区間・±nσ も表示 |
+| 7 因果探索（Pro 版） | PC アルゴリズムまたは DirectLiNGAM で、列（最大50列）どうしの因果の向きの候補をグラフ表示 |
 | 8 階層ベイズ（Pro 版） | グループ（ロット・装置など）ごとの回帰係数を、全体の傾向へ引き寄せて推定（ギブスサンプリング） |
-| 9 実験計画作成（通常版は6） | D最適・I最適・直交表（2〜5水準）、D効率・A効率・I基準・G効率・VIF などの評価指標と予測分散の分布、交絡の確認。既存計画への追加（拡張計画）は Pro 版だけ |
-| 10 ワードクラウド（Pro 版） | 文章中の単語の出現数を図示。形と色を変えられる |
-| 11 設定 / 12 Help（通常版は 7・8） | 保存先・テーマ・文字の大きさ・学習条件の初期値、版ごとの用語と操作の説明 |
+| 9 コピュラ乱数生成（Pro 版） | データの列どうしの関係（またはご自分で指定した分布と順位相関）を保った乱数を、コピュラ（ガウス・t・Clayton・Frank・Gumbel）で生成 |
+| 10 実験計画作成（通常版は6） | D最適・I最適・直交表（2〜5水準）、D効率・A効率・I基準・G効率・VIF などの評価指標と予測分散の分布、交絡の確認。既存計画への追加（拡張計画）は Pro 版だけ |
+| 11 ワードクラウド（Pro 版） | 文章中の単語の出現数を図示。形と色を変えられ、英語のよく使う語（I・we・it・be 動詞など）や指定した語を除ける |
+| 12 設定 / 13 Help（通常版は 7・8） | 保存先・テーマ・文字の大きさ・学習条件の初期値、版ごとの用語と操作の説明 |
 
 ## 現在の状態（2026-11-17）
 
 - **2026-11-17**：Swing Curve の基準周期を「波長÷屈折率÷2」（約70nm）に修正し、SHAP 依存図の色の変数の選択、モデリングの進捗バー、実測値と予測値・残差の横並び表示、予測・残差・SHAP の1ファイル出力、[利用者向け手順書](docs/user-guide/user-manual.html)を追加しました。同梱サンプルの合成データも新しい周期で計算し直しています。
 - **画面を作り直しました（2026-11-16）。** 学習画面は上のタブを左から「① データを開く → ② 変数を選ぶ → ③ 条件を決めて実行 → ④ 結果を比べて保存」の順に進みます。変更の内容と理由は[更新仕様](docs/ui-update.md)の「2026-11-16：画面の作り直し」を参照してください。
 - **2026-11-20**：学習画面の①にデータのグラフ（Pro 版は9種類）、Pro 版の汎用回帰に EBM・XGBoost・LightGBM・CatBoost とハイパーパラメータの探索、実験計画の評価指標を追加し、結果の一覧を目的変数ごとに精度の順位で並べるようにしました。ワードクラウドは Pro 版だけにし、形と色を変えられるようにしました。XGBoost などは各ライブラリそのものではなく、考え方を MATLAB で実装したものです（[更新仕様](docs/ui-update.md)）。
+- **2026-11-26**：通常版の「グラフで傾向を見る」からグラフの種類・列・群の分け方・群の数の欄を外しました（単変量の傾向だけ）。通常版のインストーラーにはサンプルと手順書を入れず、別に配るようにしました（サンプルは `samples/separate/standard`。「サンプルデータを開く」で配られたブックを選びます）。ビルドのテストは通常版では Pro 版だけの機能のテストを除き、`build_windows(版, 'Tests', false)` でテストを省いてすぐビルドできます。Sobol感度解析の「データから／保存モデルで」を2つのボタンで選ぶようにしました。
+- **2026-11-25（2）**：Sobol感度解析を「データを解析する」へ移し、Excel / CSV のデータから解析できるようにしました（予測値の分布の統計も追加）。「グラフで傾向を見る」は種類を複数選んで一括で描け、描いた結果を残して追加するようにしました。Parallel Sets・Sankey は任意の列で色を付けられます。ワードクラウドに除く語、因果探索の列の上限を50に、Pro 版にコピュラ乱数生成を追加しました（メニューの番号が変わりました）。
 - **2026-11-25**：通常版を MATLAB のない PC で使うと Excel の読込みが「Implementation Error: cannot call this method before validating "Filename"」で止まる問題に対策しました（Excel・CSV を MATLAB の readcell・readtable を使わずに直接読む）。インストーラーに入れるサンプルを `samples/installer/standard`・`samples/installer/pro` に分け、通常版にはワードクラウド・拡張計画のサンプルと手順書（docs）を入れないようにしました。サンプルの置き換え方は [Windows での確認・ビルド手順](docs/windows-build.md) と[ビルド手順書](docs/user-guide/build-guide.html)にあります。
 - **2026-11-20（2）**：「保存モデルで推定」と「SHAP 解析」を1つの画面にし、どのモデルでも SHAP 依存図を表示するようにしました。炉内補間の検証RMSEを目的変数ごとの棒グラフに分け、汎用回帰に Permutation Importance と VIP を追加しました。Pro 版に GPR の加法カーネル・質的変数、Sobol感度解析・因果探索・階層ベイズの画面を追加しました（メニューの番号が変わりました。通常版は 5 推定・SHAP、6 実験計画、7 設定、8 Help）。
-- 手元の MATLAB R2022b（macOS）では、開発用の例外で起動して、同梱サンプルで全機能を通す確認（22項目）と単体テストに成功しています（件数は [検証記録](verification.md)）。
+- 手元の MATLAB R2022b（macOS）では、開発用の例外で起動して、同梱サンプルで全機能を通す確認（23項目）と単体テストに成功しています（件数は [検証記録](verification.md)）。
 - **MATLAB R2025b / Windows での確認、SHAP の実計算、インストーラーの作成、MATLAB のない PC へのインストールと起動の確認は未実施です。** [Windows での確認・ビルド手順](docs/windows-build.md)に従って確認してください。
 - 製品アプリと学習処理は R2025b 以外では停止します。
 
@@ -51,11 +54,12 @@ setup_paths;
 controller = launch_analysis_app;      % アプリを起動（Pro版の画面は launch_analysis_app('pro')）
 
 addpath('tests');
-results = run_app_flow_check;          % 同梱サンプルで全機能を通す確認（22項目、数分）
+results = run_app_flow_check;          % 同梱サンプルで全機能を通す確認（23項目、数分）
 results = run_tests;                   % 全単体テスト。失敗時はエラー
+results = run_tests('standard');       % 通常版で使う機能のテストだけ（Pro 版だけの機能のテストを除く）
 ```
 
-配布用のインストーラー（MATLAB Runtime を同梱）は `build_windows('standard')` / `build_windows('pro')` で作成します。入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。exe と同じフォルダに、サンプル（`samples`）と手順書（`docs\user-guide`）も置きます。手順は[ビルド手順書](docs/user-guide/build-guide.html)を参照してください。
+配布用のインストーラー（MATLAB Runtime を同梱）は `build_windows('standard')` / `build_windows('pro')` で作成します。入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。Pro 版は exe と同じフォルダとインストーラーに、サンプル（`samples`）と手順書（`docs\user-guide`）も入れます。通常版はアプリだけで、サンプルと手順書は別に配ります。テストを省いてすぐビルドするときは `build_windows('standard', 'Tests', false)` とします。手順は[ビルド手順書](docs/user-guide/build-guide.html)を参照してください。
 
 ## 基本操作（学習：1〜3）
 
@@ -80,9 +84,9 @@ results = run_tests;                   % 全単体テスト。失敗時はエラ
 
 ## 通常版／Pro版
 
-`build_windows('standard')` は `build/windows/standard/ProcessInsightTool.exe`、`build_windows('pro')` は `build/windows/pro/ProcessInsightToolPro.exe` を作成します。通常版の隔離ソースには Pro 専用の近似・評価7ファイルを入れず、版の設定をコンパイル前に固定します。起動後に版を切り替える機能はありません。
+`build_windows('standard')` は `build/windows/standard/ProcessInsightTool.exe`、`build_windows('pro')` は `build/windows/pro/ProcessInsightToolPro.exe` を作成します。通常版の隔離ソースには Pro 専用の35ファイルを入れず、版の設定をコンパイル前に固定します。起動後に版を切り替える機能はありません。
 
-通常版は SHAP 分布（標準の swarmchart）と依存図まで利用できます。レジスト膜厚の SHAP 値へのフィッティング（三角関数・スプライン）、極値、山間／谷間の傾き、近似残差の診断、実験計画の拡張（既存の計画への追加）は Pro 版に限定します。「10 Help」も版ごとの内容で、通常版には Pro 版だけの説明と作成担当者向け手順書のボタンを出しません。通常版の exe に入れる手順書は利用者向けの `user-manual.html` だけです。APC 学習画面には、Pro 版でも Swing Curve 評価を表示しません。これらは SHAP 寄与の評価であり、物理的なバルク効果を証明するものではありません。計算方式は[更新仕様](docs/ui-update.md)を参照してください。
+通常版は SHAP 分布（標準の swarmchart）と依存図まで利用できます。レジスト膜厚の SHAP 値へのフィッティング（三角関数・スプライン）、極値、山間／谷間の傾き、近似残差の診断、実験計画の拡張（既存の計画への追加）は Pro 版に限定します。「10 Help」も版ごとの内容で、通常版には Pro 版だけの説明と作成担当者向け手順書のボタンを出しません。通常版の exe とインストーラーにはサンプルも手順書も入れません（別に配ります）。APC 学習画面には、Pro 版でも Swing Curve 評価を表示しません。これらは SHAP 寄与の評価であり、物理的なバルク効果を証明するものではありません。計算方式は[更新仕様](docs/ui-update.md)を参照してください。
 
 ## Swing Curve学習の周期カーネル
 
@@ -160,7 +164,7 @@ comparison = compare_models('old.mat', 'new.mat', Xcheck);
 
 ## 評価用サンプル
 
-[samples/ProcessInsight_Samples.xlsx](samples/ProcessInsight_Samples.xlsx)に、使い方とAPC、Swing Curveの2モード、汎用回帰、推定・SHAP、複数Runの炉内補間、拡張計画、単語の9シートを用意しています。すべて合成データです。データシートのヘッダー行は1です。学習画面と炉内補間の「サンプルデータを開く」から直接開けます。[サンプルの使い方](samples/README.md)を参照してください。
+[samples/ProcessInsight_Samples.xlsx](samples/ProcessInsight_Samples.xlsx)に、使い方とAPC、Swing Curveの2モード、汎用回帰、推定・SHAP、複数Runの炉内補間、拡張計画、単語の9シートを用意しています。すべて合成データです。データシートのヘッダー行は1です。学習画面と炉内補間の「サンプルデータを開く」から直接開けます（通常版はサンプルを同梱しないため、別に配った `samples/separate/standard` のブックを選びます）。[サンプルの使い方](samples/README.md)を参照してください。
 
 ## 開発・レビュー用の文書
 

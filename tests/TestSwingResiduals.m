@@ -1,4 +1,4 @@
-classdef TestSwingResiduals < matlab.unittest.TestCase
+classdef (TestTags = {'Pro'}) TestSwingResiduals < matlab.unittest.TestCase
     methods (TestClassSetup)
         function paths(testCase)
             root = fileparts(fileparts(mfilename('fullpath')));

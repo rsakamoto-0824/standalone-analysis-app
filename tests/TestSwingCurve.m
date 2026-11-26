@@ -1,4 +1,4 @@
-classdef TestSwingCurve < matlab.unittest.TestCase
+classdef (TestTags = {'Pro'}) TestSwingCurve < matlab.unittest.TestCase
     methods (TestClassSetup)
         function paths(testCase)
             root = fileparts(fileparts(mfilename('fullpath')));

@@ -5,9 +5,11 @@ function result = calc_sobol_indices(predictor, lower, upper, names, options)
 %   全効果の指数 ST：ほかの変数との組み合わせ（交互作用）も含めた割合（Jansen の推定式）
 % 標本は準乱数（スクランブルした Sobol 列）で作り、信頼区間はブートストラップ（行の復元抽出）の 2.5〜97.5% 点。
 % options：SampleSize（基本の標本数 N、予測の回数は N×(説明変数の数+2)）、Bootstrap（回数）、Seed、
-%          Categorical（質的変数の列。論理ベクトル）と LevelCounts（各列の水準数。質的変数は 1〜水準数 の整数から一様に選ぶ）。
+%          Categorical（質的変数の列。論理ベクトル）と LevelCounts（各列の水準数。質的変数は 1〜水準数 の整数から一様に選ぶ）、
+%          Marginals（省略可。列ごとのデータの値の cell。空でない列は一様分布の代わりにデータの分布〈経験分布の分位点〉から取る）。
 count = numel(lower);
-defaults = struct('SampleSize', 1024, 'Bootstrap', 200, 'Seed', 0, 'Categorical', false(1, count), 'LevelCounts', zeros(1, count));
+defaults = struct('SampleSize', 1024, 'Bootstrap', 200, 'Seed', 0, 'Categorical', false(1, count), 'LevelCounts', zeros(1, count), ...
+    'Marginals', {cell(1, count)});
 names_given = fieldnames(options);
 for index = 1:numel(names_given), defaults.(names_given{index}) = options.(names_given{index}); end
 options = defaults; lower = double(lower(:)'); upper = double(upper(:)');
@@ -20,8 +22,8 @@ N = options.SampleSize; categorical = logical(options.Categorical(:)');
 previous = rng; restore = onCleanup(@() rng(previous)); rng(options.Seed, 'twister');
 points = scramble(sobolset(2 * count, 'Skip', 1), 'MatousekAffineOwen');
 unit = net(points, N);
-A = scaleSample(unit(:, 1:count), lower, upper, categorical, options.LevelCounts);
-B = scaleSample(unit(:, count + 1:end), lower, upper, categorical, options.LevelCounts);
+A = scaleSample(unit(:, 1:count), lower, upper, categorical, options.LevelCounts, options.Marginals);
+B = scaleSample(unit(:, count + 1:end), lower, upper, categorical, options.LevelCounts, options.Marginals);
 fA = evaluate(A); fB = evaluate(B); fAB = zeros(N, count);
 for column = 1:count
     AB = A; AB(:, column) = B(:, column); fAB(:, column) = evaluate(AB);
@@ -55,8 +57,13 @@ clear restore;
     end
 end
 
-function sample = scaleSample(unit, lower, upper, categorical, level_counts)
+function sample = scaleSample(unit, lower, upper, categorical, level_counts, marginals)
 sample = lower + unit .* (upper - lower);
+for column = find(~cellfun(@isempty, marginals))
+    % データの分布：その列の値の分位点を使う（範囲は [下限, 上限] に収める）。
+    values = sort(marginals{column}(isfinite(marginals{column}))); values = values(:);
+    sample(:, column) = min(max(interp1(linspace(0, 1, numel(values))', values, unit(:, column)), lower(column)), upper(column));
+end
 for column = find(categorical)
     % 質的変数は水準の番号（1〜水準数）から一様に選ぶ。
     sample(:, column) = min(level_counts(column), floor(unit(:, column) * level_counts(column)) + 1);

@@ -43,6 +43,9 @@ classdef TestFlexibleSwingModel < matlab.unittest.TestCase
             file = fullfile(fixture.Folder,default_model_filename('swing')); save_train_model(model,file);
             check = verify_saved_model(file,model,'swing'); testCase.verifyTrue(check.Success);
         end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function singlePredictorPeriodicAndComparison(testCase)
             x = linspace(800,1250,24)'; y = sin(2*pi*x/140)+0.001*x;
             options = swing_period_options(248,1.77,[135,145]);

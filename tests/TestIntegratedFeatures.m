@@ -67,17 +67,6 @@ classdef TestIntegratedFeatures < matlab.unittest.TestCase
             moments = [1, 0, 1/3; 0, 1/3, 0; 1/3, 0, 1/5];
             testCase.verifyEqual(details.Criterion, trace((matrix' * matrix) \ moments), 'AbsTol', 1e-12);
         end
-        function augmentationPreservesExistingPointsAndRandomState(testCase)
-            existing = [-1, -1; 0.2, 0.3; 1, 1]; previous = rng;
-            for method = {'D', 'I'}
-                [design, details] = create_experiment_design(method{1}, 2, 6, 42, 'quadratic', 3, existing);
-                testCase.verifyEqual(design(1:3, :), existing);
-                testCase.verifyEqual(size(design), [9, 2]); testCase.verifyEqual(details.FixedRows, 3);
-                testCase.verifyEqual(rank(doe_model_matrix(design, 'quadratic')), 6);
-                testCase.verifyEqual(create_experiment_design(method{1}, 2, 6, 42, 'quadratic', 3, existing), design);
-            end
-            testCase.verifyEqual(rng, previous);
-        end
         function aliasDiagnosticsExposePairAndMultipleTermDependencies(testCase)
             design = create_experiment_design('orthogonal', 3, 4, 42, 'linear', 2);
             report = design_diagnostics(design, 'linear');
@@ -91,6 +80,20 @@ classdef TestIntegratedFeatures < matlab.unittest.TestCase
         function insufficientRunsStopBeforeOptimization(testCase)
             testCase.verifyError(@() create_experiment_design('I', 3, 9, 42, 'quadratic', 3), 'doe:tooFewRuns');
             testCase.verifyError(@() create_experiment_design('D', 2, 10, 42, 'quadratic', 3, zeros(2, 1)), 'doe:columns');
+        end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
+        function augmentationPreservesExistingPointsAndRandomState(testCase)
+            existing = [-1, -1; 0.2, 0.3; 1, 1]; previous = rng;
+            for method = {'D', 'I'}
+                [design, details] = create_experiment_design(method{1}, 2, 6, 42, 'quadratic', 3, existing);
+                testCase.verifyEqual(design(1:3, :), existing);
+                testCase.verifyEqual(size(design), [9, 2]); testCase.verifyEqual(details.FixedRows, 3);
+                testCase.verifyEqual(rank(doe_model_matrix(design, 'quadratic')), 6);
+                testCase.verifyEqual(create_experiment_design(method{1}, 2, 6, 42, 'quadratic', 3, existing), design);
+            end
+            testCase.verifyEqual(rng, previous);
         end
     end
 end

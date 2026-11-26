@@ -3,7 +3,7 @@ function capture_app_screens(edition, only)
 %   capture_app_screens            配布版（通常版）の画面を撮る（利用手順書・ビルド利用手順書で使用）
 %   capture_app_screens('pro', {'56-conditions-swing', '60-period-search', '70-expanded-pro-fit', '78-doe-pro', ...
 %       '81-data-pro-sets', '82-data-pro-pca', '83-conditions-generic-pro', '84-search-results', '85-ebm-shapes', '66-wordcloud', ...
-%       '88-variables-qualitative', '89-sobol', '90-causal', '91-bayes'})
+%       '88-variables-qualitative', '89-sobol', '90-causal', '91-bayes', '92-copula'})
 %                                  Pro版だけの画面（swingperiodic・周期の探索範囲・カーブ評価・拡張計画・データのグラフ・
 %                                  ブースティングとハイパーパラメータ探索・ワードクラウド）を撮る。only に名前を渡すと、その画像だけ保存する
 % 利用環境は Windows のため、Mac 特有の表示を画像に含めない。
@@ -41,7 +41,7 @@ app.selectPage('apc'); apc = app.page('apc'); apc.openSample(); snap('51-data-st
 apc.DataTabs.SelectedTab = apc.DataTabs.Children(2); explorer = apc.Explorer;
 explorer.configure(struct('Kind', 'trend', 'X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot')); explorer.draw(); snap('80-data-trend');
 if strcmp(edition, 'pro')
-    explorer.configure(struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}})); explorer.draw(); snap('81-data-pro-sets');
+    explorer.configure(struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', 'RESIST_TH', 'ColorMode', 'numeric')); explorer.draw(); snap('81-data-pro-sets');
     explorer.configure(struct('Kind', 'pca', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'Color', 'Lot', 'ColorMode', 'auto'));
     explorer.draw(); snap('82-data-pro-pca');
 end
@@ -135,11 +135,15 @@ if strcmp(edition, 'pro')
     for name = fieldnames(generic.Regressors)', generic.Regressors.(name{1}).Value = false; end
     generic.Regressors.gpr.Value = true; generic.Kernels.Value = {'additive'}; generic.Kernels.ValueChangedFcn([], []);
     generic.ComputeShap.Value = false; generic.runModeling();
-    app.selectPage('sobol'); sobol = app.page('sobol'); [~, ids] = app.Models.list(); sobol.selectModel(ids(end)); sobol.run(); snap('89-sobol');
+    app.selectPage('sobol'); sobol = app.page('sobol'); sobol.selectSource('data'); sobol.Source.open(sample, 'APC', 1);
+    sobol.selectColumns('CD_X', {'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}); sobol.run(); snap('89-sobol');
     app.selectPage('causal'); causal = app.page('causal'); causal.Source.open(sample, 'APC', 1);
     causal.selectColumns({'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH', 'CD_X'}); causal.Method.Value = 'lingam'; causal.run(); snap('90-causal');
     app.selectPage('bayes'); bayes = app.page('bayes'); bayes.Source.open(sample, 'APC', 1);
     bayes.selectColumns('CD_X', {'RESIST_TH'}, 'Lot'); bayes.run(); snap('91-bayes');
+    app.selectPage('copula'); copula = app.page('copula'); copula.selectMode('spec');
+    copula.setSpec({'A', '正規', 0, 1, []; 'B', '一様', 0, 10, []; 'C', '対数正規', 0, 0.5, []}, [1, 0.6, 0.2; 0.6, 1, 0.4; 0.2, 0.4, 1], 'spearman');
+    copula.SampleCount.Value = 3000; copula.run(); snap('92-copula');
 end
 
 % --- 実験計画・ワードクラウド・設定・Help ---

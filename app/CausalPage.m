@@ -19,7 +19,8 @@ classdef CausalPage < AppPage
         LEFT_WIDTH = 440
         METHOD_NAMES = {'PCアルゴリズム（偏相関の検定。向きの決まらない辺も残す）', 'DirectLiNGAM（非正規性を使って向きと順序を決める）'}
         METHOD_CODES = {'pc', 'lingam'}
-        MAX_COLUMNS = 15
+        MAX_COLUMNS = 50
+        CIRCLE_LAYOUT_LIMIT = 12
         TABLE_EDGES = '因果の辺'
         TABLE_ORDER = '因果の順序'
         CHART_GRAPH = '因果グラフ'
@@ -44,7 +45,7 @@ classdef CausalPage < AppPage
             page.Method = uidropdown(grid, 'Items', page.METHOD_NAMES, 'ItemsData', page.METHOD_CODES, 'ValueChangedFcn', @(~, ~) page.refreshPlan());
             [~, page.Alpha] = AppPage.numberField(grid, '有意水準（辺を残す基準）', 0.05, [0.001, 0.5], false);
             [~, page.MaxConditioning] = AppPage.numberField(grid, 'PC：条件づける列の最大数', 3, [0, 10], true);
-            label = AppPage.hint(grid, '推定した向きは仮説です。因果関係の証明ではありません。未観測の共通原因があると誤った辺が出ることがあります。');
+            label = AppPage.hint(grid, '推定した向きは仮説です。因果関係の証明ではありません。未観測の共通原因があると誤った辺が出ることがあります。列が多いほど時間がかかります。');
             label.Layout.Column = [1, 2];
             page.Plan = AppPage.stateLabel(left);
             page.RunButton = AppPage.primaryButton(left, '④ 因果探索を実行', @(~, ~) page.run());
@@ -120,7 +121,9 @@ classdef CausalPage < AppPage
             [from, to] = find(drawn); weights = abs(report.Strength(sub2ind(size(adjacency), from, to)));
             graph = digraph(from, to, weights, numel(names));
             graph.Nodes.Name = cellstr(string(names(:)));
-            plot_handle = plot(ax, graph, 'Layout', 'circle', 'NodeColor', page.NODE_COLOR, 'MarkerSize', 9, 'NodeFontSize', 11, ...
+            % 列が多いと円の配置では重なるため、つながりで引き寄せる配置（force）にする。
+            layout = 'circle'; if numel(names) > page.CIRCLE_LAYOUT_LIMIT, layout = 'force'; end
+            plot_handle = plot(ax, graph, 'Layout', layout, 'NodeColor', page.NODE_COLOR, 'MarkerSize', 9, 'NodeFontSize', 11, ...
                 'EdgeColor', page.NODE_COLOR, 'ArrowSize', 12, 'Interpreter', 'none');
             if numedges(graph) > 0
                 % digraph は辺を並べ替えて持つため、表示する辺の順に元・先を取り直して書式を決める。

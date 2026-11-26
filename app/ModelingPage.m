@@ -237,7 +237,8 @@ classdef ModelingPage < AppPage
             end
         end
         function openSample(page)
-            path = page.App.resourcePath('samples', page.SAMPLE_FILE);
+            path = page.App.samplePath(page.SAMPLE_FILE);
+            if isempty(path), return; end
             if ~isfile(path)
                 page.showError(MException('modeling:noSample', 'サンプルファイルが見つかりません: %s', path)); return;
             end
@@ -266,7 +267,7 @@ classdef ModelingPage < AppPage
             row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {'1x', 190, 220};
             uilabel(row, 'Text', sprintf('表は先頭%d行の表示です。学習には全行を使用します。「グラフで傾向を見る」で列の傾向を確認できます。', DataSourceControl.PREVIEW_ROWS));
             uibutton(row, 'Text', 'サンプルデータを開く', 'ButtonPushedFcn', @(~, ~) page.openSample(), ...
-                'Tooltip', '同梱の合成データ（samples フォルダ）を開いて操作を試せます。');
+                'Tooltip', '合成データのサンプルを開いて操作を試せます（同梱していない版では、別に配ったブックを選びます）。');
             AppPage.primaryButton(row, '次へ：② 変数を選ぶ ▶', @(~, ~) page.goTo('Variables'));
         end
         function buildVariableStep(page)

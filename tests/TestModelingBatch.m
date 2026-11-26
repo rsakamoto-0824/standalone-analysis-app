@@ -104,6 +104,9 @@ classdef TestModelingBatch < matlab.unittest.TestCase
                 end
             end
         end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function optimalDesignsUseChosenGridAndKeepExistingPoints(testCase)
             existing=[-1,-1;0,0;1,1];
             for q=[4,5]

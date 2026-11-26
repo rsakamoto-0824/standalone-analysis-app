@@ -36,6 +36,9 @@ classdef TestKernelComparisonModel < matlab.unittest.TestCase
             rng(6, 'twister'); model = train_generic_gpr_model(testCase.Inputs(~held_out, :), testCase.Response(~held_out), 'matern32', 'exact');
             testCase.verifyEqual(report.OOFPredictions(held_out, 1), predict(model, testCase.Inputs(held_out, :)), 'AbsTol', 1e-10);
         end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function periodicKernelOptimizesInsideEachFold(testCase)
             thickness = linspace(0, 160, 25)'; X = [zeros(25, 3), thickness]; y = 50 + 2*sin(2*pi*thickness/40) + 0.01*thickness;
             report = compare_gpr_kernels('swing', X, y, {'matern32', 'swingperiodic'}, 'exact', 2, 0, 0);
