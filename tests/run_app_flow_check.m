@@ -34,7 +34,7 @@ step('Pro版のGPR：加法カーネル・質的変数（Lot）・変数重要�
 step('炉内補間：2Run・6方式・目的変数ごとの棒グラフ・保存', @checkFurnace);
 step('保存モデルで推定・SHAP：評価つき・SHAP依存図', @checkPredict);
 step('保存モデルで推定・SHAP：起動中のモデル・質的変数のモデル', @checkShapPage);
-step('Sobol感度解析：データ（代替モデル）と保存モデル・予測値の分布の統計', @checkSobol);
+step('Sobol感度解析：データ（代替モデル）と保存モデル（MAT・起動中）・予測値の分布の統計', @checkSobol);
 step('因果探索：PCアルゴリズムと DirectLiNGAM', @checkCausal);
 step('階層ベイズ：Lot ごとの切片と傾き', @checkBayes);
 step('コピュラ乱数生成：データの関係をまねる・関係を指定して作る', @checkCopula);
@@ -259,8 +259,9 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
     function checkBoosting()
         app.selectPage('generic'); page = app.page('generic');
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1', 'Y2'});
-        names = fieldnames(page.Regressors);
-        for index = 1:numel(names), page.Regressors.(names{index}).Value = false; end
+        % 「names」は確認の名前の一覧（親の変数）なので、別の名前にする（入れ子の関数は親の変数を共有する）。
+        regressor_names = fieldnames(page.Regressors);
+        for index = 1:numel(regressor_names), page.Regressors.(regressor_names{index}).Value = false; end
         for name = {'ebm', 'xgboost', 'lightgbm', 'catboost'}, page.Regressors.(name{1}).Value = true; end
         page.Regressors.catboost.ValueChangedFcn([], []);
         % XGBoost だけ 2×2 のグリッドサーチ、他は既定の値で学習する。
@@ -350,8 +351,9 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(any(strcmp(page.Kernels.Items, 'additive')) && ~isempty(page.Qualitative), 'Pro版の汎用回帰に加法カーネルと質的変数の欄がありません。');
         % 加法カーネルと PLS（VIP）を Generic サンプルで学習する。
         page.openSample(); page.selectPredictors({'X1', 'X2', 'X3'}); page.selectTargets({'Y1'});
-        names = fieldnames(page.Regressors);
-        for index = 1:numel(names), page.Regressors.(names{index}).Value = false; end
+        % 「names」は確認の名前の一覧（親の変数）なので、別の名前にする（入れ子の関数は親の変数を共有する）。
+        regressor_names = fieldnames(page.Regressors);
+        for index = 1:numel(regressor_names), page.Regressors.(regressor_names{index}).Value = false; end
         page.Regressors.gpr.Value = true; page.Regressors.pls.Value = true; page.Regressors.pls.ValueChangedFcn([], []);
         page.Kernels.Value = {'additive'}; page.Kernels.ValueChangedFcn([], []); page.ComputeShap.Value = false;
         before = numel(page.Records); page.runModeling(); added = page.Records(before + 1:end);
@@ -395,8 +397,15 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(fit.R2(1) > 0.9, '代替モデルの交差検証 R² が低すぎます（%.3f）。', fit.R2(1));
         summary = page.Result.tableData(page.TABLE_DISTRIBUTION);
         assert(all(ismember(["平均"; "最頻値（密度の山の頂点）"; "95%区間の下限（2.5%点）"; "平均 ± 3σ"], summary.("項目"))), '予測値の分布の統計が足りません。');
-        page.selectSource('model');
-        [~, ids] = app.Models.list(); page.selectModel(ids(end));
+        % 保存モデルで：ボタンで切り替え、学習済み MAT（APC で保存）を開いて求める。続いて起動中のモデル（質的変数あり）でも求める。
+        page.SourceButtons.model.Value = true; page.SourceButtons.model.ValueChangedFcn(page.SourceButtons.model, []);
+        assert(strcmp(page.SourceKind, 'model') && page.ModelPanel.Visible && ~page.DataPanel.Visible && ~page.SourceButtons.data.Value, ...
+            '「保存モデルで」のボタンでモデルの欄に切り替わりません。');
+        [~, ids] = app.Models.list(); qualitative_model = ids(end); page.openModel(apc_path);
+        assert(size(page.Ranges.Data, 1) == 4, 'MAT のモデルの入力が範囲の表に出ません。');
+        page.SampleSize.Value = 256; page.run();
+        assert(height(page.Result.tableData(page.TABLE_INDICES)) == 4, 'MAT のモデルで Sobol 指数を求められません。');
+        page.selectModel(qualitative_model);
         assert(strcmp(page.Ranges.Data{3, 2}, '質的') && page.Ranges.Data{3, 4} == 6, '質的変数（Lot）の範囲が水準の番号になっていません。');
         page.SampleSize.Value = 256; page.run();
         indices = page.Result.tableData(page.TABLE_INDICES);
@@ -561,8 +570,15 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         standard_generic = standard.page('generic');
         assert(~any(strcmp(standard_generic.Kernels.Items, 'additive')) && isempty(standard_generic.Qualitative), '通常版に加法カーネルか質的変数の欄があります。');
         % データのグラフは単変量の傾向だけ、汎用回帰は5方式（木の本数欄あり、ハイパーパラメータ欄なし）。
-        explorer = standard.page('apc').Explorer;
-        assert(isequal(explorer.Kind.ItemsData, {'trend'}), '通常版のグラフに Pro 版の種類があります。');
+        % 通常版のグラフは単変量の傾向だけで、グラフの種類・列・群の分け方・群の数の欄を出さない。
+        standard_apc = standard.page('apc'); explorer = standard_apc.Explorer;
+        assert(isempty(explorer.Kind) && isempty(explorer.Columns) && isempty(explorer.ClusterMethod) && isempty(explorer.ClusterCount), ...
+            '通常版のグラフにグラフの種類・列・群の欄があります。');
+        labels = {findobj(explorer.XAxis.Parent, 'Type', 'uilabel').Text};
+        assert(~any(contains(labels, {'群の', 'グラフ（', '列（'})), '通常版のグラフに使わない欄の名前があります。');
+        standard_apc.openSample();
+        explorer.configure(struct('X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot')); explorer.draw();
+        assert(any(strcmp(explorer.chartNames(), 'CD_X の傾向')), '通常版で単変量の傾向を描けません。');
         generic = standard.page('generic');
         assert(isequal(fieldnames(generic.Regressors)', {'gpr', 'linear', 'pls', 'forest', 'bagging'}) && isempty(generic.Hyper) && ~isempty(generic.TreeCount), ...
             '通常版の汎用回帰に Pro 版の方式があります。');

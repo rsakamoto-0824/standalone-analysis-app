@@ -6,7 +6,8 @@ classdef SobolPage < AppPage
     %   保存モデル           ：MAT または起動中に学習したモデルで求める（範囲の初期値は学習データの最小〜最大）。
     % 左で ① 対象 → ② 入力の範囲 → ③ 条件 → ④ 実行、右に結果を表示する。
     properties (SetAccess = private)
-        SourceKind
+        SourceKind = 'data'
+        SourceButtons
         DataPanel
         ModelPanel
         Source
@@ -35,8 +36,12 @@ classdef SobolPage < AppPage
         LEFT_WIDTH = 470
         NO_MODEL = 0
         NONE = '(未選択)'
-        SOURCE_NAMES = {'データ（Excel / CSV）から', '保存モデル（MAT・起動中のモデル）で'}
+        SOURCE_NAMES = {'データ（Excel / CSV）から', '保存モデル（MAT など）で'}
         SOURCE_CODES = {'data', 'model'}
+        SELECTED_COLOR = [0.12, 0.35, 0.58]
+        SELECTED_TEXT = [1, 1, 1]
+        UNSELECTED_COLOR = [0.82, 0.85, 0.89]
+        UNSELECTED_TEXT = [0.12, 0.17, 0.25]
         DISTRIBUTION_NAMES = {'データの分布（経験分布）', '一様（下限〜上限）'}
         DISTRIBUTION_CODES = {'empirical', 'uniform'}
         SURROGATE_NAMES = {'ガウス過程回帰（GPR、ARD）', 'ランダムフォレスト（200本）'}
@@ -60,10 +65,17 @@ classdef SobolPage < AppPage
             page@AppPage(app, parent);
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
             % 文字を大きくしても欄が切れないよう、各欄に固定の高さを持たせ、入りきらないときは左の列ごと上下にスクロールする。
-            left = uigridlayout(page.Body, [6, 1], 'Scrollable', 'on'); left.Padding = [0, 0, 6, 0]; left.RowHeight = {30, 236, 190, 250, 48, 40};
-            row = uigridlayout(left, [1, 2]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {110, '1x'};
-            uilabel(row, 'Text', '① 解析の対象', 'FontWeight', 'bold');
-            page.SourceKind = uidropdown(row, 'Items', page.SOURCE_NAMES, 'ItemsData', page.SOURCE_CODES, 'ValueChangedFcn', @(~, ~) page.sourceChanged());
+            left = uigridlayout(page.Body, [6, 1], 'Scrollable', 'on'); left.Padding = [0, 0, 6, 0]; left.RowHeight = {68, 236, 190, 250, 48, 40};
+            % 解析の対象（データ／保存モデル）は、どちらも使えることが一目で分かるよう、2つのボタンで選ぶ。
+            row = uigridlayout(left, [2, 2]); row.Padding = [0, 0, 0, 0]; row.RowHeight = {22, '1x'};
+            label = uilabel(row, 'Text', '① 解析の対象（データから、または保存モデルで）', 'FontWeight', 'bold'); label.Layout.Column = [1, 2];
+            for index = 1:numel(page.SOURCE_CODES)
+                code = page.SOURCE_CODES{index};
+                page.SourceButtons.(code) = uibutton(row, 'state', 'Text', page.SOURCE_NAMES{index}, 'Tag', 'keep-color', ...
+                    'ValueChangedFcn', @(~, ~) page.selectSource(code));
+            end
+            page.SourceButtons.data.Tooltip = 'Excel / CSV の列から代替モデルを学習して解析します。';
+            page.SourceButtons.model.Tooltip = '保存したモデル（MAT）や、学習画面で作ったモデルで解析します。';
             holder = uigridlayout(left, [1, 1]); holder.Padding = [0, 0, 0, 0];
             page.buildDataPanel(holder); page.buildModelPanel(holder);
             panel = AppPage.section(left, '② 入力の範囲（下限・上限を編集できます）');
@@ -87,7 +99,8 @@ classdef SobolPage < AppPage
         end
         % ---------- テストや他の画面から使う操作の入口 ----------
         function selectSource(page, code)
-            page.SourceKind.Value = code; page.sourceChanged();
+            if ~any(strcmp(page.SOURCE_CODES, code)), error('sobol:source', 'data または model を指定してください。'); end
+            page.SourceKind = code; page.sourceChanged();
         end
         function selectColumns(page, output, inputs)
             page.Output.Value = output; page.Inputs.Value = cellstr(string(inputs(:)')); page.dataColumnsChanged();
@@ -116,7 +129,7 @@ classdef SobolPage < AppPage
                     'Categorical', categorical, 'LevelCounts', levels);
                 dialog = page.App.startProgress('Sobol感度解析', '準備しています。');
                 given = []; fit = table();
-                if strcmp(page.SourceKind.Value, 'data')
+                if strcmp(page.SourceKind, 'data')
                     [inputs, response] = page.dataMatrices();
                     dialog.Message = '代替モデルを学習しています（交差検証で当てはまりも確かめます）。'; drawnow;
                     [predictor, fit] = page.trainSurrogate(inputs, response);
@@ -180,7 +193,17 @@ classdef SobolPage < AppPage
             label.Layout.Column = [1, 2];
         end
         function sourceChanged(page)
-            data_mode = strcmp(page.SourceKind.Value, 'data');
+            % 選んだボタンを押した状態・強調の色にする（もう一度押しても選択は外れない）。
+            for index = 1:numel(page.SOURCE_CODES)
+                code = page.SOURCE_CODES{index}; button = page.SourceButtons.(code); chosen = strcmp(code, page.SourceKind);
+                button.Value = chosen;
+                if chosen
+                    set(button, 'BackgroundColor', page.SELECTED_COLOR, 'FontColor', page.SELECTED_TEXT, 'FontWeight', 'bold');
+                else
+                    set(button, 'BackgroundColor', page.UNSELECTED_COLOR, 'FontColor', page.UNSELECTED_TEXT, 'FontWeight', 'normal');
+                end
+            end
+            data_mode = strcmp(page.SourceKind, 'data');
             page.DataPanel.Visible = matlab.lang.OnOffSwitchState(data_mode); page.ModelPanel.Visible = matlab.lang.OnOffSwitchState(~data_mode);
             page.Distribution.Enable = matlab.lang.OnOffSwitchState(data_mode); page.Surrogate.Enable = matlab.lang.OnOffSwitchState(data_mode);
             if data_mode, page.dataColumnsChanged(); else, page.modelChanged(); end
@@ -195,7 +218,7 @@ classdef SobolPage < AppPage
             page.message(sprintf('%s を読み込みました（%d行）。数値の列だけを一覧に出します。', page.Source.fileName(), size(data.Cells, 1)));
         end
         function dataColumnsChanged(page)
-            if ~strcmp(page.SourceKind.Value, 'data'), return; end
+            if ~strcmp(page.SourceKind, 'data'), return; end
             page.Ranges.Data = cell(0, 4); page.DataValues = [];
             names = page.selectedInputs();
             if isempty(page.Source.Data) || isempty(names), page.refreshPlan(); return; end
@@ -263,7 +286,7 @@ classdef SobolPage < AppPage
             set(page.ModelChoice, 'Items', [{'(モデル未選択)'}, labels], 'ItemsData', data, 'Value', selected);
         end
         function modelChanged(page)
-            if ~strcmp(page.SourceKind.Value, 'model'), return; end
+            if ~strcmp(page.SourceKind, 'model'), return; end
             id = page.ModelChoice.Value; page.Model = []; page.ModelEntry = []; page.Ranges.Data = cell(0, 4);
             if id ~= page.NO_MODEL
                 page.ModelEntry = page.App.Models.get(id); page.Model = page.ModelEntry.Model;
@@ -302,7 +325,7 @@ classdef SobolPage < AppPage
         function refreshPlan(page)
             count = size(page.Ranges.Data, 1);
             if count == 0
-                if strcmp(page.SourceKind.Value, 'data')
+                if strcmp(page.SourceKind, 'data')
                     page.setState(page.Plan, '①でデータを開き、出力の列と入力の列を選んでください。', false);
                 else
                     page.setState(page.Plan, '①でモデルを選んでください。', false);

@@ -1,6 +1,7 @@
 classdef DataExplorer < handle
     % 読み込んだデータの傾向をグラフで確認する部品（モデルを作る画面の「① データを開く」の中）。
     % 通常版：単変量の傾向（横軸＝レコードまたは任意の列、縦軸＝任意の列、色＝任意の列。文字の列＝質的変数にも対応）。
+    %         グラフの種類・列・群の分け方・群の数の欄は出さない（Kind・Columns・ClusterMethod・ClusterCount は空）。
     % Pro 版：上に加えて、ヒストグラム、相関マトリックス、分散分析（ANOVA）、Parallel Coordinates、
     %         Parallel Sets、Sankey Diagram、主成分分析（PCA）、クラスタリング。
     % 学習に使うデータや列の選択は変えない（見るだけ）。
@@ -62,13 +63,18 @@ classdef DataExplorer < handle
             explorer.Owner = owner; explorer.IsPro = is_pro;
             grid = uigridlayout(parent, [1, 2]); grid.ColumnWidth = {explorer.LEFT_WIDTH, '1x'}; grid.Padding = [4, 4, 4, 4];
             % 入りきらないときは左の列ごと上下にスクロールする（ボタンや説明が切れないように）。
-            left = uigridlayout(grid, [12, 2], 'Scrollable', 'on'); left.Padding = [0, 0, 6, 0]; left.ColumnWidth = {80, '1x'};
-            left.RowHeight = {22, 104, 30, 30, 30, 30, 22, 110, 30, 30, 84, 38};
-            kinds = 1; if is_pro, kinds = 1:numel(explorer.KIND_CODES); end
-            label = uilabel(left, 'Text', 'グラフ（複数選ぶと一括で描きます。Ctrl キーで複数選択）'); label.Layout.Column = [1, 2];
-            explorer.Kind = uilistbox(left, 'Items', explorer.KIND_NAMES(kinds), 'ItemsData', explorer.KIND_CODES(kinds), ...
-                'Multiselect', 'on', 'Value', explorer.KIND_CODES(1), 'ValueChangedFcn', @(~, ~) explorer.kindChanged());
-            explorer.Kind.Layout.Column = [1, 2];
+            % 通常版は単変量の傾向だけのため、グラフの種類・列・群の欄を作らない（横軸・縦軸・色だけ）。
+            % 最後の '1x' の行は空き。欄が少なく画面に収まるとき（通常版）、固定の高さの行が引き伸ばされて間が広がらないように、余りをここで受ける。
+            row_heights = {22, 104, 30, 30, 30, 30, 22, 110, 30, 30, 84, 38, '1x'};
+            if ~is_pro, row_heights = {30, 30, 30, 30, 84, 38, '1x'}; end
+            left = uigridlayout(grid, [numel(row_heights), 2], 'Scrollable', 'on'); left.Padding = [0, 0, 6, 0]; left.ColumnWidth = {80, '1x'};
+            left.RowHeight = row_heights;
+            if is_pro
+                label = uilabel(left, 'Text', 'グラフ（複数選ぶと一括で描きます。Ctrl キーで複数選択）'); label.Layout.Column = [1, 2];
+                explorer.Kind = uilistbox(left, 'Items', explorer.KIND_NAMES, 'ItemsData', explorer.KIND_CODES, ...
+                    'Multiselect', 'on', 'Value', explorer.KIND_CODES(1), 'ValueChangedFcn', @(~, ~) explorer.kindChanged());
+                explorer.Kind.Layout.Column = [1, 2];
+            end
             uilabel(left, 'Text', '横軸');
             explorer.XAxis = uidropdown(left, 'Items', {explorer.RECORD});
             uilabel(left, 'Text', '縦軸');
@@ -78,17 +84,20 @@ classdef DataExplorer < handle
             uilabel(left, 'Text', '色の扱い');
             explorer.ColorMode = uidropdown(left, 'Items', explorer.COLOR_MODE_NAMES, 'ItemsData', explorer.COLOR_MODE_CODES, ...
                 'Tooltip', '数値の列をグループ（質的変数）として色分けするか、連続した色（量的変数）で表すかを選びます。');
-            label = uilabel(left, 'Text', '列（複数選択は Ctrl キーを押しながらクリック）'); label.Layout.Column = [1, 2];
-            explorer.Columns = uilistbox(left, 'Items', {}, 'Value', {}, 'Multiselect', 'on'); explorer.Columns.Layout.Column = [1, 2];
-            uilabel(left, 'Text', '群の分け方');
-            explorer.ClusterMethod = uidropdown(left, 'Items', explorer.CLUSTER_METHOD_NAMES, 'ItemsData', explorer.CLUSTER_METHOD_CODES);
-            [~, explorer.ClusterCount] = AppPage.numberField(left, '群の数', explorer.DEFAULT_CLUSTERS, [2, 10], true);
+            if is_pro
+                label = uilabel(left, 'Text', '列（複数選択は Ctrl キーを押しながらクリック）'); label.Layout.Column = [1, 2];
+                explorer.Columns = uilistbox(left, 'Items', {}, 'Value', {}, 'Multiselect', 'on'); explorer.Columns.Layout.Column = [1, 2];
+                uilabel(left, 'Text', '群の分け方');
+                explorer.ClusterMethod = uidropdown(left, 'Items', explorer.CLUSTER_METHOD_NAMES, 'ItemsData', explorer.CLUSTER_METHOD_CODES);
+                [~, explorer.ClusterCount] = AppPage.numberField(left, '群の数', explorer.DEFAULT_CLUSTERS, [2, 10], true);
+            end
             explorer.Guide = AppPage.hint(left, ''); explorer.Guide.Layout.Column = [1, 2];
             buttons = uigridlayout(left, [1, 2]); buttons.Padding = [0, 0, 0, 0]; buttons.ColumnWidth = {'2x', '1x'};
             buttons.Layout.Column = [1, 2];
             explorer.DrawButton = AppPage.primaryButton(buttons, 'グラフを描く（追加）', @(~, ~) explorer.draw());
             explorer.ClearButton = uibutton(buttons, 'Text', '結果を消す', 'ButtonPushedFcn', @(~, ~) explorer.clearResults(), ...
                 'Tooltip', 'これまでに描いたグラフと表をすべて消します。');
+            filler = uilabel(left, 'Text', ''); filler.Layout.Column = [1, 2];
             holder = uigridlayout(grid, [1, 1]); holder.Padding = [0, 0, 0, 0];
             explorer.Result = ResultPanel(owner, holder, '左でグラフの種類と列を選び、「グラフを描く」を押すと、ここに表示します。');
             explorer.kindChanged();
@@ -101,9 +110,11 @@ classdef DataExplorer < handle
             default_y = '(数値の列がありません)'; if ~isempty(numeric), default_y = numeric{1}; end
             keepOr(explorer.YAxis, headers, default_y);
             keepOr(explorer.Color, [{explorer.NO_COLOR}, headers], explorer.NO_COLOR);
-            chosen = intersect(cellstr(string(explorer.Columns.Value)), headers, 'stable');
-            if isempty(chosen), chosen = numeric(1:min(numel(numeric), explorer.FLOW_LEVELS)); end
-            set(explorer.Columns, 'Items', headers, 'Value', chosen);
+            if explorer.IsPro
+                chosen = intersect(cellstr(string(explorer.Columns.Value)), headers, 'stable');
+                if isempty(chosen), chosen = numeric(1:min(numel(numeric), explorer.FLOW_LEVELS)); end
+                set(explorer.Columns, 'Items', headers, 'Value', chosen);
+            end
             % 別のデータを開いたときは、前のデータのグラフが混ざらないように消す。
             explorer.clearResults();
         end
@@ -125,9 +136,14 @@ classdef DataExplorer < handle
         end
         function configure(explorer, settings)
             % テストや他の画面から、選択をまとめて設定する入口（フィールド名は Kind・X・Y・Color・ColorMode・Columns・ClusterMethod・ClusterCount）。
+            % 通常版には単変量の傾向の欄（X・Y・Color・ColorMode）しかない。
             names = fieldnames(settings);
             for index = 1:numel(names)
                 value = settings.(names{index});
+                if ~explorer.IsPro && ismember(names{index}, {'Kind', 'Columns', 'ClusterMethod', 'ClusterCount'})
+                    if strcmp(names{index}, 'Kind') && isequal(cellstr(string(value)), {'trend'}), continue; end
+                    error('DataExplorer:proOnly', '通常版には「%s」の欄がありません（単変量の傾向だけ）。', names{index});
+                end
                 switch names{index}
                     case 'Kind', explorer.Kind.Value = cellstr(string(value)); explorer.kindChanged();
                     case 'X', explorer.XAxis.Value = value;
@@ -146,7 +162,7 @@ classdef DataExplorer < handle
             if isempty(explorer.Data)
                 explorer.Owner.showError(MException('DataExplorer:noData', '先に「Excel / CSV を開く」でデータを開いてください。')); return;
             end
-            kinds = cellstr(string(explorer.Kind.Value));
+            kinds = explorer.selectedKinds();
             if isempty(kinds), explorer.Owner.showError(MException('DataExplorer:kind', 'グラフの種類を1つ以上選んでください。')); return; end
             kinds = explorer.KIND_CODES(ismember(explorer.KIND_CODES, kinds));
             failures = strings(0, 1); drawn = strings(0, 1);
@@ -186,14 +202,16 @@ classdef DataExplorer < handle
         % ================= 画面 =================
         function kindChanged(explorer)
             % 選んだ種類のどれかが使う欄だけを使えるようにする。
-            kinds = cellstr(string(explorer.Kind.Value));
+            kinds = explorer.selectedKinds();
             uses = struct('X', {{'trend'}}, 'Y', {{'trend', 'anova'}}, 'Color', {{'trend', 'histogram', 'parallel', 'sets', 'sankey', 'pca'}}, ...
                 'Columns', {{'histogram', 'correlation', 'anova', 'parallel', 'sets', 'sankey', 'pca', 'cluster'}}, 'Cluster', {{'cluster'}});
             enable = @(names) matlab.lang.OnOffSwitchState(any(ismember(names, kinds)));
             explorer.XAxis.Enable = enable(uses.X); explorer.YAxis.Enable = enable(uses.Y);
             explorer.Color.Enable = enable(uses.Color); explorer.ColorMode.Enable = enable({'trend', 'pca', 'sets', 'sankey'});
-            explorer.Columns.Enable = enable(uses.Columns);
-            explorer.ClusterMethod.Enable = enable(uses.Cluster); explorer.ClusterCount.Enable = enable(uses.Cluster);
+            if explorer.IsPro
+                explorer.Columns.Enable = enable(uses.Columns);
+                explorer.ClusterMethod.Enable = enable(uses.Cluster); explorer.ClusterCount.Enable = enable(uses.Cluster);
+            end
             if isempty(kinds)
                 explorer.Guide.Text = 'グラフの種類を選んでください。';
             elseif numel(kinds) == 1
@@ -201,6 +219,11 @@ classdef DataExplorer < handle
             else
                 explorer.Guide.Text = sprintf('%d種類を一括で描きます。各グラフは今の欄の選択を使います（使わない欄は無視します）。', numel(kinds));
             end
+        end
+        function kinds = selectedKinds(explorer)
+            % 通常版はグラフの種類の欄がなく、単変量の傾向だけを描く。
+            kinds = {'trend'};
+            if explorer.IsPro, kinds = cellstr(string(explorer.Kind.Value)); kinds = kinds(:)'; end
         end
         % 描いた結果に「番号. 」を付けて追加する（前に描いた結果を上書きしないため）。
         function ax = addAxes(explorer, name)

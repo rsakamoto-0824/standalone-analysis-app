@@ -7,6 +7,31 @@ classdef TestProAnalysisFeatures < matlab.unittest.TestCase
         end
     end
     methods (Test)
+        function dataColumnsAndCategoryGroups(testCase)
+            data=struct('Headers',{{'Value','Lot'}},'Cells',{{1,'A';2,'B';[],'A';4,missing;5,'B';6,'C'}});
+            value=data_column(data,'Value'); lot=data_column(data,'Lot');
+            testCase.verifyTrue(value.IsNumeric); testCase.verifyFalse(lot.IsNumeric);
+            testCase.verifyEqual(value.Missing',[false,false,true,false,false,false]);
+            [groups,names]=category_groups(lot);
+            testCase.verifyEqual(names,["A";"B";"C";"(欠損)"]); testCase.verifyEqual(groups',[1,2,1,4,2,3]);
+            [groups,names]=category_groups(struct('Labels',string(1:12)','Missing',false(12,1),'IsNumeric',true,'Numbers',(1:12)'),3);
+            testCase.verifyEqual(numel(names),3); testCase.verifyEqual(accumarray(groups,1)',[4,4,4]);
+        end
+        function designMetricsMatchKnownDesigns(testCase)
+            full=[-1,-1;1,-1;-1,1;1,1];
+            metrics=design_metrics(full,'interaction');
+            testCase.verifyEqual(metrics.Values.DEfficiency,100,'AbsTol',1e-9);
+            testCase.verifyEqual(metrics.Values.AEfficiency,100,'AbsTol',1e-9);
+            testCase.verifyEqual(metrics.Values.MaxVIF,1,'AbsTol',1e-12);
+            % 2^2 計画・交互作用モデルの平均予測分散は (1 + 1/3 + 1/3 + 1/9)/4。
+            testCase.verifyEqual(metrics.Values.ICriterion,(1+2/3+1/9)/4,'AbsTol',1e-12);
+            testCase.verifyEqual(metrics.Values.GEfficiency,100,'AbsTol',1e-9);
+            deficient=design_metrics([-1,-1;1,1;0,0],'interaction');
+            testCase.verifyTrue(isnan(deficient.Values.DEfficiency)); testCase.verifyEmpty(deficient.Variance);
+        end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function boostingStylesLearnNonlinearFunction(testCase)
             [x,y]=TestProAnalysisFeatures.sample(200);
             for style={'xgboost','lightgbm','catboost'}
@@ -88,16 +113,6 @@ classdef TestProAnalysisFeatures < matlab.unittest.TestCase
             testCase.verifyTrue(ismember(model.Hyperparameters.NumLeaves,[7,15]));
             testCase.verifyEqual(height(details.SearchTrace),2);
         end
-        function dataColumnsAndCategoryGroups(testCase)
-            data=struct('Headers',{{'Value','Lot'}},'Cells',{{1,'A';2,'B';[],'A';4,missing;5,'B';6,'C'}});
-            value=data_column(data,'Value'); lot=data_column(data,'Lot');
-            testCase.verifyTrue(value.IsNumeric); testCase.verifyFalse(lot.IsNumeric);
-            testCase.verifyEqual(value.Missing',[false,false,true,false,false,false]);
-            [groups,names]=category_groups(lot);
-            testCase.verifyEqual(names,["A";"B";"C";"(欠損)"]); testCase.verifyEqual(groups',[1,2,1,4,2,3]);
-            [groups,names]=category_groups(struct('Labels',string(1:12)','Missing',false(12,1),'IsNumeric',true,'Numbers',(1:12)'),3);
-            testCase.verifyEqual(numel(names),3); testCase.verifyEqual(accumarray(groups,1)',[4,4,4]);
-        end
         function flowLayoutsKeepCountsAndStacking(testCase)
             groups=[1,1;1,2;2,2;2,2;1,1];
             for style={'sets','sankey'}
@@ -124,18 +139,6 @@ classdef TestProAnalysisFeatures < matlab.unittest.TestCase
                 testCase.verifyEqual(sort(clusters.Centers.("件数"))',[30,30],method{1});
                 testCase.verifyGreaterThan(clusters.Silhouette,0.7,method{1});
             end
-        end
-        function designMetricsMatchKnownDesigns(testCase)
-            full=[-1,-1;1,-1;-1,1;1,1];
-            metrics=design_metrics(full,'interaction');
-            testCase.verifyEqual(metrics.Values.DEfficiency,100,'AbsTol',1e-9);
-            testCase.verifyEqual(metrics.Values.AEfficiency,100,'AbsTol',1e-9);
-            testCase.verifyEqual(metrics.Values.MaxVIF,1,'AbsTol',1e-12);
-            % 2^2 計画・交互作用モデルの平均予測分散は (1 + 1/3 + 1/3 + 1/9)/4。
-            testCase.verifyEqual(metrics.Values.ICriterion,(1+2/3+1/9)/4,'AbsTol',1e-12);
-            testCase.verifyEqual(metrics.Values.GEfficiency,100,'AbsTol',1e-9);
-            deficient=design_metrics([-1,-1;1,1;0,0],'interaction');
-            testCase.verifyTrue(isnan(deficient.Values.DEfficiency)); testCase.verifyEmpty(deficient.Variance);
         end
     end
     methods (Static)

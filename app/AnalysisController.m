@@ -26,6 +26,7 @@ classdef AnalysisController < handle
         PageBuilders
         LastFolder = ''
         SettingsWarning = ''
+        ChosenSample = ''
     end
     properties (Constant)
         WINDOW_SIZE = [1360, 860]
@@ -143,6 +144,15 @@ classdef AnalysisController < handle
             catch err
                 owner.message(['ログを保存できませんでした: ' err.message]);
             end
+        end
+        function path = samplePath(app, file_name)
+            % 「サンプルデータを開く」が開くブック。同梱していれば同梱のもの、なければ（通常版はサンプルを別に配る）
+            % 利用者に選んでもらい、起動中は同じブックを使う。選ばなかったときは空を返す。
+            path = app.resourcePath('samples', file_name);
+            if isfile(path), return; end
+            if isfile(app.ChosenSample), path = app.ChosenSample; return; end
+            path = app.chooseOpenFile({'*.xlsx', 'サンプルのブック（*.xlsx）'}, sprintf('サンプルのブック（%s）を選択', file_name));
+            if ~isempty(path), app.ChosenSample = path; end
         end
         function path = resourcePath(app, varargin)
             % 同梱ファイル（samples、docs）の場所。ソース実行・ZIPで配った exe・インストーラーで入れた exe で

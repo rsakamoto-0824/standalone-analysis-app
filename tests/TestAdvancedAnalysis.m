@@ -25,6 +25,16 @@ classdef TestAdvancedAnalysis < matlab.unittest.TestCase
             testCase.verifyEqual(mean(model.Vip.^2),1,'AbsTol',1e-10);
             testCase.verifyGreaterThan(model.Vip(1),1); testCase.verifyLessThan(model.Vip(4),1);
         end
+        function menuNumbersDependOnEdition(testCase)
+            standard=AnalysisController.menuTitles('standard'); pro=AnalysisController.menuTitles('pro');
+            testCase.verifyEqual({standard.predict,standard.doe,standard.settings,standard.help},{'5 保存モデルで推定・SHAP','6 実験計画作成','7 設定','8 Help'});
+            testCase.verifyFalse(any(isfield(standard,{'sobol','causal','bayes','copula','words'})));
+            testCase.verifyEqual({pro.sobol,pro.causal,pro.bayes,pro.copula,pro.doe,pro.words,pro.settings,pro.help}, ...
+                {'6 Sobol感度解析','7 因果探索','8 階層ベイズ','9 コピュラ乱数生成','10 実験計画作成','11 ワードクラウド','12 設定','13 Help'});
+        end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function additiveAndCategoricalGprFitAndRoundtrip(testCase)
             rng(3); n=80; group=randi(3,n,1); offsets=[0;2;-1]; x=[rand(n,2)*2-1,group];
             y=sin(2*x(:,1))+x(:,2).^2+offsets(group)+0.05*randn(n,1); levels={[],[],["T1";"T2";"T3"]};
@@ -92,13 +102,6 @@ classdef TestAdvancedAnalysis < matlab.unittest.TestCase
             overall=result.Overall.("事後平均")(1);
             testCase.verifyLessThan(abs(first.("事後平均")-overall),abs(first.("グループ単独の最小二乗")-overall));
             testCase.verifyError(@()hierarchical_bayes(y,x,ones(size(y)),{'x'},"G1",struct()),'bayes:groups');
-        end
-        function menuNumbersDependOnEdition(testCase)
-            standard=AnalysisController.menuTitles('standard'); pro=AnalysisController.menuTitles('pro');
-            testCase.verifyEqual({standard.predict,standard.doe,standard.settings,standard.help},{'5 保存モデルで推定・SHAP','6 実験計画作成','7 設定','8 Help'});
-            testCase.verifyFalse(any(isfield(standard,{'sobol','causal','bayes','copula','words'})));
-            testCase.verifyEqual({pro.sobol,pro.causal,pro.bayes,pro.copula,pro.doe,pro.words,pro.settings,pro.help}, ...
-                {'6 Sobol感度解析','7 因果探索','8 階層ベイズ','9 コピュラ乱数生成','10 実験計画作成','11 ワードクラウド','12 設定','13 Help'});
         end
     end
 end

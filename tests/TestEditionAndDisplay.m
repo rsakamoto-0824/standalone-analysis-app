@@ -49,6 +49,9 @@ classdef TestEditionAndDisplay < matlab.unittest.TestCase
             testCase.verifyTrue(any(contains(buttons, 'fitrensemble')));
             testCase.verifyEqual(numel(unique(terms(:, 1))), size(terms, 1), '用語が重複しています。');
         end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function proHelpKeepsProDescriptions(testCase)
             [terms, operations, buttons] = TestEditionAndDisplay.help('pro');
             testCase.verifyTrue(all(ismember({'swingperiodic', '拡張実験計画', '近似残差', '通常版 / Pro版'}, terms(:, 1))));

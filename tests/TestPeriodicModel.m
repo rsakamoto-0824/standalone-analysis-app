@@ -1,4 +1,4 @@
-classdef TestPeriodicModel < matlab.unittest.TestCase
+classdef (TestTags = {'Pro'}) TestPeriodicModel < matlab.unittest.TestCase
     properties
         Inputs
         Response

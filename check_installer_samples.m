@@ -1,5 +1,6 @@
 function report = check_installer_samples(folder, edition)
-% インストーラーに入れるサンプルのフォルダ（samples/installer/<版>）を、ビルドの前に確かめる。
+% サンプルのフォルダを確かめる。Pro 版はインストーラーに入れるフォルダ（samples/installer/pro）をビルドの前に、
+% 通常版は別に配るフォルダ（samples/separate/standard）を配る前やテストで確かめる。
 % 「サンプルデータを開く」ボタンが開くブック ProcessInsight_Samples.xlsx と、ボタンが開くシートが必要。
 % 通常版には Pro 版だけの機能のサンプル（ワードクラウドの文章、WordCloud・DOE_Existing のシート）を入れない。
 % 問題があれば理由を示して止める。report.Files は同梱するファイル、report.Sheets はブックのシート名。

@@ -8,6 +8,57 @@ classdef TestProductEnhancements < matlab.unittest.TestCase
         end
     end
     methods (Test)
+        function visibleLabelsPreserveEveryMetricValueAndReason(testCase)
+            original = evaluate_predictions((1:20)', (1:20)' + sin((1:20)'), 4);
+            visible = display_metric_names(original);
+            testCase.verifyEqual(visible.Value, original.Value);
+            testCase.verifyEqual(visible.Note, original.Note);
+            constant = evaluate_predictions(zeros(20,1),ones(20,1),4);
+            renamed = display_metric_names(constant);
+            testCase.verifyTrue(isequaln(renamed.Value,constant.Value));
+            testCase.verifyEqual(renamed.Note,constant.Note);
+            testCase.verifyEqual(visible.Metric(7:8), ["KLダイバージェンス"; "相互情報量"]);
+            wide = array2table([1, 2], 'VariableNames', {'KL_nats', 'Mutual_information_bits'});
+            testCase.verifyEqual(display_metric_names(wide).Properties.VariableNames, {'KLダイバージェンス', '相互情報量'});
+        end
+        function standardBuildOmitsProCodeAndProBuildIncludesIt(testCase)
+            root = fileparts(fileparts(mfilename('fullpath')));
+            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            standard = fullfile(fixture.Folder,'standard'); pro = fullfile(fixture.Folder,'pro');
+            a = prepare_edition_build(root,'standard',standard); b = prepare_edition_build(root,'pro',pro);
+            testCase.verifyEmpty(a.ProFiles); testCase.verifyNumElements(b.ProFiles,35);
+            for name={'core/GradientBoostedTrees.m','core/search_hyperparameters.m','app/WordCloudPage.m','app/HyperparameterEditor.m','core/calc_pca_summary.m','app/SobolPage.m','core/hierarchical_bayes.m','core/causal_discovery.m'}
+                testCase.verifyFalse(isfile(fullfile(standard,name{1})),name{1}); testCase.verifyTrue(isfile(fullfile(pro,name{1})),name{1});
+            end
+            testCase.verifyFalse(isfile(fullfile(standard,'app','SwingCurveView.m')));
+            testCase.verifyFalse(isfile(fullfile(standard,'core','fit_swing_spline.m')));
+            testCase.verifyFalse(contains(fileread(fullfile(standard,'app','plot_shap_figures.m')),'SwingCurveView'));
+            testCase.verifyTrue(contains(fileread(fullfile(pro,'core','app_edition.m')),'''pro'''));
+            testCase.verifyTrue(contains(fileread(fullfile(standard,'core','app_edition.m')),'''standard'''));
+        end
+        function installerSampleFoldersMatchEdition(testCase)
+            % 通常版のサンプルは別に配る（samples/separate/standard。インストーラーには入れない）。ワードクラウド・拡張計画のサンプルは入れない。
+            % Pro 版のインストーラーに入れるサンプルは samples/installer/pro。
+            root = fileparts(fileparts(mfilename('fullpath')));
+            testCase.verifyFalse(isfolder(fullfile(root, 'samples', 'installer', 'standard')));
+            standard = check_installer_samples(fullfile(root, 'samples', 'separate', 'standard'), 'standard');
+            pro = check_installer_samples(fullfile(root, 'samples', 'installer', 'pro'), 'pro');
+            testCase.verifyEqual(sort(standard.Files), {'ProcessInsight_Samples.xlsx', 'README.md'});
+            testCase.verifyFalse(any(ismember({'WordCloud', 'DOE_Existing'}, standard.Sheets)));
+            testCase.verifyTrue(all(ismember({'sample_wordcloud.txt', 'ProcessInsight_Samples.xlsx'}, pro.Files)));
+            testCase.verifyTrue(all(ismember({'WordCloud', 'DOE_Existing'}, pro.Sheets)));
+            % 通常版のフォルダへ Pro 版のサンプルを入れると、ビルドの前に止める。
+            testCase.verifyError(@() check_installer_samples(fullfile(root, 'samples', 'installer', 'pro'), 'standard'), 'samples:proOnly');
+            % 「サンプルデータを開く」が開くシートがないブックは止める。
+            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
+            writecell({'A'; 1}, fullfile(fixture.Folder, 'ProcessInsight_Samples.xlsx'), 'Sheet', 'APC');
+            testCase.verifyError(@() check_installer_samples(fixture.Folder, 'standard'), 'samples:sheets');
+            empty = fullfile(fixture.Folder, 'empty'); mkdir(empty);
+            testCase.verifyError(@() check_installer_samples(empty, 'standard'), 'samples:workbook');
+        end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
         function opticalDefaultsAndExplicitBounds(testCase)
             options = swing_period_options();
             % Swing Curve の周期は λ/(2n)。既定 248 ÷ 1.77 ÷ 2 ≒ 70.06 nm（2026-11-17 のユーザー指示）。
@@ -33,19 +84,6 @@ classdef TestProductEnhancements < matlab.unittest.TestCase
                 testCase.verifyEqual(swing_kernel_info(kernel).Period, 140);
             end
         end
-        function visibleLabelsPreserveEveryMetricValueAndReason(testCase)
-            original = evaluate_predictions((1:20)', (1:20)' + sin((1:20)'), 4);
-            visible = display_metric_names(original);
-            testCase.verifyEqual(visible.Value, original.Value);
-            testCase.verifyEqual(visible.Note, original.Note);
-            constant = evaluate_predictions(zeros(20,1),ones(20,1),4);
-            renamed = display_metric_names(constant);
-            testCase.verifyTrue(isequaln(renamed.Value,constant.Value));
-            testCase.verifyEqual(renamed.Note,constant.Note);
-            testCase.verifyEqual(visible.Metric(7:8), ["KLダイバージェンス"; "相互情報量"]);
-            wide = array2table([1, 2], 'VariableNames', {'KL_nats', 'Mutual_information_bits'});
-            testCase.verifyEqual(display_metric_names(wide).Properties.VariableNames, {'KLダイバージェンス', '相互情報量'});
-        end
         function splineInterpolatesCubicAndFindsStationaryExtrema(testCase)
             x = linspace(-2, 2, 21)'; y = x.^3 - 3*x;
             fit = fit_swing_spline(x, y); [points, segments] = swing_curve_extrema(fit, [-2, 2]);
@@ -67,39 +105,6 @@ classdef TestProductEnhancements < matlab.unittest.TestCase
             testCase.verifyEqual(segments.Slope, (segments.EndSHAP-segments.StartSHAP)./(segments.EndThickness-segments.StartThickness), 'AbsTol', 1e-12);
             testCase.verifyGreaterThan(range(segments.Slope), 0.1);
             monotone = fit_swing_spline((1:10)', (1:10)'); [none, ~] = swing_curve_extrema(monotone, [1,10]); testCase.verifyEmpty(none);
-        end
-        function standardBuildOmitsProCodeAndProBuildIncludesIt(testCase)
-            root = fileparts(fileparts(mfilename('fullpath')));
-            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
-            standard = fullfile(fixture.Folder,'standard'); pro = fullfile(fixture.Folder,'pro');
-            a = prepare_edition_build(root,'standard',standard); b = prepare_edition_build(root,'pro',pro);
-            testCase.verifyEmpty(a.ProFiles); testCase.verifyNumElements(b.ProFiles,35);
-            for name={'core/GradientBoostedTrees.m','core/search_hyperparameters.m','app/WordCloudPage.m','app/HyperparameterEditor.m','core/calc_pca_summary.m','app/SobolPage.m','core/hierarchical_bayes.m','core/causal_discovery.m'}
-                testCase.verifyFalse(isfile(fullfile(standard,name{1})),name{1}); testCase.verifyTrue(isfile(fullfile(pro,name{1})),name{1});
-            end
-            testCase.verifyFalse(isfile(fullfile(standard,'app','SwingCurveView.m')));
-            testCase.verifyFalse(isfile(fullfile(standard,'core','fit_swing_spline.m')));
-            testCase.verifyFalse(contains(fileread(fullfile(standard,'app','plot_shap_figures.m')),'SwingCurveView'));
-            testCase.verifyTrue(contains(fileread(fullfile(pro,'core','app_edition.m')),'''pro'''));
-            testCase.verifyTrue(contains(fileread(fullfile(standard,'core','app_edition.m')),'''standard'''));
-        end
-        function installerSampleFoldersMatchEdition(testCase)
-            % インストーラーに入れるサンプル：通常版にはワードクラウド・拡張計画のサンプルを入れない。
-            root = fileparts(fileparts(mfilename('fullpath')));
-            standard = check_installer_samples(fullfile(root, 'samples', 'installer', 'standard'), 'standard');
-            pro = check_installer_samples(fullfile(root, 'samples', 'installer', 'pro'), 'pro');
-            testCase.verifyEqual(sort(standard.Files), {'ProcessInsight_Samples.xlsx', 'README.md'});
-            testCase.verifyFalse(any(ismember({'WordCloud', 'DOE_Existing'}, standard.Sheets)));
-            testCase.verifyTrue(all(ismember({'sample_wordcloud.txt', 'ProcessInsight_Samples.xlsx'}, pro.Files)));
-            testCase.verifyTrue(all(ismember({'WordCloud', 'DOE_Existing'}, pro.Sheets)));
-            % 通常版のフォルダへ Pro 版のサンプルを入れると、ビルドの前に止める。
-            testCase.verifyError(@() check_installer_samples(fullfile(root, 'samples', 'installer', 'pro'), 'standard'), 'samples:proOnly');
-            % 「サンプルデータを開く」が開くシートがないブックは止める。
-            fixture = testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
-            writecell({'A'; 1}, fullfile(fixture.Folder, 'ProcessInsight_Samples.xlsx'), 'Sheet', 'APC');
-            testCase.verifyError(@() check_installer_samples(fixture.Folder, 'standard'), 'samples:sheets');
-            empty = fullfile(fixture.Folder, 'empty'); mkdir(empty);
-            testCase.verifyError(@() check_installer_samples(empty, 'standard'), 'samples:workbook');
         end
     end
 end

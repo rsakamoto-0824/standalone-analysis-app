@@ -83,14 +83,6 @@ classdef TestPureFunctions < matlab.unittest.TestCase
             testCase.verifyEqual(source.RowNumbers, [3; 4]);
             testCase.verifyError(@() extract_numeric_columns(source, {'A', 'B'}), 'extract_numeric_columns:missingRows');
         end
-        function allDelimiters_wordCountsMatch(testCase)
-            text = "Alpha alpha　BETA,beta、Gamma。gamma.delta!delta?epsilon！epsilon？z" + ...
-                newline + "Beta" + char(13) + "alpha" + char(9) + "gamma";
-            [words, counts] = create_wordCloud(text);
-            testCase.verifyEqual(words, {'alpha'; 'beta'; 'delta'; 'epsilon'; 'gamma'});
-            testCase.verifyEqual(counts, [3; 3; 2; 2; 3]);
-            testCase.verifyError(@() create_wordCloud('a ! ?'), 'create_wordCloud:noWords');
-        end
         function invalidParameters_errorListsValidValues(testCase)
             testCase.verifyError(@() validate_model_parameters('bad', 'exact', 'test'), 'test:invalidKernel');
             testCase.verifyError(@() validate_model_parameters('matern32', 'bad', 'test'), 'test:invalidFitMethod');
@@ -136,6 +128,17 @@ classdef TestPureFunctions < matlab.unittest.TestCase
             testCase.verifyFalse(report.Success);
             testCase.verifyFalse(report.Checks.Passed(1));
             testCase.verifyEqual(report.Message, 'このモデルを制御に使用しないでください');
+        end
+    end
+    % Pro 版だけの機能のテスト。通常版のビルド（run_tests('standard')）では実行しない。
+    methods (Test, TestTags = {'Pro'})
+        function allDelimiters_wordCountsMatch(testCase)
+            text = "Alpha alpha　BETA,beta、Gamma。gamma.delta!delta?epsilon！epsilon？z" + ...
+                newline + "Beta" + char(13) + "alpha" + char(9) + "gamma";
+            [words, counts] = create_wordCloud(text);
+            testCase.verifyEqual(words, {'alpha'; 'beta'; 'delta'; 'epsilon'; 'gamma'});
+            testCase.verifyEqual(counts, [3; 3; 2; 2; 3]);
+            testCase.verifyError(@() create_wordCloud('a ! ?'), 'create_wordCloud:noWords');
         end
     end
     methods (Static, Access = private)

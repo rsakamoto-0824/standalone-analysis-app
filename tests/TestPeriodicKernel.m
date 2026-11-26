@@ -1,4 +1,4 @@
-classdef TestPeriodicKernel < matlab.unittest.TestCase
+classdef (TestTags = {'Pro'}) TestPeriodicKernel < matlab.unittest.TestCase
     methods (TestClassSetup)
         function paths(testCase)
             root = fileparts(fileparts(mfilename('fullpath')));

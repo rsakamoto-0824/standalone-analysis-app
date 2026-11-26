@@ -382,3 +382,13 @@ R2022bでは純粋な数値処理・代替学習器/合成SHAPの表示試験と
 
 2026-11-25 参照：[copulafit](https://www.mathworks.com/help/stats/copulafit.html)、[copularnd](https://www.mathworks.com/help/stats/copularnd.html)、[copulaparam](https://www.mathworks.com/help/stats/copulaparam.html)、[ksdensity](https://www.mathworks.com/help/stats/ksdensity.html)。R2025b / Windows / Runtime での確認は未実施。
 - **Parallel Coordinates**：MATLAB の `parallelplot` は、R2022b / macOS で PNG に書き出すと MATLAB ごと落ちた（浮動小数点の例外）。通常のグラフの枠に自前で描くようにした（各列を最小〜最大で 0〜1 にそろえ、同じ色の行を NaN でつないだ1本の線にする）。
+
+## 2026-11-26：通常版のグラフの欄、版ごとのテスト、テストなしのビルド、通常版のサンプルの別配布、Sobol の対象の選び方
+
+ユーザー指示による。2026-11-25 の節の「通常版のインストーラーにサンプル（`samples/installer/standard`）を入れる」は、以下に置き換える。
+
+- **通常版のグラフで傾向を見る**（`DataExplorer`）：通常版は単変量の傾向だけのため、グラフの種類の一覧・列の一覧・群の分け方・群の数の欄を作らない（横軸・縦軸・色・色の扱いだけ）。`configure` で通常版にない欄を指定すると止める（Kind に trend だけを渡すのは許す）。
+- **版ごとのテスト**：Pro 版だけの機能のテストに `TestTags = {'Pro'}` を付けた（クラス全体：Sobol・コピュラなどのデータの道具、周期カーネル、Swing Curve の近似・残差診断。メソッドのブロック：加法カーネル・質的変数・Sobol・因果探索・階層ベイズ、ブースティングと探索、Pro のグラフ、拡張計画、ワードクラウド、周期カーネルの比較、Pro の Help）。`run_tests('standard')` はこのタグのないテスト（136件）だけを実行し、`build_windows('standard')` はこれを使う。Pro 版のビルドと `run_tests()` はすべて実行する。タグの漏れは、Pro 専用の35ファイルを消したソースの写しで `run_tests('standard')` を実行して確かめた。
+- **テストなしのビルド**：`build_windows(版, 'Tests', false)` でテストを省く（警告 `build_windows:noTests`、`edition-manifest.json` の `Tests` が false）。引数は arguments ブロックで受ける（`build_windows(版, false, '', 'Tests', false)` のように並べてもよい）。
+- **通常版のサンプルと手順書**：通常版のインストーラーと `application` フォルダにはサンプルも手順書も入れない。通常版のサンプルは `samples/separate/standard` へ移し、別に配る。「サンプルデータを開く」は、同梱のサンプルがなければファイルを選ぶ画面を出し、選んだブックを起動中は使う（`AnalysisController.samplePath`）。通常版にサンプルのフォルダを指定すると `build_windows:standardSamples` で止める。Pro 版は従来どおり `samples/installer/pro` と手順書を入れる。
+- **Sobol の解析の対象**：「データから」「保存モデルで」を、ドロップダウンではなく2つのボタンで選ぶようにした（両方使えることが一目で分かるように）。保存モデル（MAT・起動中のモデル）での解析はそのまま使える。通し確認に、ボタンでの切り替えと MAT を開いての解析を足した。

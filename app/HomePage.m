@@ -46,7 +46,9 @@ classdef HomePage < AppPage
             row = uigridlayout(grid, [1, 3]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {page.BUTTON_WIDTH, page.BUTTON_WIDTH, '1x'};
             uibutton(row, 'Text', [AnalysisController.settingsTitle(app.Edition) 'を開く'], 'ButtonPushedFcn', @(~, ~) app.selectPage('settings'));
             uibutton(row, 'Text', [AnalysisController.helpTitle(app.Edition) '（用語・手順）を開く'], 'ButtonPushedFcn', @(~, ~) app.selectPage('help'));
-            uilabel(row, 'Text', '同梱のサンプルデータは、各学習画面の「サンプルデータを開く」から試せます。', 'WordWrap', 'on');
+            sample_text = '同梱のサンプルデータは、各学習画面の「サンプルデータを開く」から試せます。';
+            if ~strcmp(app.Edition, 'pro'), sample_text = 'サンプルデータ（別に配るブック）は、各学習画面の「サンプルデータを開く」で選んで試せます。'; end
+            uilabel(row, 'Text', sample_text, 'WordWrap', 'on');
             notice = app.releaseNotice();
             if ~isempty(notice), page.message(notice); end
             page.message('左のメニュー、または上のボタンから機能を選びます。');

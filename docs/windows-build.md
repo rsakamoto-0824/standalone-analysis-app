@@ -32,7 +32,7 @@ addpath('tests');
 results = run_app_flow_check;
 ```
 
-アプリを実際に起動し、同梱サンプル（`samples/ProcessInsight_Samples.xlsx`）で次の22項目を、画面のボタンと同じ入口から順に実行します。数分かかります。設定とログは一時フォルダへ保存するため、利用者の設定は変わりません。
+アプリを実際に起動し、同梱サンプル（`samples/ProcessInsight_Samples.xlsx`）で次の23項目を、画面のボタンと同じ入口から順に実行します。数分かかります。設定とログは一時フォルダへ保存するため、利用者の設定は変わりません。
 
 | 項目 | 確認する内容 |
 |---|---|
@@ -47,27 +47,29 @@ results = run_app_flow_check;
 | 炉内補間 | 2 Run・6方式、目的変数ごとの RMSE の棒グラフ、`Furnace_Model` の保存 |
 | 保存モデルで推定・SHAP | MAT の読込、列の自動割当、評価指標、SHAP の列と依存図、SHAP を外したとき推定だけ |
 | 保存モデルで推定・SHAP（起動中のモデル） | 保存していない重回帰のモデルでの SHAP 依存図、質的変数を持つ GPR での推定と SHAP |
-| Sobol感度解析（Pro版の画面） | 質的変数の範囲、S1・ST の表とグラフ、範囲の誤りを止める |
+| Sobol感度解析（Pro版の画面） | データ（代替モデル・交差検証）と保存モデル（MAT・起動中のモデル）の両方、質的変数の範囲、S1・ST の表とグラフ、予測値の分布の統計、範囲の誤りを止める |
 | 因果探索（Pro版の画面） | PC アルゴリズムと DirectLiNGAM の辺の表・グラフ・順序 |
 | 階層ベイズ（Pro版の画面） | Lot ごとの切片と傾き、R-hat、列の重なりを止める |
+| コピュラ乱数生成（Pro版の画面） | データの関係をまねる・関係を指定して作る、順位相関の比較 |
 | 実験計画 | D最適・I最適・直交表・拡張（Pro版の画面）、評価指標（D効率など）と予測分散の分布、乱数seedの説明がない |
 | ワードクラウド（Pro版の画面） | 単語の集計と図、形と色の反映 |
 | 設定 | テーマ・Fit method・文字の大きさの変更で学習結果が消えない、文字の大きさがすぐ全画面に反映される |
 | Help | 表示できる |
-| 通常版の画面 | swingperiodic・周期の探索範囲・拡張計画・Pro版のグラフ・Pro版の回帰方式・加法カーネル・質的変数・Sobol・因果探索・階層ベイズ・ワードクラウドが出ない、設定が「7 設定」、Help に Pro 版だけの説明がない（Pro版では出る） |
+| 通常版の画面 | swingperiodic・周期の探索範囲・拡張計画・Pro版のグラフ・Pro版の回帰方式・加法カーネル・質的変数・Sobol・因果探索・階層ベイズ・コピュラ・ワードクラウドが出ない、グラフで傾向を見るにグラフの種類・列・群の欄がなく単変量の傾向を描ける、設定が「7 設定」、Help に Pro 版だけの説明がない（Pro版では出る） |
 | 細かい操作 | 説明変数の並べ替え、表・図の書出し、ヘッダー行を指定した CSV |
 | 結果の表示と出力 | 横並びの散布図、SHAP依存図の色の変数、予測・SHAPの1ファイル出力（CSV は BOM 付き）、基準周期の表示 |
 | 入力の誤り（実行時の自動確認） | 目的変数の重なり・未選択・下地なし・列の重複・WaferId の未選択を、実行時に説明つきで止める（学習しない） |
 
-**22項目すべて成功（Passed が true）であること**を確認し、結果を `verification.md` に記録してください。R2025b では SHAP も実際の `shapley` で計算します。失敗した項目は Note の内容を記録します。
+**23項目すべて成功（Passed が true）であること**を確認し、結果を `verification.md` に記録してください。R2025b では SHAP も実際の `shapley` で計算します。失敗した項目は Note の内容を記録します。
 
 ## 4. 単体テストを実行する
 
 ```matlab
-results = run_tests;
+results = run_tests;              % すべてのテスト
+results = run_tests('standard');  % 通常版で使う機能のテストだけ（Pro 版だけの機能のテストを除く）
 ```
 
-失敗・未完了が0件であることを確認し、結果を記録します。`check_sources` による静的解析も併用できます。実データではなく、テスト内で生成する人工データを使用します。
+失敗・未完了が0件であることを確認し、結果を記録します。Pro 版だけの機能のテストには `TestTags = {'Pro'}` を付けています（クラス全体、またはメソッドのブロック）。新しいテストを足すときは、Pro 版だけの機能（`prepare_edition_build` の Pro 専用ファイルを使うもの、周期カーネル、拡張計画など）ならこのタグを付けてください。`check_sources` による静的解析も併用できます。実データではなく、テスト内で生成する人工データを使用します。
 
 テストは原仕様の T-01〜T-10 を含みますが、現行モデルとの互換性を自動的に保証するものではありません。次の比較も実施します。
 
@@ -92,17 +94,20 @@ compiler.runtime.download   % インターネットに接続できる場合
 ```matlab
 standard = build_windows('standard'); % 通常版（配布版）
 pro = build_windows('pro');           % Pro版
+standard = build_windows('standard', 'Tests', false); % テストを省いてすぐビルドする
 ```
+
+ビルドの中でもテストを実行します。通常版は Pro 版だけの機能のテストを除いて（`run_tests('standard')`）、Pro版はすべて実行します。同じソースでテストが成功済みのときは `'Tests', false` で省けます（`edition-manifest.json` の `Tests` が `false` になります）。ソースを変えたあとは、テストありで確かめてから配ってください。
 
 | 出力 | 内容 |
 |---|---|
-| `build/windows/<版>/installer/ProcessInsightTool_Installer.exe`（Pro版は `ProcessInsightToolPro_Installer.exe`） | **配布するもの**。MATLAB Runtime を同梱。サンプルと手順書もアプリと一緒にインストールされる |
-| `build/windows/<版>/application/` | exe 本体と付随ファイル、`samples`、`docs/user-guide`（Runtime を別に入れて ZIP で配る場合に使う） |
-| `build/windows/<版>/edition-manifest.json` | 版（Edition）、Pro 専用ファイル（ProFiles）、バージョン、インストーラーの有無 |
+| `build/windows/<版>/installer/ProcessInsightTool_Installer.exe`（Pro版は `ProcessInsightToolPro_Installer.exe`） | **配布するもの**。MATLAB Runtime を同梱。Pro版はサンプルと手順書もアプリと一緒にインストールされる（通常版はアプリだけ） |
+| `build/windows/<版>/application/` | exe 本体と付随ファイル。Pro版は `samples`、`docs/user-guide` も（Runtime を別に入れて ZIP で配る場合に使う） |
+| `build/windows/<版>/edition-manifest.json` | 版（Edition）、Pro 専用ファイル（ProFiles）、バージョン、インストーラーの有無、テストの有無（Tests）、サンプル・手順書 |
 
-**入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。** 画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。exe に同梱するのは `core/`、`app/`、サンプル、利用者向けの手順書（`docs/user-guide`、生成用の `_src` を除く）だけで、動画などの大きなファイルは含めません。インストーラーを作らず exe だけを作るときは `build_windows('standard', false)` とします。
+**入口は `app/launch_analysis_app.m` で、App Designer での手作業は不要です。** 画面タイトルは通常版が「Process Insight Tool」、Pro版が「Process Insight Tool Pro」です。exe に同梱するのは `core/`、`app/` と、Pro版だけサンプル・手順書（`docs/user-guide`、生成用の `_src` を除く）で、動画などの大きなファイルは含めません。インストーラーを作らず exe だけを作るときは `build_windows('standard', false)` とします。
 
-通常版は Pro 専用の SHAP カーブ近似・残差診断の7ファイルを隔離ソースから除外してコンパイルし、Swing Curve の周期カーネル（swingperiodic）と周期の探索範囲、実験計画の拡張（既存の計画への追加）の画面も表示しません。Help も版ごとの内容で、通常版には Pro 版だけの説明を出しません。通常版の exe とインストーラーに入れる手順書は、利用者向けの `user-manual.html` とその画像だけです。Pro版にはそれらを含めます。実行時の設定や引数で版を変更する機能はありません。
+通常版は Pro 専用の35ファイル（`prepare_edition_build` の一覧）を隔離ソースから除外してコンパイルし、Swing Curve の周期カーネル（swingperiodic）と周期の探索範囲、実験計画の拡張（既存の計画への追加）の画面も表示しません。Help も版ごとの内容で、通常版には Pro 版だけの説明を出しません。通常版の exe とインストーラーには、サンプルも手順書も入れません（2026-11-26 から。別に配ります）。Pro版には含めます。実行時の設定や引数で版を変更する機能はありません。
 
 画像なしの詳しい手順は [ビルド手順書（HTML）](user-guide/build-guide.html) を参照してください。
 
@@ -149,15 +154,15 @@ MATLAB も MATLAB Runtime も入っていない Windows 64bit の PC に、5章�
 
 製品は R2025b 以外で起動しません。開発時に限り、MATLAB を起動する前に環境変数 `PROCESS_INSIGHT_DEV_RELEASE=allow` を設定すると、別のリリースでも起動・テストできます（配布版では無効）。このときウィンドウの題名に「検証用」と表示します。**この状態で保存したモデルは制御に使用しないでください。** SHAP の複数行計算は R2025b 専用のため、通し確認は SHAP だけ代替計算へ差し替えます。
 
-## インストーラーに入れるサンプルを置き換える
+## サンプルを置き換える
 
-インストーラーには `samples\installer\standard`（通常版）または `samples\installer\pro`（Pro版）のフォルダの中のファイルがすべて入ります（2026-11-25 から。以前は `samples` の3ファイル）。通常版には手順書（`docs`）を入れません。
+Pro版のインストーラーには `samples\installer\pro` のフォルダの中のファイルがすべて入ります。通常版のインストーラーにはサンプルと手順書を入れません（2026-11-26 から）。通常版のサンプルは `samples\separate\standard` にあり、インストーラーとは別に配ります。利用者は「サンプルデータを開く」を押し、ファイルを選ぶ画面で配られたブックを選びます（起動中は同じブックを使います）。
 
 1. 置き換えたい版のフォルダのファイルを差し替えます。Excel のブックは名前を `ProcessInsight_Samples.xlsx` のままにし、「サンプルデータを開く」が開く `APC`・`Swing_Base`・`Generic`・`Furnace` の4シート（1行目は列名）を入れます。ほかのシートやファイルは自由に足せます。
-2. 通常版のフォルダには Pro 版だけの機能のサンプル（`sample_wordcloud.txt`、`WordCloud`・`DOE_Existing` のシート）を入れません。
-3. `build_windows` を実行します。最初に `check_installer_samples` がフォルダを確かめ、条件に合わないと `samples:workbook`・`samples:sheets`・`samples:sheetContent`・`samples:proOnly` のどれかで止まります。
-4. 別のフォルダを使う場合は `build_windows('standard', true, 'C:\work\my_samples')` のように3つ目に指定します。
-5. ビルド後、MATLAB のない PC で4つの画面の「サンプルデータを開く」を押して開けることを確かめます（通し確認は `samples` の元の合成データを使うため、置き換えたサンプルは確かめません）。
+2. 通常版のフォルダには Pro 版だけの機能のサンプル（`sample_wordcloud.txt`、`WordCloud`・`DOE_Existing` のシート）を入れません。配る前に `check_installer_samples(fullfile('samples', 'separate', 'standard'), 'standard')` で確かめます。
+3. Pro版は `build_windows('pro')` を実行します。最初に `check_installer_samples` がフォルダを確かめ、条件に合わないと `samples:workbook`・`samples:sheets`・`samples:sheetContent` のどれかで止まります。
+4. 別のフォルダを使う場合は `build_windows('pro', true, 'C:\work\my_samples')` のように3つ目に指定します（通常版にフォルダを指定すると `build_windows:standardSamples` で止まります）。
+5. MATLAB のない PC で4つの画面の「サンプルデータを開く」を押して開けることを確かめます（通し確認は `samples` の元の合成データを使うため、置き換えたサンプルは確かめません）。
 
 ## Excel を読むと「Implementation Error: cannot call this method before validating "Filename"」で止まる問題
 

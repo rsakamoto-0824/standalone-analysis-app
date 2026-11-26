@@ -1,4 +1,4 @@
-classdef TestDataTools < matlab.unittest.TestCase
+classdef (TestTags = {'Pro'}) TestDataTools < matlab.unittest.TestCase
     % データからの Sobol 感度解析、予測値の分布の要約、帯の色の列、コピュラによる乱数生成、ワードクラウドの除く語の確認。
     methods (TestClassSetup)
         function paths(testCase)
