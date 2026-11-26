@@ -50,7 +50,7 @@ classdef CopulaPage < AppPage
         function page = CopulaPage(app, parent)
             page@AppPage(app, parent);
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
-            left = uigridlayout(page.Body, [5, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {30, '1x', 168, 44, 38};
+            left = uigridlayout(page.Body, [5, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {30, '1x', 216, 44, 38};
             row = uigridlayout(left, [1, 2]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {110, '1x'};
             uilabel(row, 'Text', '① 作り方', 'FontWeight', 'bold');
             page.Mode = uidropdown(row, 'Items', page.MODE_NAMES, 'ItemsData', page.MODE_CODES, 'ValueChangedFcn', @(~, ~) page.modeChanged());
@@ -131,7 +131,8 @@ classdef CopulaPage < AppPage
             page.Dependence.Layout.Column = [1, 2];
         end
         function buildConditions(page, parent)
-            grid = uigridlayout(parent, [4, 2]); grid.RowHeight = {30, 30, 30, 30}; grid.ColumnWidth = {150, '1x'};
+            % 項目名（「乱数seed（同じ値なら同じ乱数）」など）が切れないよう、名前の列を広く取る。欄の高さは左の列の3行目で決める。
+            grid = uigridlayout(parent, [4, 2]); grid.RowHeight = {30, 30, 30, 30}; grid.ColumnWidth = {240, '1x'};
             info = copula_families();
             uilabel(grid, 'Text', 'コピュラの種類');
             page.Family = uidropdown(grid, 'Items', {info.Families.Name}, 'ItemsData', {info.Families.Code}, 'ValueChangedFcn', @(~, ~) page.refreshPlan(), ...

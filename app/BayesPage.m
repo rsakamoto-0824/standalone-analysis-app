@@ -37,7 +37,10 @@ classdef BayesPage < AppPage
         function page = BayesPage(app, parent)
             page@AppPage(app, parent);
             page.Body.ColumnWidth = {page.LEFT_WIDTH, '1x'}; page.Body.RowHeight = {'1x'};
-            left = uigridlayout(page.Body, [5, 1]); left.Padding = [0, 0, 0, 0]; left.RowHeight = {104, '1x', 170, 44, 38};
+            % 各欄に固定の高さを持たせ、入りきらないときは左の列ごと上下にスクロールする（③ の説明や ② の一覧が切れないようにするため）。
+            % 最後の伸縮行は、画面が広いときに固定の行が上下に広がらないよう空の部品で埋める。
+            left = uigridlayout(page.Body, [6, 1], 'Scrollable', 'on'); left.Padding = [0, 0, 6, 0];
+            left.RowHeight = {104, 230, 262, 44, 38, '1x'};
             panel = AppPage.section(left, '① データを開く');
             grid = uigridlayout(panel, [1, 1]); grid.Padding = [8, 6, 8, 6];
             page.Source = DataSourceControl(page, grid); page.Source.LoadedFcn = @(data) page.dataLoaded(data);
@@ -52,9 +55,12 @@ classdef BayesPage < AppPage
             page.Predictors = uilistbox(grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', 'ValueChangedFcn', @(~, ~) page.refreshPlan());
             page.Predictors.Layout.Column = [1, 2];
             panel = AppPage.section(left, '③ 条件');
-            grid = uigridlayout(panel, [5, 2]); grid.RowHeight = {30, 30, 30, 30, '1x'}; grid.ColumnWidth = {200, '1x'};
-            uilabel(grid, 'Text', 'グループごとに推定する係数');
+            % 選択肢の文（「切片だけグループごと（傾きは全体で共通）」など）が切れないよう、係数の選び方は欄の幅いっぱいに置く。
+            % 下の説明（2〜3行）まで見えるよう、欄の高さ（左の列の3行目）も合わせて決めている。
+            grid = uigridlayout(panel, [6, 2]); grid.RowHeight = {22, 30, 30, 30, 30, '1x'}; grid.ColumnWidth = {200, '1x'};
+            label = uilabel(grid, 'Text', 'グループごとに推定する係数'); label.Layout.Column = [1, 2];
             page.Varying = uidropdown(grid, 'Items', page.VARYING_NAMES, 'ItemsData', page.VARYING_CODES);
+            page.Varying.Layout.Column = [1, 2];
             [~, page.Iterations] = AppPage.numberField(grid, 'MCMC の繰り返し回数', 2000, [200, 50000], true);
             [~, page.BurnIn] = AppPage.numberField(grid, '最初に捨てる回数（バーンイン）', 1000, [0, 49000], true);
             [~, page.Chains] = AppPage.numberField(grid, '鎖（チェーン）の数', 2, [1, 4], true);
@@ -62,6 +68,7 @@ classdef BayesPage < AppPage
             label.Layout.Column = [1, 2];
             page.Plan = AppPage.stateLabel(left);
             page.RunButton = AppPage.primaryButton(left, '④ 階層ベイズを実行', @(~, ~) page.run());
+            AppPage.fillLastRow(left);
             page.Views = uitabgroup(page.Body);
             page.ResultTab = uitab(page.Views, 'Title', '結果'); grid = uigridlayout(page.ResultTab, [1, 1]);
             page.Result = ResultPanel(page, grid, '左の①〜④を進めると、ここにグループごとの係数と収束の確認を表示します。');

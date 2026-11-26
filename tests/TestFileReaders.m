@@ -26,6 +26,19 @@ classdef TestFileReaders < matlab.unittest.TestCase
             testCase.verifyTrue(TestFileReaders.sameCells(cells,expected));
             testCase.verifyEqual(cells{2,1},'a&b <x>'); testCase.verifyEqual(cells{1,1},'名前');
         end
+        function xlsxDropsPhoneticReading(testCase)
+            % 日本語の Excel は、漢字の読み（ふりがな）を <rPh> に入れて保存する。読みを文字の末尾へ足さない。
+            fixture=testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture); folder=fixture.Folder;
+            plain=fullfile(folder,'plain.xlsx'); writecell({'温度','地名';1,'東京'},plain);
+            parts=fullfile(folder,'parts'); unzip(plain,parts);
+            shared=fullfile(parts,'xl','sharedStrings.xml'); xml=fileread(shared);
+            xml=strrep(xml,'<t>温度</t>','<t>温度</t><rPh sb="0" eb="2"><t>オンド</t></rPh><phoneticPr fontId="1"/>');
+            xml=strrep(xml,'<t>東京</t>',sprintf('<r><t>東京</t></r><rPh sb="0" eb="2">\n<t>トウキョウ</t></rPh>'));
+            testCase.assertEqual(numel(strfind(xml,'<rPh ')),2);
+            file_id=fopen(shared,'w','n','UTF-8'); fwrite(file_id,xml,'char'); fclose(file_id);
+            phonetic=fullfile(folder,'phonetic.xlsx'); zip(fullfile(folder,'phonetic.zip'),{'*'},parts); movefile(fullfile(folder,'phonetic.zip'),phonetic);
+            testCase.verifyEqual(read_xlsx_cells(phonetic,1),{'温度','地名';1,'東京'});
+        end
         function csvParsesQuotesEncodingsAndText(testCase)
             fixture=testCase.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture);
             quoted=fullfile(fixture.Folder,'q.csv'); write(quoted,unicode2native(sprintf('名前,"値, 含む",X\n"a""b",1.5,\n,,3\n'),'UTF-8'));

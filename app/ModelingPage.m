@@ -23,6 +23,10 @@ classdef ModelingPage < AppPage
         Regressors = struct()
         PlsComponents = []
         TreeCount = []
+        % 損失関数（GPR 以外）と分位点 τ、CatBoost の並べ替え列（Pro 版）。
+        LossChoice = []
+        QuantileLevel = []
+        CatBoostOrder = []
         Hyper = []
         Kernels
         FitInfo
@@ -72,6 +76,10 @@ classdef ModelingPage < AppPage
         REGRESSOR_LABELS = struct('gpr', 'ガウス過程回帰（GPR）', 'linear', '重回帰', 'pls', 'PLS回帰', 'forest', 'ランダムフォレスト', ...
             'bagging', 'バギング木', 'ebm', 'EBM（GA2M）', 'xgboost', 'XGBoost', 'lightgbm', 'LightGBM', 'catboost', 'CatBoost')
         MAX_SHAPE_CHARTS = 9
+        LOSS_SQUARED = '二乗誤差（平均を予測）'
+        LOSS_QUANTILE = '分位点（ピンボール損失。分位点回帰）'
+        DEFAULT_QUANTILE = 0.9
+        ORDER_NONE = '（指定しない：乱数の順）'
         OUTPUT_FILE_PREFIX = 'Prediction_SHAP'
     end
     methods
@@ -333,11 +341,12 @@ classdef ModelingPage < AppPage
             page.Predictors = uilistbox(grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', 'Enable', 'off', ...
                 'ValueChangedFcn', @(~, ~) page.variablesChanged());
             if page.isPro()
-                % Pro 版：選んだ説明変数のうち、ロット・装置名などの質的変数として扱う列（GPR だけが使える）。
-                uilabel(grid, 'Text', '質的変数として扱う列（Pro版。GPRだけ。文字の列も選べます）', 'FontWeight', 'bold');
+                % Pro 版：選んだ説明変数のうち、ロット・装置名などの質的変数として扱う列（すべての回帰方式で使える）。
+                uilabel(grid, 'Text', '質的変数として扱う列（Pro版。文字の列も選べます）', 'FontWeight', 'bold');
                 page.Qualitative = uilistbox(grid, 'Items', {}, 'Value', {}, 'Multiselect', 'on', ...
                     'ValueChangedFcn', @(~, ~) page.variablesChanged(), ...
-                    'Tooltip', '選んだ列は値ごとのグループ（水準）として扱い、同じ水準どうしの似かたを GPR が学習します。');
+                    'Tooltip', ['選んだ列は値ごとのグループ（水準）として扱います。GPR は水準どうしの似かたを学習し、' ...
+                    '重回帰・PLS はダミー変数、木の方式は水準の組で分け、CatBoost は並べた順の目的変数の平均（Ordered TS）に置き換えます。']);
             end
         end
         function buildConditionStep(page)
@@ -377,7 +386,8 @@ classdef ModelingPage < AppPage
                 % Pro 版：さらに EBM・XGBoost・LightGBM・CatBoost。木の本数などは下の「ハイパーパラメータ」で調整する。
                 layout = {'gpr', 'linear', 'pls'; 'forest', 'bagging', ''};
                 if page.isPro(), layout = {'gpr', 'linear', 'pls'; 'forest', 'bagging', 'ebm'; 'xgboost', 'lightgbm', 'catboost'}; end
-                rows = size(layout, 1); extra = {30}; if ~page.isPro(), extra = {30, 30}; end
+                % 通常版は PLS の成分数・木の本数・損失関数、Pro 版は PLS の成分数・損失関数・CatBoost の並べ替え列の3行。
+                rows = size(layout, 1); extra = {30, 30, 30};
                 heights = [{22}, repmat({26}, 1, rows), extra, {22, '1x', 44}];
             end
             grid = uigridlayout(parent, [numel(heights) + 1, 1]); grid.RowHeight = [heights, {'1x'}];
@@ -405,6 +415,8 @@ classdef ModelingPage < AppPage
                     uilabel(row, 'Text', sprintf('（%d〜%d。2方式で共通）', limits(1), limits(2)), ...
                         'Tooltip', 'ランダムフォレスト・バギング木で共通の木の本数です。多いほど予測が安定し、学習に時間がかかります。');
                 end
+                page.buildLossRow(grid);
+                if page.isPro(), page.buildCatBoostOrderRow(grid); end
             end
             uilabel(grid, 'Text', 'GPRのカーネル（複数選ぶと比較します。Ctrl キーを押しながら複数選択）', 'FontWeight', 'bold');
             page.Kernels = uilistbox(grid, 'Items', kernels, 'Value', {default_kernel}, 'Multiselect', 'on', ...
@@ -416,6 +428,29 @@ classdef ModelingPage < AppPage
             else
                 AppPage.fillLastRow(grid);
             end
+        end
+        function buildLossRow(page, grid)
+            % GPR 以外の方式の損失関数。分位点を選ぶと、目的変数の τ 分位点（例：0.9 なら上側 10% の線）を予測する。
+            row = uigridlayout(grid, [1, 4]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, '1x', 70, 70};
+            uilabel(row, 'Text', '損失関数（GPR以外）', ...
+                'Tooltip', ['二乗誤差は目的変数の平均を予測します。分位点（ピンボール損失）は τ 分位点を予測します' ...
+                '（τ = 0.9 なら、実測の約9割がその値以下になる線）。GPR はこの設定によらず平均を予測します。']);
+            page.LossChoice = uidropdown(row, 'Items', {page.LOSS_SQUARED, page.LOSS_QUANTILE}, 'Value', page.LOSS_SQUARED, ...
+                'ValueChangedFcn', @(~, ~) page.conditionsChanged());
+            limits = ProcessRegressionModel.QUANTILE_LIMITS;
+            [~, page.QuantileLevel] = AppPage.numberField(row, '分位点 τ', page.DEFAULT_QUANTILE, limits, false);
+            page.QuantileLevel.Enable = 'off'; page.QuantileLevel.ValueChangedFcn = @(~, ~) page.conditionsChanged();
+            page.QuantileLevel.Tooltip = sprintf('%g〜%g。0.5 で中央値、0.9 で上側10%%の線、0.1 で下側10%%の線を予測します。', limits(1), limits(2));
+        end
+        function buildCatBoostOrderRow(page, grid)
+            % CatBoost の順序付きブースティングと、質的変数の Ordered Target Statistics で使う行の並べ方（Pro 版）。
+            row = uigridlayout(grid, [1, 2]); row.Padding = [0, 0, 0, 0]; row.ColumnWidth = {150, '1x'};
+            uilabel(row, 'Text', 'CatBoost の並べ替え列');
+            page.CatBoostOrder = uidropdown(row, 'Items', {page.ORDER_NONE}, 'Value', page.ORDER_NONE, 'Enable', 'off', ...
+                'ValueChangedFcn', @(~, ~) page.conditionsChanged(), ...
+                'Tooltip', ['CatBoost は行を並べ、各行の計算に「その行より前の行」だけを使います（質的変数の置き換えと、' ...
+                'ハイパーパラメータで順序付きブースティングを1にしたときの勾配）。日時・処理順などの列を選ぶと、その値の小さい順に並べます。' ...
+                '文字の列は文字の順に並べます。指定しないときは乱数の順です。説明変数に選んでいない列も選べます。']);
         end
         function buildEvaluationConditions(page, parent)
             heights = {60, 30, 30, 30, 30};
@@ -496,6 +531,11 @@ classdef ModelingPage < AppPage
                     kept = intersect(cellstr(string(page.Predictors.Value)), headers, 'stable');
                     set(page.Predictors, 'Items', headers, 'Value', kept, 'Enable', 'on');
                     page.Order = page.Order(ismember(page.Order, kept));
+            end
+            if ~isempty(page.CatBoostOrder)
+                order = page.ORDER_NONE; if any(strcmp(headers, page.CatBoostOrder.Value)), order = page.CatBoostOrder.Value; end
+                page.CatBoostOrder.Items = [{page.ORDER_NONE}, headers(:)']; page.CatBoostOrder.Value = order;
+                page.conditionsChanged();
             end
             page.variablesChanged(); page.Explorer.setData(data);
             page.message(sprintf('%s を読み込みました（%d行）。次に「② 変数を選ぶ」で目的変数と説明変数を選びます。', ...
@@ -609,6 +649,10 @@ classdef ModelingPage < AppPage
                     page.TreeCount.Enable = matlab.lang.OnOffSwitchState(page.Regressors.forest.Value || page.Regressors.bagging.Value);
                 end
                 page.Kernels.Enable = matlab.lang.OnOffSwitchState(page.Regressors.gpr.Value);
+                page.QuantileLevel.Enable = matlab.lang.OnOffSwitchState(strcmp(page.LossChoice.Value, page.LOSS_QUANTILE));
+                if ~isempty(page.CatBoostOrder)
+                    page.CatBoostOrder.Enable = matlab.lang.OnOffSwitchState(page.Regressors.catboost.Value && ~isempty(page.Source.Data));
+                end
             end
             page.refreshPlan();
         end
@@ -670,7 +714,19 @@ classdef ModelingPage < AppPage
             if ~isempty(mapping), mask = ismember(mapping(:, 3)', page.qualitativeColumns()); end
             if any(mask), categorical = struct('Mask', mask, 'Levels', {levels}); end
             if ~page.isPro() && any(strcmp(kernels, 'additive')), error('modeling:proOnly', '加法カーネルは Pro 版だけで使えます。'); end
-            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components, trees, parameters, search, categorical);
+            extra = struct();
+            if strcmp(page.Kind, 'generic')
+                extra.Loss = struct('Type', 'squared', 'Quantile', NaN);
+                if strcmp(page.LossChoice.Value, page.LOSS_QUANTILE), extra.Loss = struct('Type', 'quantile', 'Quantile', page.QuantileLevel.Value); end
+                if any(strcmp(regressors, 'catboost')), extra.Order = page.catBoostOrderValues(); end
+            end
+            conditions = modeling_conditions(kernels(:)', regressors, page.settings().FitMethod, components, trees, parameters, search, categorical, extra);
+        end
+        function values = catBoostOrderValues(page)
+            % CatBoost の並べ替え列の値（行ごと）。数値の列はその値、文字の列は文字の順の番号。指定がなければ空（乱数の順）。
+            values = [];
+            if isempty(page.CatBoostOrder) || strcmp(page.CatBoostOrder.Value, page.ORDER_NONE), return; end
+            values = order_column_values(page.Source.Data, page.CatBoostOrder.Value);
         end
         function count = conditionCount(page)
             regressors = page.selectedRegressors(); count = numel(regressors);
@@ -801,19 +857,20 @@ classdef ModelingPage < AppPage
         end
         function refreshModelTable(page)
             % 目的変数ごとにまとめ、その中は実行の順、同じ実行の中は精度の順位（RMSEの小さい順。失敗は最後）で並べる。
-            count = numel(page.Records); rows = cell(count, 14); ranks = page.ranks();
+            % 分位点回帰のモデルは、評価データで「実測が予測以下」だった行の割合も示す（τ に近いほど良い。それ以外は空欄）。
+            count = numel(page.Records); rows = cell(count, 15); ranks = page.ranks();
             page.RowOrder = page.displayOrder(ranks);
             for position = 1:count
                 index = page.RowOrder(position); record = page.Records{index}; r2 = NaN; rmse = NaN;
                 if ~isempty(record.Metrics), r2 = record.Metrics.Value(1); rmse = record.Metrics.Value(2); end
                 saved = ''; if ~isempty(record.SavedPath), [~, base, extension] = fileparts(record.SavedPath); saved = [base extension]; end
                 rows(position, :) = {record.Id, record.Run, record.Target, modeling_condition_label(record.Condition), ranks(index), r2, rmse, ...
-                    record.Scope, record.ShapStatus, record.Status, saved, strjoin(record.InputNames, ', '), ...
+                    ModelingPage.belowShare(record), record.Scope, record.ShapStatus, record.Status, saved, strjoin(record.InputNames, ', '), ...
                     page.fileNameOf(record.Source), record.Note};
             end
             page.ModelTable.Data = cell2table(rows, 'VariableNames', ...
-                {'ID', '実行', '目的変数', 'モデル', '順位', 'R2', 'RMSE', '評価データ', 'SHAP', '状態', '保存先', '説明変数', '入力ファイル', '備考'});
-            page.ModelTable.ColumnWidth = {40, 44, 90, 150, 44, 80, 90, 120, 60, 54, 150, 200, 160, 'auto'};
+                {'ID', '実行', '目的変数', 'モデル', '順位', 'R2', 'RMSE', '実測が予測以下の割合', '評価データ', 'SHAP', '状態', '保存先', '説明変数', '入力ファイル', '備考'});
+            page.ModelTable.ColumnWidth = {40, 44, 90, 150, 44, 80, 90, 90, 120, 60, 54, 150, 200, 160, 'auto'};
         end
         function order = displayOrder(page, ranks)
             % 表示順：目的変数（最初に現れた順）→ 実行 → 順位（失敗は最後）→ 元の順。
@@ -981,12 +1038,18 @@ classdef ModelingPage < AppPage
             % ハイパーパラメータ探索の結果：試行ごとの表、試行順の RMSE と最良の推移、各パラメータと RMSE の関係。
             panel = page.Result; trace = details.SearchTrace; panel.setTable(page.TABLE_SEARCH, trace);
             ok = trace.("状態") == "成功"; modes = struct('grid', 'グリッドサーチ', 'random', 'ランダムサーチ');
+            % 分位点回帰ではピンボール損失、それ以外は RMSE で試行を比べる。
+            score_name = 'CV_RMSE'; best_name = 'それまでの最良RMSE'; score_text = 'RMSE';
+            if ismember('CV_ピンボール損失', trace.Properties.VariableNames)
+                score_name = 'CV_ピンボール損失'; best_name = 'それまでの最良ピンボール損失'; score_text = 'ピンボール損失';
+            end
+            score = trace.(score_name);
             ax = panel.addAxes(page.CHART_SEARCH_TRACE); hold(ax, 'on');
-            scatter(ax, trace.("試行")(ok), trace.CV_RMSE(ok), 36, 'filled', 'DisplayName', '各試行');
-            stairs(ax, trace.("試行"), trace.("それまでの最良RMSE"), 'LineWidth', 1.8, 'DisplayName', 'それまでの最良');
+            scatter(ax, trace.("試行")(ok), score(ok), 36, 'filled', 'DisplayName', '各試行');
+            stairs(ax, trace.("試行"), trace.(best_name), 'LineWidth', 1.8, 'DisplayName', 'それまでの最良');
             chosen = trace.("採用");
-            scatter(ax, trace.("試行")(chosen), trace.CV_RMSE(chosen), 120, 'p', 'filled', 'DisplayName', '採用した値');
-            xlabel(ax, '試行の順番'); ylabel(ax, sprintf('交差検証の RMSE（%d分割）', details.SearchFolds)); grid(ax, 'on');
+            scatter(ax, trace.("試行")(chosen), score(chosen), 120, 'p', 'filled', 'DisplayName', '採用した値');
+            xlabel(ax, '試行の順番'); ylabel(ax, sprintf('交差検証の %s（%d分割）', score_text, details.SearchFolds)); grid(ax, 'on');
             legend(ax, 'Location', 'best');
             title(ax, sprintf('%s の推移（%d試行。小さいほど良い）', modes.(details.SearchMode), height(trace))); hold(ax, 'off');
             % 各パラメータの値と RMSE を並べた図（パネル）。1つの図としても、1枚ずつでも書き出せる。
@@ -997,12 +1060,12 @@ classdef ModelingPage < AppPage
             charts = {container}; names = {page.CHART_SEARCH_EFFECT};
             for index = 1:count
                 ax = uiaxes(plots); values = trace.(labels{index});
-                scatter(ax, values(ok), trace.CV_RMSE(ok), 36, 'filled'); hold(ax, 'on');
+                scatter(ax, values(ok), score(ok), 36, 'filled'); hold(ax, 'on');
                 % 同じ値の試行の中で最も良い RMSE を線で結び、値による傾向を見やすくする。
-                levels = unique(values(ok)); best = arrayfun(@(level) min(trace.CV_RMSE(ok & values == level)), levels);
+                levels = unique(values(ok)); best = arrayfun(@(level) min(score(ok & values == level)), levels);
                 plot(ax, levels, best, '-', 'LineWidth', 1.5); hold(ax, 'off');
                 if numel(levels) > 2 && all(levels > 0) && max(levels) / min(levels) >= 50, ax.XScale = 'log'; end
-                xlabel(ax, labels{index}, 'Interpreter', 'none'); ylabel(ax, 'CV RMSE'); grid(ax, 'on');
+                xlabel(ax, labels{index}, 'Interpreter', 'none'); ylabel(ax, ['CV ' score_text]); grid(ax, 'on');
                 title(ax, labels{index}, 'Interpreter', 'none');
                 charts{end + 1} = ax; names{end + 1} = sprintf('%s：%s', page.CHART_SEARCH_EFFECT, labels{index}); %#ok<AGROW>
             end
@@ -1015,9 +1078,17 @@ classdef ModelingPage < AppPage
             container = uipanel(holder, 'BorderType', 'none'); total = count + size(booster.Pairs, 1);
             columns = min(total, 3); plots = uigridlayout(container, [ceil(total / columns), columns]); plots.Padding = [0, 0, 0, 0];
             charts = {container}; names = {page.CHART_EBM_SHAPES};
+            [categorical, levels] = model.categoricalInfo();
             for feature = 1:count
                 ax = uiaxes(plots); [positions, values] = booster.shape(feature);
-                stairs(ax, positions, values, 'LineWidth', 1.8); yline(ax, 0, ':');
+                if categorical(feature)
+                    % 質的変数は水準ごとの効果を棒で表す。
+                    bar(ax, positions, values); ax.XTick = positions; ax.XTickLabel = cellstr(string(levels{feature}));
+                    ax.TickLabelInterpreter = 'none';
+                else
+                    stairs(ax, positions, values, 'LineWidth', 1.8);
+                end
+                yline(ax, 0, ':');
                 xlabel(ax, model.PredictorNames{feature}, 'Interpreter', 'none'); ylabel(ax, '予測への効果'); grid(ax, 'on');
                 title(ax, sprintf('f(%s)', model.PredictorNames{feature}), 'Interpreter', 'none');
                 charts{end + 1} = ax; names{end + 1} = sprintf('EBMの形：%s', model.PredictorNames{feature}); %#ok<AGROW>
@@ -1052,6 +1123,17 @@ classdef ModelingPage < AppPage
                 'PeriodOptions', record.PeriodOptions, 'Explainer', record.Shap.Explainer);
             [charts, chart_names] = plot_shap_figures(panel.ChartTabs, values, record.Shap.Inputs, names, options);
             panel.registerCharts(charts, chart_names);
+        end
+    end
+    methods (Static, Access = private)
+        function share = belowShare(record)
+            % 分位点回帰の条件だけ、評価データ（交差検証では学習に使っていない行の予測）で実測が予測以下の行の割合を返す。
+            share = NaN;
+            if ~isfield(record.Condition, 'Loss') || isempty(record.Condition.Loss) || ~strcmp(record.Condition.Loss.Type, 'quantile') ...
+                    || isempty(record.Prediction)
+                return;
+            end
+            share = mean(record.Actual(:) <= record.Prediction(:));
         end
     end
 end
