@@ -3,7 +3,7 @@ classdef DataExplorer < handle
     % 通常版：単変量の傾向（横軸＝レコードまたは任意の列、縦軸＝任意の列、色＝任意の列。文字の列＝質的変数にも対応）。
     %         グラフの種類・列・群の分け方・群の数の欄は出さない（Kind・Columns・ClusterMethod・ClusterCount は空）。
     % Pro 版：上に加えて、ヒストグラム、相関マトリックス、分散分析（ANOVA）、Parallel Coordinates、
-    %         Parallel Sets、Sankey Diagram、主成分分析（PCA）、クラスタリング。
+    %         Parallel Sets、Sankey Diagram、Alluvial Diagram、主成分分析（PCA）、クラスタリング。
     % 学習に使うデータや列の選択は変えない（見るだけ）。
     % グラフの種類は複数選んで一括で描ける。描いたグラフと表は、描くたびに番号（1. 2. …）を付けて追加し、
     % 種類を変えて描き直しても前の結果は消さない（「結果を消す」で消す）。
@@ -32,8 +32,8 @@ classdef DataExplorer < handle
         RECORD = 'レコード（行の順番）'
         NO_COLOR = '(単色)'
         KIND_NAMES = {'単変量の傾向（散布図）', 'ヒストグラム', '相関マトリックス', '分散分析（ANOVA）', ...
-            'Parallel Coordinates', 'Parallel Sets', 'Sankey Diagram', '主成分分析（PCA）', 'クラスタリング'}
-        KIND_CODES = {'trend', 'histogram', 'correlation', 'anova', 'parallel', 'sets', 'sankey', 'pca', 'cluster'}
+            'Parallel Coordinates', 'Parallel Sets', 'Sankey Diagram', 'Alluvial Diagram', '主成分分析（PCA）', 'クラスタリング'}
+        KIND_CODES = {'trend', 'histogram', 'correlation', 'anova', 'parallel', 'sets', 'sankey', 'alluvial', 'pca', 'cluster'}
         COLOR_MODE_NAMES = {'自動（文字の列・種類が10以下の数値はグループ）', '量的（連続した色）', '質的（グループごとの色）'}
         COLOR_MODE_CODES = {'auto', 'numeric', 'category'}
         CLUSTER_METHOD_NAMES = {'k-means 法', 'Ward 法（階層型）'}
@@ -55,6 +55,9 @@ classdef DataExplorer < handle
             'parallel', '「列」で選んだ数値の列を縦軸として並べ、1行を1本の線で表示します（各軸は最小〜最大で目盛ります）。色の列でグループ分けできます。', ...
             'sets', '「列」で選んだ列（2〜6列。数値は6区間に分けます）の値の組み合わせを帯で表示します。帯の太さは行数、色は最初の列の値です。「色」で任意の列を選ぶと、その列で色を付けます（数値は連続した色）。', ...
             'sankey', '「列」で選んだ列（2〜6列。数値は6区間に分けます）の隣り合う列の間で、値がどう移るかを流れで表示します。「色」で任意の列を選ぶと、その列で色を付けます（数値は連続した色）。', ...
+            'alluvial', ['「列」で選んだ列（2〜6列。数値は6区間に分けます。工程の順・時間の順に並べると読みやすくなります）の値の移り変わりを、' ...
+            '層（各列の値の箱）と、行の経路ごとの帯で表示します。帯は全部の列を通り、箱の中は隣の列の値の順に並べて交差を減らします。' ...
+            '帯の色は最初の列の値です。「色」で任意の列を選ぶと、その列で色を付けます（数値は連続した色）。'], ...
             'pca', '「列」で選んだ数値の列（2列以上）を標準化して主成分分析を行い、主成分得点・寄与率・負荷量を表示します。', ...
             'cluster', '「列」で選んだ数値の列（2列以上）を標準化して群に分けます。群の数の目安（エルボー図）とシルエット係数も表示します。')
     end
@@ -166,6 +169,8 @@ classdef DataExplorer < handle
             if isempty(kinds), explorer.Owner.showError(MException('DataExplorer:kind', 'グラフの種類を1つ以上選んでください。')); return; end
             kinds = explorer.KIND_CODES(ismember(explorer.KIND_CODES, kinds));
             failures = strings(0, 1); drawn = strings(0, 1);
+            % 今回描いた最初のグラフを表示するため、描く前のグラフのタブの数を覚えておく。
+            existing = numel(explorer.Result.ChartTabs.Children);
             for index = 1:numel(kinds)
                 kind = kinds{index}; name = explorer.KIND_NAMES{strcmp(explorer.KIND_CODES, kind)};
                 explorer.DrawCount = explorer.DrawCount + 1; explorer.Drawn{explorer.DrawCount} = kind;
@@ -180,7 +185,7 @@ classdef DataExplorer < handle
                         case 'correlation', explorer.drawCorrelation();
                         case 'anova', explorer.drawAnova();
                         case 'parallel', explorer.drawParallel();
-                        case {'sets', 'sankey'}, explorer.drawFlows(kind);
+                        case {'sets', 'sankey', 'alluvial'}, explorer.drawFlows(kind);
                         case 'pca', explorer.drawPca();
                         case 'cluster', explorer.drawClusters();
                     end
@@ -190,7 +195,11 @@ classdef DataExplorer < handle
                 end
             end
             if ~isempty(drawn)
-                explorer.Result.showCharts(); explorer.Owner.App.applyTheme();
+                explorer.Result.showCharts();
+                % 前のグラフも残すため、選択中のタブは描く前のままになる。今回描いた最初のグラフのタブへ切り替える。
+                tabs = explorer.Result.ChartTabs.Children;
+                if numel(tabs) > existing, explorer.Result.ChartTabs.SelectedTab = tabs(existing + 1); end
+                explorer.Owner.App.applyTheme();
                 explorer.Owner.message("グラフを追加しました: " + strjoin(drawn, '、'));
             end
             if ~isempty(failures)
@@ -203,11 +212,11 @@ classdef DataExplorer < handle
         function kindChanged(explorer)
             % 選んだ種類のどれかが使う欄だけを使えるようにする。
             kinds = explorer.selectedKinds();
-            uses = struct('X', {{'trend'}}, 'Y', {{'trend', 'anova'}}, 'Color', {{'trend', 'histogram', 'parallel', 'sets', 'sankey', 'pca'}}, ...
-                'Columns', {{'histogram', 'correlation', 'anova', 'parallel', 'sets', 'sankey', 'pca', 'cluster'}}, 'Cluster', {{'cluster'}});
+            uses = struct('X', {{'trend'}}, 'Y', {{'trend', 'anova'}}, 'Color', {{'trend', 'histogram', 'parallel', 'sets', 'sankey', 'alluvial', 'pca'}}, ...
+                'Columns', {{'histogram', 'correlation', 'anova', 'parallel', 'sets', 'sankey', 'alluvial', 'pca', 'cluster'}}, 'Cluster', {{'cluster'}});
             enable = @(names) matlab.lang.OnOffSwitchState(any(ismember(names, kinds)));
             explorer.XAxis.Enable = enable(uses.X); explorer.YAxis.Enable = enable(uses.Y);
-            explorer.Color.Enable = enable(uses.Color); explorer.ColorMode.Enable = enable({'trend', 'pca', 'sets', 'sankey'});
+            explorer.Color.Enable = enable(uses.Color); explorer.ColorMode.Enable = enable({'trend', 'pca', 'sets', 'sankey', 'alluvial'});
             if explorer.IsPro
                 explorer.Columns.Enable = enable(uses.Columns);
                 explorer.ClusterMethod.Enable = enable(uses.Cluster); explorer.ClusterCount.Enable = enable(uses.Cluster);
@@ -451,11 +460,12 @@ classdef DataExplorer < handle
             for index = 1:numel(names)
                 [groups(:, index), level_names{index}] = category_groups(data_column(explorer.Data, names{index}), explorer.FLOW_LEVELS);
             end
-            % 帯の色：色の列を選ばないときは、Parallel Sets は最初の列の値（凡例つき）、Sankey は流れの元の水準。
+            % 帯の色：色の列を選ばないときは、Parallel Sets・Alluvial は最初の列の値（凡例つき）、Sankey は流れの元の水準。
             % 色の列を選ぶと、文字の列・種類の少ない数値の列はグループごとの色（凡例つき）、そのほかの数値の列は帯ごとの平均の連続した色。
             [mode, column] = explorer.colorChoice(); color = struct('Mode', 'none', 'Values', []); color_label = '';
             title_text = 'Parallel Sets'; color_names = level_names{1};
             if strcmp(style, 'sankey'), title_text = 'Sankey Diagram'; color_names = strings(0, 1); end
+            if strcmp(style, 'alluvial'), title_text = 'Alluvial Diagram'; end
             switch mode
                 case 'category'
                     [codes, color_names] = category_groups(column, explorer.FLOW_LEVELS); color = struct('Mode', 'category', 'Values', codes);
@@ -470,6 +480,10 @@ classdef DataExplorer < handle
             labels = strings(size(paths));
             for index = 1:numel(names), labels(:, index) = level_names{index}(paths(:, index)); end
             combination = [array2table(labels, 'VariableNames', cellstr(string(names))), table(counts_by_path, 'VariableNames', {'件数'})];
+            if strcmp(style, 'alluvial')
+                % Alluvial では、経路（行の値の移り変わり）ごとの割合も示す。
+                combination.("割合_percent") = 100 * counts_by_path / rows;
+            end
             explorer.setTable('値の組み合わせ', sortrows(combination, '件数', 'descend'));
             colored = '色：既定'; if ~strcmp(mode, 'none'), colored = sprintf('色：%s', column.Name); end
             explorer.setHeadline(sprintf('%s：%s（数値の列は%d区間に分けました。%s）', title_text, strjoin(names, ' → '), explorer.FLOW_LEVELS, colored));

@@ -1,14 +1,18 @@
 function layout = category_flow_layout(groups, level_counts, style, color)
-% Parallel Sets と Sankey Diagram の配置（描画は app/plot_category_flows.m）。
+% Parallel Sets・Sankey Diagram・Alluvial Diagram の配置（描画は app/plot_category_flows.m）。
 %   groups       行 × 列のグループ番号（1〜水準数）。列が縦軸の並び（左から右）
 %   level_counts 列ごとの水準数
 %   style        'sets'   ：Parallel Sets。行の組み合わせ（経路）ごとに帯を通す
 %                'sankey' ：Sankey Diagram。隣り合う2列の水準の組ごとに流れをまとめる
+%                'alluvial'：Alluvial Diagram。Parallel Sets と同じく経路ごとの帯を全部の列に通すが、各水準（層）の中の
+%                           帯を「その列の水準 → 色 → 左右の隣の列の水準（近い列から順に）」で並べ、帯の交差を減らす
+%                           （ggalluvial の zigzag と同じ考え方）。層は名前を中に書いた幅の広い箱で描く
 %   color（省略可）帯の色の決め方 struct('Mode', ..., 'Values', 行ごとの値)
 %                'none'     ：Parallel Sets は最初の列の水準、Sankey は流れの元の水準（ノードの通し番号）で色を付ける
 %                'category' ：任意の列のグループ番号（Values）で帯を分け、その番号で色を付ける
 %                'numeric'  ：任意の数値の列（Values）の帯ごとの平均で、連続した色を付ける
 % 縦方向は全体を1とする割合で表し、水準（ノード）の間には少し隙間を空ける。
+%   layout.Style  style の値（描き方を変えるため）
 %   layout.Nodes  表：Column, Level, Count, Bottom, Top
 %   layout.Ribbons 表：Column（左の列）, FromLevel, ToLevel, Count, Color, Value, LeftBottom, LeftTop, RightBottom, RightTop
 %                  Color は色の番号（'numeric' では NaN）、Value は帯の平均（'numeric' 以外は NaN）
@@ -37,24 +41,42 @@ layout.Nodes = table(node_column, node_level, node_count, node_bottom, node_top,
 unit = usable / rows;
 % 帯を分けるための色の番号（'category' のときだけ使う）。
 key = zeros(rows, 1); if strcmp(color.Mode, 'category'), key = double(color.Values(:)); end
+layout.Style = style;
 if strcmp(style, 'sets')
-    layout.Ribbons = setsRibbons(groups, layout.Nodes, unit, key, color);
+    layout.Ribbons = pathRibbons(groups, layout.Nodes, unit, key, color, @setsOrder);
+elseif strcmp(style, 'alluvial')
+    layout.Ribbons = pathRibbons(groups, layout.Nodes, unit, key, color, @alluvialOrder);
 elseif strcmp(style, 'sankey')
     layout.Ribbons = sankeyRibbons(groups, level_counts, layout.Nodes, unit, key, color);
 else
-    error('flow:style', 'sets または sankey を指定してください。');
+    error('flow:style', 'sets・sankey・alluvial のどれかを指定してください。');
 end
 end
 
-function ribbons = setsRibbons(groups, nodes, unit, key, color)
+function keys = setsOrder(paths, path_key, column)
+% Parallel Sets：その列の水準 → 色 → 最初の列の水準 → 残りの列（同じ色の帯がまとまる）。
+keys = [paths(:, column), path_key, paths(:, 1), paths(:, [2:column - 1, column + 1:end])];
+end
+
+function keys = alluvialOrder(paths, path_key, column)
+% Alluvial：その列の水準 → 色 → 隣の列の水準を近い順（左、右、2つ左、2つ右…）。
+% 隣の列と同じ並びにそろえるため、隣へ向かう帯どうしが交差しにくい。
+columns = size(paths, 2); neighbours = zeros(1, 0);
+for distance = 1:columns - 1
+    neighbours = [neighbours, column - distance, column + distance]; %#ok<AGROW> 列の数は最大6
+end
+neighbours = neighbours(neighbours >= 1 & neighbours <= columns);
+keys = [paths(:, column), path_key, paths(:, neighbours)];
+end
+
+function ribbons = pathRibbons(groups, nodes, unit, key, color, order_keys_of)
 % 行の組み合わせ（経路。色で分けるときは色の番号も含む）ごとに、各ノードの中で経路の場所を決める。
-% 各列では「その列の水準 → 色 → 最初の列の水準 → 残りの列」の順に並べ、同じ色の帯がまとまるようにする。
+% 各列の中の並べ方は order_keys_of（Parallel Sets と Alluvial で異なる）で決める。
 [paths, ~, member] = unique([groups, key], 'rows'); counts = accumarray(member, 1);
 columns = size(groups, 2); path_key = paths(:, end); paths = paths(:, 1:columns);
 slot_bottom = zeros(size(paths, 1), columns);
 for column = 1:columns
-    order_keys = [paths(:, column), path_key, paths(:, 1), paths(:, [2:column - 1, column + 1:end])];
-    [~, order] = sortrows(order_keys);
+    [~, order] = sortrows(order_keys_of(paths, path_key, column));
     for level = unique(paths(:, column))'
         in_level = order(paths(order, column) == level);
         base = nodes.Bottom(nodes.Column == column & nodes.Level == level);

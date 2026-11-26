@@ -115,7 +115,7 @@ classdef TestProAnalysisFeatures < matlab.unittest.TestCase
         end
         function flowLayoutsKeepCountsAndStacking(testCase)
             groups=[1,1;1,2;2,2;2,2;1,1];
-            for style={'sets','sankey'}
+            for style={'sets','sankey','alluvial'}
                 layout=category_flow_layout(groups,[2,2],style{1});
                 for column=1:2
                     ribbons=layout.Ribbons(layout.Ribbons.Column==1,:); side={'FromLevel','ToLevel'};
@@ -125,6 +125,18 @@ classdef TestProAnalysisFeatures < matlab.unittest.TestCase
                 testCase.verifyLessThanOrEqual(max(layout.Nodes.Top),1+1e-12);
                 testCase.verifyEqual(layout.Ribbons.LeftTop-layout.Ribbons.LeftBottom,layout.Ribbons.RightTop-layout.Ribbons.RightBottom,'AbsTol',1e-12);
             end
+        end
+        function alluvialOrderingReducesCrossings(testCase)
+            % Alluvial は各層の中の帯を隣の列の水準の順に並べるため、2列目→3列目の帯の交差が Parallel Sets より少ない。
+            rng(8); groups=[randi(4,300,1),randi(3,300,1),randi(3,300,1)];
+            sets=category_flow_layout(groups,[4,3,3],'sets'); alluvial=category_flow_layout(groups,[4,3,3],'alluvial');
+            testCase.verifyEqual(alluvial.Style,'alluvial');
+            testCase.verifyEqual(alluvial.Nodes,sets.Nodes);
+            testCase.verifyLessThan(TestProAnalysisFeatures.crossings(alluvial,2),TestProAnalysisFeatures.crossings(sets,2));
+            % 帯の合計は層の件数と一致し、同じ帯は左右で同じ太さ。
+            ribbons=alluvial.Ribbons(alluvial.Ribbons.Column==2,:);
+            testCase.verifyEqual(accumarray(ribbons.ToLevel,ribbons.Count,[3,1]),alluvial.Nodes.Count(alluvial.Nodes.Column==3));
+            testCase.verifyError(@()category_flow_layout(groups,[4,3,3],'river'),'flow:style');
         end
         function anovaPcaAndClusters(testCase)
             rng(4); response=[randn(20,1);randn(20,1)+3]; factor={[repmat("a",20,1);repmat("b",20,1)]};
@@ -142,6 +154,14 @@ classdef TestProAnalysisFeatures < matlab.unittest.TestCase
         end
     end
     methods (Static)
+        function count=crossings(layout,column)
+            % 左の列 column から右の列への帯のうち、左右で上下が入れ替わる組の数。
+            r=layout.Ribbons(layout.Ribbons.Column==column,:); count=0;
+            for i=1:height(r)
+                count=count+sum((r.LeftBottom(i)<r.LeftBottom)~=(r.RightBottom(i)<r.RightBottom));
+            end
+            count=count/2;
+        end
         function [x,y]=sample(rows)
             rng(1); x=[rand(rows,2)*2-1,rand(rows,1)];
             y=2*x(:,1)+x(:,2).^2+sin(pi*x(:,3))+x(:,1).*x(:,2)+0.05*randn(rows,1);
