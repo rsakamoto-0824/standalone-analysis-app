@@ -2,7 +2,7 @@ function capture_app_screens(edition, only)
 % 手順書用の画面画像を、実際のアプリを同梱サンプルで操作して撮影する。
 %   capture_app_screens            配布版（通常版）の画面を撮る（利用手順書・ビルド利用手順書で使用）
 %   capture_app_screens('pro', {'56-conditions-swing', '60-period-search', '70-expanded-pro-fit', '78-doe-pro', ...
-%       '81-data-pro-sets', '82-data-pro-pca', '83-conditions-generic-pro', '84-search-results', '85-ebm-shapes', '66-wordcloud', ...
+%       '81-data-pro-sets', '93-data-pro-alluvial', '82-data-pro-pca', '83-conditions-generic-pro', '84-search-results', '85-ebm-shapes', '66-wordcloud', ...
 %       '88-variables-qualitative', '89-sobol', '90-causal', '91-bayes', '92-copula'})
 %                                  Pro版だけの画面（swingperiodic・周期の探索範囲・カーブ評価・拡張計画・データのグラフ・
 %                                  ブースティングとハイパーパラメータ探索・ワードクラウド）を撮る。only に名前を渡すと、その画像だけ保存する
@@ -42,6 +42,7 @@ apc.DataTabs.SelectedTab = apc.DataTabs.Children(2); explorer = apc.Explorer;
 explorer.configure(struct('Kind', 'trend', 'X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot')); explorer.draw(); snap('80-data-trend');
 if strcmp(edition, 'pro')
     explorer.configure(struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', 'RESIST_TH', 'ColorMode', 'numeric')); explorer.draw(); snap('81-data-pro-sets');
+    explorer.configure(struct('Kind', 'alluvial', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', explorer.NO_COLOR)); explorer.draw(); snap('93-data-pro-alluvial');
     explorer.configure(struct('Kind', 'pca', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'Color', 'Lot', 'ColorMode', 'auto'));
     explorer.draw(); snap('82-data-pro-pca');
 end
