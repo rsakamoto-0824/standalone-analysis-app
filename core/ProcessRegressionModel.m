@@ -113,10 +113,14 @@ classdef ProcessRegressionModel
             if response_scale==0, response_scale=1; end
             response=(y-response_center)/response_scale;
             if strcmp(method,'linear')
-                design=[ones(size(z,1),1),z];
+                % 学習の行にない水準のダミー変数（すべて0）は係数を0にして除く（交差検証で行の少ない水準が抜けたときなど）。
+                % その水準の予測は基準の水準と同じになる。
+                usable=model.usableDummyColumns(x);
+                design=[ones(size(z,1),1),z(:,usable)];
                 if rank(design)<size(design,2), error('regression:rank','重回帰の説明変数が独立でありません。定数列・重複列と行数を確認してください。'); end
-                if strcmp(model.Loss,'quantile'), beta=ProcessRegressionModel.quantileFit(design,response,model.Quantile);
-                else, beta=design\response; end
+                if strcmp(model.Loss,'quantile'), fitted=ProcessRegressionModel.quantileFit(design,response,model.Quantile);
+                else, fitted=design\response; end
+                beta=zeros(size(x,2)+1,1); beta([true,usable])=fitted;
             else
                 validateattributes(components,{'numeric'},{'scalar','integer','>=',1,'<=',size(x,2)});
                 if components>rank(z), error('regression:components','PLS成分数は学習データの独立な説明変数数（%d）以下にしてください。',rank(z)); end
@@ -265,6 +269,23 @@ classdef ProcessRegressionModel
                 else, parts{column}=x(:,column); end
             end
             design=[parts{:}];
+        end
+        function usable=usableDummyColumns(model,design)
+            % 重回帰で使う列（design は designInputs の結果）。ダミー変数のうち、学習の行にない水準の列は使わない。
+            % 基準の水準（1番目）が学習の行にないときは、残りのダミー変数の和が切片と同じになるため、
+            % 学習の行にある最初の水準の列も使わず、その水準を基準にする。
+            mask=model.categoricalMask(); usable=true(1,size(design,2));
+            if ~any(mask), return; end
+            position=0;
+            for column=1:numel(mask)
+                if ~mask(column), position=position+1; continue; end
+                width=numel(model.Levels{column})-1; columns=position+(1:width); position=position+width;
+                present=any(design(:,columns)~=0,1);
+                usable(columns)=present;
+                if ~any(model.X(:,column)==1)
+                    first=find(present,1); usable(columns(first))=false;
+                end
+            end
         end
         function vip=predictorVip(model,column_vip)
             % ダミー変数に分けた列の VIP を、元の説明変数ごとにまとめる（VIP² の平均の平方根）。

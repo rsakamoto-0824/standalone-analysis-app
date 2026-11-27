@@ -24,6 +24,18 @@ classdef TestRegressionOptions < matlab.unittest.TestCase
             testCase.verifyError(@()ProcessRegressionModel(x,y,{'a','b'},'linear',2,[],struct(),struct('Loss','quantile','Quantile',1)),'regression:quantile');
             testCase.verifyError(@()ProcessRegressionModel(x,y,{'a','b'},'linear',2,[],struct(),struct('Loss','absolute')),'regression:loss');
         end
+        function rankingComparesSameLossOnly(testCase)
+            % 平均のモデルは RMSE、分位点のモデルは同じ τ どうしでピンボール損失の順位。まとまりごとに1位がある。
+            actual=(1:10)'; plain=struct('Loss',[]); q9=struct('Loss',struct('Type','quantile','Quantile',0.9));
+            make=@(condition,prediction) struct('Run',1,'Target','y','Condition',condition,'Model',1, ...
+                'Metrics',table([0;sqrt(mean((actual-prediction).^2))],'VariableNames',{'Value'}),'Actual',actual,'Prediction',prediction);
+            records={make(plain,actual+1),make(plain,actual),make(q9,actual+3),make(q9,actual+0.5),struct('Run',1,'Target','y','Condition',q9,'Model',[], ...
+                'Metrics',table(),'Actual',actual,'Prediction',[])};
+            [ranks,scores,groups]=model_rank_scores(records);
+            testCase.verifyEqual(ranks(1:4)',[2,1,2,1]); testCase.verifyTrue(isnan(ranks(5)));
+            testCase.verifyEqual(groups(1),"1/y/平均"); testCase.verifyEqual(groups(3),"1/y/分位点τ=0.9");
+            testCase.verifyEqual(scores(4),ProcessRegressionModel.pinballLoss(actual,actual+0.5,0.9),'AbsTol',1e-12);
+        end
         function pinballLossAndLabels(testCase)
             testCase.verifyEqual(ProcessRegressionModel.pinballLoss([1;2;3],[2;2;2],0.9),(0.1*1+0+0.9*1)/3,'AbsTol',1e-12);
             loss=struct('Type','quantile','Quantile',0.25);
@@ -56,6 +68,19 @@ classdef TestRegressionOptions < matlab.unittest.TestCase
             ebm=ProcessRegressionModel([x,g],y,{'x','g'},'ebm',2,[],struct(),options);
             [positions,values]=ebm.Booster.shape(2); testCase.verifyEqual(positions,1:3);
             testCase.verifyEqual(values-values(1),[0,2,-1],'AbsTol',0.3);
+        end
+        function linearHandlesLevelsMissingFromTraining(testCase)
+            % 学習の行にない水準（交差検証で行の少ない水準が抜けたときなど）があっても重回帰を学習できる。
+            % その水準のダミー変数の係数は0（予測は基準の水準と同じ）。基準の水準（1番目）がないときは、ある最初の水準を基準にする。
+            rng(9); n=80; x=rand(n,1); levels={[],["A";"B";"C";"D"]}; effect=[0;2;-1;5];
+            for missing=[4,1]
+                g=randi(4,n,1); g(g==missing)=mod(missing,4)+1; y=x+effect(g)+0.05*randn(n,1);
+                for loss={'squared','quantile'}
+                    model=ProcessRegressionModel([x,g],y,{'x','g'},'linear',2,[],struct(),struct('Categorical',[false,true],'Levels',{levels},'Loss',loss{1},'Quantile',0.5));
+                    present=setdiff(1:4,missing); predicted=predict(model,[0.5*ones(3,1),present']);
+                    testCase.verifyEqual(predicted',0.5+effect(present)','AbsTol',0.1,sprintf('水準%dなし・%s',missing,loss{1}));
+                end
+            end
         end
         function quantileBoostingCoversHeldOutData(testCase)
             % 分位点の葉の値は葉に入った行の残差の分位点のため、葉が小さい・回数が多いと学習データに合わせすぎ、
@@ -103,6 +128,7 @@ classdef TestRegressionOptions < matlab.unittest.TestCase
             testCase.verifyEqual(order_column_values(data,'日時'),[3;1;2]);
             testCase.verifyEqual(order_column_values(data,'X'),[1;2;3]);
             data.Cells{2,1}=missing; testCase.verifyError(@()order_column_values(data,'日時'),'order_column_values:missing');
+            data.Cells(:,1)={1;Inf;2}; testCase.verifyError(@()order_column_values(data,'日時'),'order_column_values:nonFinite');
             % 交差検証では、学習に使う行の分だけの並べ替えの値を学習へ渡す。
             rng(5); n=60; x=rand(n,1); y=2*x+0.1*randn(n,1); seen={};
             conditions=modeling_conditions({},{'catboost'},'exact',2,100,struct('catboost',struct('NumRounds',10)),[],[],struct('Order',(1:n)'));

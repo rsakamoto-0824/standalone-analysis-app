@@ -837,14 +837,16 @@ classdef ModelingPage < AppPage
             end
         end
         function row = bestRow(page, first_row)
-            % 今回の実行の最初の目的変数で、RMSEが最も小さいモデルを最初に表示する。
-            row = first_row; best = Inf; target = page.Records{first_row}.Target;
+            % 今回の実行の最初の目的変数で、順位が1位のモデルを最初に表示する（model_rank_scores）。
+            % 平均を予測するモデルと分位点のモデルは別々に順位を付けるため、平均のモデルがあればその1位を選ぶ。
+            row = first_row; [ranks, ~, groups] = model_rank_scores(page.Records);
+            target = page.Records{first_row}.Target; chosen = [];
             for index = first_row:numel(page.Records)
-                record = page.Records{index};
-                if isempty(record.Model) || ~strcmp(record.Target, target), continue; end
-                rmse = record.Metrics.Value(2);
-                if rmse < best, best = rmse; row = index; end
+                if ranks(index) ~= 1 || ~strcmp(page.Records{index}.Target, target), continue; end
+                if endsWith(groups(index), "/平均"), row = index; return; end
+                if isempty(chosen), chosen = index; end
             end
+            if ~isempty(chosen), row = chosen; end
         end
         function entry = logEntry(page, record)
             entry = struct('Function', page.Kind, 'InputFile', page.fileNameOf(record.Source), 'Rows', size(record.Inputs, 1), ...
@@ -856,21 +858,21 @@ classdef ModelingPage < AppPage
             end
         end
         function refreshModelTable(page)
-            % 目的変数ごとにまとめ、その中は実行の順、同じ実行の中は精度の順位（RMSEの小さい順。失敗は最後）で並べる。
+            % 目的変数ごとにまとめ、その中は実行の順、同じ実行の中は精度の順位（平均は RMSE、分位点はピンボール損失の小さい順。失敗は最後）で並べる。
             % 分位点回帰のモデルは、評価データで「実測が予測以下」だった行の割合も示す（τ に近いほど良い。それ以外は空欄）。
-            count = numel(page.Records); rows = cell(count, 15); ranks = page.ranks();
+            count = numel(page.Records); rows = cell(count, 16); ranks = page.ranks();
             page.RowOrder = page.displayOrder(ranks);
             for position = 1:count
                 index = page.RowOrder(position); record = page.Records{index}; r2 = NaN; rmse = NaN;
                 if ~isempty(record.Metrics), r2 = record.Metrics.Value(1); rmse = record.Metrics.Value(2); end
                 saved = ''; if ~isempty(record.SavedPath), [~, base, extension] = fileparts(record.SavedPath); saved = [base extension]; end
                 rows(position, :) = {record.Id, record.Run, record.Target, modeling_condition_label(record.Condition), ranks(index), r2, rmse, ...
-                    ModelingPage.belowShare(record), record.Scope, record.ShapStatus, record.Status, saved, strjoin(record.InputNames, ', '), ...
+                    ModelingPage.belowShare(record), ModelingPage.pinball(record), record.Scope, record.ShapStatus, record.Status, saved, strjoin(record.InputNames, ', '), ...
                     page.fileNameOf(record.Source), record.Note};
             end
             page.ModelTable.Data = cell2table(rows, 'VariableNames', ...
-                {'ID', '実行', '目的変数', 'モデル', '順位', 'R2', 'RMSE', '実測が予測以下の割合', '評価データ', 'SHAP', '状態', '保存先', '説明変数', '入力ファイル', '備考'});
-            page.ModelTable.ColumnWidth = {40, 44, 90, 150, 44, 80, 90, 90, 120, 60, 54, 150, 200, 160, 'auto'};
+                {'ID', '実行', '目的変数', 'モデル', '順位', 'R2', 'RMSE', '実測が予測以下の割合', 'ピンボール損失', '評価データ', 'SHAP', '状態', '保存先', '説明変数', '入力ファイル', '備考'});
+            page.ModelTable.ColumnWidth = {40, 44, 90, 150, 44, 80, 90, 90, 90, 120, 60, 54, 150, 200, 160, 'auto'};
         end
         function order = displayOrder(page, ranks)
             % 表示順：目的変数（最初に現れた順）→ 実行 → 順位（失敗は最後）→ 元の順。
@@ -885,17 +887,8 @@ classdef ModelingPage < AppPage
             [~, order] = sortrows(keys); order = order(:)';
         end
         function ranks = ranks(page)
-            % 同じ実行・同じ目的変数の中で、RMSEの小さい順に順位を付ける。
-            count = numel(page.Records); ranks = NaN(count, 1); groups = strings(count, 1); rmse = NaN(count, 1);
-            for index = 1:count
-                record = page.Records{index}; groups(index) = sprintf('%d/%s', record.Run, record.Target);
-                if ~isempty(record.Model), rmse(index) = record.Metrics.Value(2); end
-            end
-            names = unique(groups);
-            for group = 1:numel(names)
-                members = find(groups == names(group) & isfinite(rmse)); [~, order] = sort(rmse(members));
-                ranks(members(order)) = 1:numel(members);
-            end
+            % 同じ実行・同じ目的変数・同じ損失関数のモデルどうしの順位（平均は RMSE、分位点はピンボール損失の小さい順）。
+            ranks = model_rank_scores(page.Records);
         end
         function modelRowSelected(page, event)
             % 一覧は並べ替えて表示しているため、表示の行から Records の番号へ戻す。
@@ -1134,6 +1127,13 @@ classdef ModelingPage < AppPage
                 return;
             end
             share = mean(record.Actual(:) <= record.Prediction(:));
+        end
+        function value = pinball(record)
+            % 分位点回帰の条件だけ、評価データでのピンボール損失（分位点のモデルの順位に使う値）。それ以外は空欄。
+            value = NaN;
+            if ~isnan(ModelingPage.belowShare(record))
+                value = ProcessRegressionModel.pinballLoss(record.Actual, record.Prediction, record.Condition.Loss.Quantile);
+            end
         end
     end
 end
