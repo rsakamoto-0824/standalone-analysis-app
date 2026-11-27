@@ -59,9 +59,10 @@ classdef DesignPage < AppPage
                     existing = assign_required_columns(page.Source.Data, mapping(:, 2), mapping(:, 3));
                 end
                 settings = page.settings(); model = page.DesignModel.Value;
-                dialog = page.App.startProgress('実験計画作成', '計画を探索しています。');
+                dialog = page.App.startProgress('実験計画作成', '計画を探索しています。', true);
+                reporter = AnalysisController.progressReporter(dialog, '実験計画の作成を中止しました。今回の結果は表示していません。以前の結果は残っています。');
                 [design, details] = create_experiment_design(page.METHOD_CODES{choice}, factors, page.Runs.Value, settings.Seed, ...
-                    model, str2double(page.Levels.Value), existing);
+                    model, str2double(page.Levels.Value), existing, reporter);
                 report = design_diagnostics(design, model); metrics = design_metrics(design, model);
                 AnalysisController.closeProgress(dialog);
                 page.showDesign(design, details, report, metrics);

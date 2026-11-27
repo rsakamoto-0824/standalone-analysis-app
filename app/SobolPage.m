@@ -127,12 +127,14 @@ classdef SobolPage < AppPage
                 levels = zeros(1, numel(lower)); levels(categorical) = upper(categorical);
                 options = struct('SampleSize', page.SampleSize.Value, 'Bootstrap', page.Bootstrap.Value, 'Seed', page.settings().Seed, ...
                     'Categorical', categorical, 'LevelCounts', levels);
-                dialog = page.App.startProgress('Sobol感度解析', '準備しています。');
+                dialog = page.App.startProgress('Sobol感度解析', '準備しています。', true);
+                reporter = AnalysisController.progressReporter(dialog, 'Sobol感度解析を中止しました。今回の結果は表示していません。');
+                options.Progress = reporter;
                 given = []; fit = table();
                 if strcmp(page.SourceKind, 'data')
                     [inputs, response] = page.dataMatrices();
                     dialog.Message = '代替モデルを学習しています（交差検証で当てはまりも確かめます）。'; drawnow;
-                    [predictor, fit] = page.trainSurrogate(inputs, response);
+                    [predictor, fit] = page.trainSurrogate(inputs, response, reporter);
                     if strcmp(page.Distribution.Value, 'empirical'), options.Marginals = num2cell(inputs, 1); end
                     given = calc_sobol_given_data(inputs, response);
                     label = sprintf('データ %s（代替モデル：%s）', page.Source.fileName(), page.SURROGATE_NAMES{strcmp(page.SURROGATE_CODES, page.Surrogate.Value)});
@@ -140,7 +142,6 @@ classdef SobolPage < AppPage
                     if isempty(page.Model), error('sobol:noModel', '①でモデルを選んでください。'); end
                     predictor = @(x) page.App.Services.Predictor(page.Model, x); label = page.ModelEntry.Label;
                 end
-                dialog.Message = sprintf('予測を %d 回計算しています。', page.SampleSize.Value * (numel(names) + 2)); drawnow;
                 result = calc_sobol_indices(predictor, lower, upper, names, options);
                 AnalysisController.closeProgress(dialog);
                 page.showResult(result, given, fit, label);
@@ -244,15 +245,18 @@ classdef SobolPage < AppPage
             inputs = extract_numeric_columns(page.Source.Data, names); response = extract_numeric_columns(page.Source.Data, {page.Output.Value});
             if size(inputs, 1) < page.CV_FOLDS * 2, error('sobol:rows', 'データから解析するには %d 行以上が必要です。', page.CV_FOLDS * 2); end
         end
-        function [predictor, fit] = trainSurrogate(page, inputs, response)
+        function [predictor, fit] = trainSurrogate(page, inputs, response, reporter)
             % 代替モデルを全データで学習し、交差検証（5分割、乱数は設定の seed）で当てはまりを確かめる。
+            % reporter（進捗の関数）は各分割の前に呼び、途中で止められるようにする（1回の学習の途中では止まらない）。
             method = page.Surrogate.Value; seed = page.settings().Seed;
             train = @(x, y) page.fitSurrogate(method, x, y);
             stream = RandStream('twister', 'Seed', seed); rows = size(inputs, 1);
             fold = zeros(rows, 1); fold(randperm(stream, rows)) = mod(0:rows - 1, page.CV_FOLDS) + 1; predicted = NaN(rows, 1);
             for index = 1:page.CV_FOLDS
+                reporter(index - 1, page.CV_FOLDS + 1, sprintf('代替モデルの交差検証 %d / %d 分割', index, page.CV_FOLDS));
                 held = fold == index; model = train(inputs(~held, :), response(~held)); predicted(held) = predict(model, inputs(held, :));
             end
+            reporter(page.CV_FOLDS, page.CV_FOLDS + 1, '代替モデルを全データで学習しています');
             model = train(inputs, response); page.LastSurrogate = model; training = predict(model, inputs);
             r2 = @(estimate) 1 - sum((response - estimate).^2) / sum((response - mean(response)).^2);
             rmse = @(estimate) sqrt(mean((response - estimate).^2));

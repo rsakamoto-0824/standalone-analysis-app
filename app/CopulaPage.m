@@ -82,7 +82,10 @@ classdef CopulaPage < AppPage
             dialog = [];
             try
                 require_pro_feature('コピュラによる乱数生成');
-                dialog = page.App.startProgress('コピュラによる乱数生成', 'コピュラを当てはめて、乱数を作っています。');
+                dialog = page.App.startProgress('コピュラによる乱数生成', 'コピュラを当てはめて、乱数を作っています。', true);
+                % 当てはめと生成は1回ずつの計算のため、その間（切り替わり）で止められるようにする。
+                reporter = AnalysisController.progressReporter(dialog, 'コピュラによる乱数生成を中止しました。今回の結果は表示していません。以前の結果は残っています。');
+                reporter(0, 2, 'コピュラを当てはめています');
                 if strcmp(page.Mode.Value, 'data')
                     names = cellstr(string(page.Columns.Value)); names = names(:)';
                     if isempty(page.Source.Data), error('copula:noData', '①でデータを開いてください。'); end
@@ -93,7 +96,9 @@ classdef CopulaPage < AppPage
                     [names, marginals, dependence] = page.specification();
                     model = copula_from_spec(names, marginals, dependence, page.Measure.Value, page.Family.Value);
                 end
+                reporter(1, 2, sprintf('乱数を %d 行作っています', page.SampleCount.Value));
                 samples = copula_generate(model, page.SampleCount.Value, page.Seed.Value);
+                reporter(2, 2, '結果を表示しています');
                 AnalysisController.closeProgress(dialog);
                 page.Model = model; page.Samples = samples; page.showResult(model, samples);
             catch err

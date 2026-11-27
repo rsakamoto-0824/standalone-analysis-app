@@ -94,11 +94,12 @@ classdef CausalPage < AppPage
                     error('causal:columns', '②で数値の列を2〜%d列選んでください（現在 %d列）。', page.MAX_COLUMNS, numel(names));
                 end
                 values = extract_numeric_columns(page.Source.Data, names);
-                dialog = page.App.startProgress('因果探索', '列どうしの関係を調べています。');
+                dialog = page.App.startProgress('因果探索', '列どうしの関係を調べています。', true);
                 % 選んでいない列を含む指定は使わない（列の選び直しで消さずに残しておく）。
                 used = all(ismember(page.Knowledge(:, [1, 3]), names), 2); rules = page.Knowledge(used, :);
                 options = struct('Alpha', page.Alpha.Value, 'MaxConditioning', page.MaxConditioning.Value, ...
-                    'Knowledge', causal_knowledge(names, rules));
+                    'Knowledge', causal_knowledge(names, rules), ...
+                    'Progress', AnalysisController.progressReporter(dialog, '因果探索を中止しました。今回の結果は表示していません。以前の結果は残っています。'));
                 report = causal_discovery(values, names, page.Method.Value, options);
                 AnalysisController.closeProgress(dialog);
                 page.Report = report; page.showReport(report, names, size(rules, 1));

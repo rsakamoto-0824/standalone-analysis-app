@@ -1,6 +1,8 @@
-function [design, details] = create_experiment_design(method, factors, runs, seed, model, levels, existing)
+function [design, details] = create_experiment_design(method, factors, runs, seed, model, levels, existing, progress)
 % D/I は座標交換による局所探索。I 基準は [-1,1]^k 一様分布の厳密な積分モーメント。
-if nargin < 7, existing = zeros(0, factors); end
+% progress（省略可）：進捗の関数 progress(done, total, stage)。探索の行ごとに呼ぶ（画面の途中停止に使う）。
+if nargin < 7 || isempty(existing), existing = zeros(0, factors); end
+if nargin < 8, progress = []; end
 validateattributes(factors, {'numeric'}, {'scalar', 'integer', '>=', 1, '<=', 8});
 validateattributes(runs, {'numeric'}, {'scalar', 'integer', '>=', 1, '<=', 300});
 validateattributes(seed, {'numeric'}, {'scalar', 'integer', '>=', 0, '<=', 2^32 - 1});
@@ -44,6 +46,10 @@ for start = 1:STARTS
     for pass = 1:MAX_PASSES
         previous_score = score;
         for row = fixed_count + 1:size(candidate, 1)
+            if ~isempty(progress)
+                progress((start - 1) * MAX_PASSES + pass - 1, STARTS * MAX_PASSES, ...
+                    sprintf('出発点 %d / %d・改善の繰り返し %d 回目', start, STARTS, pass));
+            end
             for factor = 1:factors
                 old_term = matrix(row, :);
                 without = information - old_term' * old_term;

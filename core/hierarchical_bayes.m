@@ -5,9 +5,11 @@ function result = hierarchical_bayes(response, predictors, groups, names, group_
 %   options.Varying：'intercept'（切片だけグループごと、傾きは共通）または 'all'（切片と傾きをグループごと）
 % 計算はギブスサンプリング（MCMC）。目的変数・説明変数を標準化して計算し、結果は元の単位へ戻す。
 % 事前分布は標準化した単位で弱い情報のもの：μ・共通の係数 ~ N(0, 10²)、Σ ~ 逆ウィシャート(項数+2, 単位行列)、σ² ~ 逆ガンマ(1, 1)。
-% options：Iterations（既定 2000）、BurnIn（既定 1000）、Chains（既定 2）、Seed（既定 0）。
+% options：Iterations（既定 2000）、BurnIn（既定 1000）、Chains（既定 2）、Seed（既定 0）、
+%          Progress（省略可。進捗の関数 Progress(done, total, stage)。PROGRESS_EVERY 回ごとに呼ぶ）。
 % 収束の目安として、各量の R-hat（Gelman–Rubin。1.1 未満が目安）を出す。
-defaults = struct('Varying', 'all', 'Iterations', 2000, 'BurnIn', 1000, 'Chains', 2, 'Seed', 0);
+defaults = struct('Varying', 'all', 'Iterations', 2000, 'BurnIn', 1000, 'Chains', 2, 'Seed', 0, 'Progress', []);
+PROGRESS_EVERY = 25;
 given = fieldnames(options);
 for index = 1:numel(given), defaults.(given{index}) = options.(given{index}); end
 options = defaults;
@@ -34,6 +36,10 @@ for chain = 1:chains
     rng(options.Seed + chain - 1, 'twister');
     b = 0.5 * randn(q, group_count); mu = zeros(q, 1); Sigma = eye(q); gamma = zeros(f, 1); sigma2 = 1;
     for iteration = 1:options.Iterations
+        if ~isempty(options.Progress) && mod(iteration - 1, PROGRESS_EVERY) == 0
+            options.Progress((chain - 1) * options.Iterations + iteration - 1, chains * options.Iterations, ...
+                sprintf('鎖 %d / %d・繰り返し %d / %d 回', chain, chains, iteration - 1, options.Iterations));
+        end
         offset = W * gamma; Sigma_inv = inv(Sigma);
         for g = 1:group_count
             index = members{g}; Zg = Z(index, :);
