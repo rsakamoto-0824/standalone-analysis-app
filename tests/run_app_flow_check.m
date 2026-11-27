@@ -27,7 +27,7 @@ step('起動とホーム画面', @() app.selectPage('home'));
 step('APC：2カーネルを交差検証あり・なしで比較・SHAP・保存', @checkApc);
 step('Swing Curve：下地あり', @checkSwingWithBase);
 step('Swing Curve：下地なし・周期カーネル', @checkSwingPeriodic);
-step('データの傾向：単変量・Pro 版の8種類・一括描画と結果の保持・帯の色の列', @checkExplorer);
+step('データの傾向：単変量・Pro 版の10種類・一括描画と結果の保持・帯の色の列', @checkExplorer);
 step('汎用回帰：GPR・重回帰・PLS・ランダムフォレスト・バギング木の比較と保存', @checkGeneric);
 step('Pro版の回帰：EBM・XGBoost・LightGBM・CatBoost・ハイパーパラメータ探索・目的変数ごとの並べ替え', @checkBoosting);
 step('Pro版のGPR：加法カーネル・質的変数（Lot）・変数重要度（Permutation Importance・VIP）', @checkProGpr);
@@ -217,7 +217,7 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
     function checkExplorer()
         % 学習画面の①「グラフで傾向を見る」。APC のサンプルには文字の列（Lot）がある。
         page = app.page('apc'); page.openSample(); explorer = page.Explorer;
-        assert(numel(explorer.Kind.Items) == 9, 'Pro版では9種類のグラフを選べます。');
+        assert(numel(explorer.Kind.Items) == 10, 'Pro版では10種類のグラフを選べます。');
         explorer.configure(struct('Kind', 'trend', 'X', explorer.RECORD, 'Y', 'CD_X', 'Color', 'Lot', 'ColorMode', 'auto')); explorer.draw();
         groups = explorer.latestTable('縦軸の要約');
         assert(height(groups) == 7 && groups.("グループ")(1) == "全体", '文字の列（Lot）で色分けすると、6グループの要約が出ます。');
@@ -231,6 +231,7 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
             struct('Kind', 'parallel', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'CD_X'}}, 'Color', 'Lot'), 'Parallel Coordinates'
             struct('Kind', 'sets', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', explorer.NO_COLOR), 'Parallel Sets'
             struct('Kind', 'sankey', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', explorer.NO_COLOR), 'Sankey Diagram'
+            struct('Kind', 'alluvial', 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', explorer.NO_COLOR), 'Alluvial Diagram'
             struct('Kind', 'pca', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'Color', 'Lot', 'ColorMode', 'auto'), '主成分得点（PC1 × PC2）'
             struct('Kind', 'cluster', 'Columns', {{'SIN_TH', 'SIN_RN', 'NSG_TH', 'RESIST_TH'}}, 'ClusterMethod', 'ward', 'ClusterCount', 3), '樹形図（Ward 法）'};
         for index = 1:size(settings, 1)
@@ -241,10 +242,10 @@ if ~all(results.Passed), error('run_app_flow_check:failed', '失敗した確認�
         assert(numel(explorer.chartNames()) >= 11 && any(strcmp(explorer.chartNames(), 'CD_X の傾向')), '前に描いたグラフが消えています。');
         % 複数の種類を一括で描く。Parallel Sets・Sankey は任意の列（数値は連続した色）で色を付ける。
         before = numel(explorer.Result.ChartNames);
-        explorer.configure(struct('Kind', {{'histogram', 'sets', 'sankey'}}, 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', 'RESIST_TH', 'ColorMode', 'numeric'));
+        explorer.configure(struct('Kind', {{'histogram', 'sets', 'sankey', 'alluvial'}}, 'Columns', {{'Lot', 'SIN_TH', 'CD_X'}}, 'Color', 'RESIST_TH', 'ColorMode', 'numeric'));
         explorer.draw();
         added = explorer.chartNames(); added = added(before + 1:end);
-        assert(all(ismember({'ヒストグラム: SIN_TH', 'Parallel Sets', 'Sankey Diagram'}, added)), '一括で描いたグラフが足りません: %s', strjoin(added, ', '));
+        assert(all(ismember({'ヒストグラム: SIN_TH', 'Parallel Sets', 'Sankey Diagram', 'Alluvial Diagram'}, added)), '一括で描いたグラフが足りません: %s', strjoin(added, ', '));
         explorer.configure(struct('Kind', 'sets', 'Color', 'Lot', 'ColorMode', 'auto')); explorer.draw();
         explorer.clearResults(); assert(isempty(explorer.Result.ChartNames), '「結果を消す」でグラフが消えません。');
         anova = (struct('Kind', 'anova', 'Y', 'CD_X', 'Columns', {{'Lot'}})); explorer.configure(anova); explorer.draw();

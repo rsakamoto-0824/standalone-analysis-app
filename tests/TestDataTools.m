@@ -34,7 +34,7 @@ classdef (TestTags = {'Pro'}) TestDataTools < matlab.unittest.TestCase
         end
         function flowColorsByCategoryAndNumber(testCase)
             groups=[1,1;1,2;2,2;2,2;1,1;2,1]; values=[1;2;3;4;5;6];
-            for style={'sets','sankey'}
+            for style={'sets','sankey','alluvial'}
                 category=category_flow_layout(groups,[2,2],style{1},struct('Mode','category','Values',[1;2;1;2;1;2]));
                 testCase.verifyEqual(sum(category.Ribbons.Count(category.Ribbons.Column==1)),6,style{1});
                 testCase.verifyTrue(all(ismember(category.Ribbons.Color,[1,2])),style{1});
