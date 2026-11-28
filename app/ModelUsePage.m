@@ -25,6 +25,8 @@ classdef ModelUsePage < AppPage
     end
     properties (Constant)
         LEFT_WIDTH = 440
+        % 推定を何行ずつ計算するか（その間に途中停止のボタンを確かめる）。
+        PREDICT_CHUNK_ROWS = 5000
         NO_MODEL = 0
         NO_ACTUAL = '(実測値なし)'
         MODE_GENERAL = '汎用推定（APC・Swing Curve・汎用回帰のモデル）'
@@ -69,11 +71,12 @@ classdef ModelUsePage < AppPage
                 matrix = page.mappedInput(); rows = page.Source.Data.RowNumbers;
                 page.Result.clear();
                 if strcmp(page.Mode.Value, page.MODE_DENOISE) || page.ComputeShap.Value
-                    dialog = page.App.startProgress('推定・SHAP', '推定と SHAP の計算をしています。行数が多いと時間がかかります。');
+                    dialog = page.App.startProgress('推定・SHAP', '推定と SHAP の計算をしています。行数が多いと時間がかかります。', true);
                 else
-                    dialog = page.App.startProgress('推定', '推定しています。');
+                    dialog = page.App.startProgress('推定', '推定しています。', true);
                 end
-                prediction = page.runModel(matrix, rows);
+                reporter = AnalysisController.progressReporter(dialog, '推定を中止しました。今回の結果は表示していません。');
+                prediction = page.runModel(matrix, rows, reporter);
                 page.evaluate(matrix, prediction);
                 AnalysisController.closeProgress(dialog);
                 page.Views.SelectedTab = page.ResultTab; page.App.applyTheme();
@@ -248,8 +251,10 @@ classdef ModelUsePage < AppPage
         end
 
         % ================= ④ 実行 =================
-        function prediction = runModel(page, matrix, rows)
+        function prediction = runModel(page, matrix, rows, reporter)
             % 推定し、選んだときは SHAP も計算する。面内推定は X・Y から半径を求めてモデルへ渡すため、SHAP も3変数で計算する。
+            % reporter（進捗の関数）で途中停止を受け付ける。推定は PREDICT_CHUNK_ROWS 行ずつ計算し、そのたびに確かめる。
+            % SHAP（とノイズ除去）は1回の計算のため、始まったら終わってから止まる。
             names = page.displayNames(); services = page.App.Services; extra = table();
             shap_columns = {}; shap_values = []; explainer = []; values = []; shap_inputs = matrix;
             limit = min(size(matrix, 1), page.App.Constants.MAX_SHAP_POINTS);
@@ -259,7 +264,15 @@ classdef ModelUsePage < AppPage
                 page.showWarnings(warnings);
                 shap_inputs = [matrix, sqrt(matrix(:, 1).^2 + matrix(:, 2).^2)]; names = page.Model.PredictorNames;
             else
-                prediction = services.Predictor(page.Model, matrix);
+                count = size(matrix, 1); prediction = zeros(count, 1);
+                for first = 1:page.PREDICT_CHUNK_ROWS:count
+                    part = first:min(first + page.PREDICT_CHUNK_ROWS - 1, count);
+                    reporter(first - 1, count, sprintf('推定しています（%d / %d 行）', first - 1, count));
+                    values_part = services.Predictor(page.Model, matrix(part, :)); prediction(part) = values_part(:);
+                end
+            end
+            if strcmp(page.Mode.Value, page.MODE_DENOISE) || page.ComputeShap.Value
+                reporter(1, 1, 'SHAP を計算しています（この計算は、始まると終わってから止まります）');
             end
             if strcmp(page.Mode.Value, page.MODE_DENOISE)
                 [resist, explainer, values] = services.Denoise(page.Model, matrix(:, 1:end-1), matrix(:, end));

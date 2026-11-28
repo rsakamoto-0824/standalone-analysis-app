@@ -96,9 +96,10 @@ classdef BayesPage < AppPage
                 response = extract_numeric_columns(data, {page.Response.Value});
                 predictors = zeros(numel(response), 0); if ~isempty(names), predictors = extract_numeric_columns(data, names); end
                 [groups, group_names] = encode_categories(data, page.Group.Value);
-                dialog = page.App.startProgress('階層ベイズ', 'MCMC（ギブスサンプリング）で計算しています。');
+                dialog = page.App.startProgress('階層ベイズ', 'MCMC（ギブスサンプリング）で計算しています。', true);
                 options = struct('Varying', page.Varying.Value, 'Iterations', page.Iterations.Value, 'BurnIn', page.BurnIn.Value, ...
-                    'Chains', page.Chains.Value, 'Seed', page.settings().Seed);
+                    'Chains', page.Chains.Value, 'Seed', page.settings().Seed, ...
+                    'Progress', AnalysisController.progressReporter(dialog, '階層ベイズを中止しました。今回の結果は表示していません。以前の結果は残っています。'));
                 report = hierarchical_bayes(response, predictors, groups, names, group_names, options);
                 AnalysisController.closeProgress(dialog);
                 page.Report = report; page.showReport(report, response, group_names, groups);

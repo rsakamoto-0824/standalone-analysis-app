@@ -187,6 +187,10 @@ classdef AnalysisController < handle
         function closeProgress(dialog)
             if ~isempty(dialog) && isvalid(dialog), close(dialog); end
         end
+        function reporter = progressReporter(dialog, cancel_message)
+            % 計算の途中から呼ぶ進捗の関数を作る（中身は progress_reporter。途中停止のボタンを受け取る）。
+            reporter = progress_reporter(dialog, cancel_message);
+        end
         function titles = menuTitles(edition)
             % 左のメニューの名前（番号つき）。Pro 版だけの画面（Sobol感度解析・因果探索・階層ベイズ・コピュラ乱数生成・ワードクラウド）は通常版に出さない。
             keys = {'apc', 'swing', 'generic', 'furnace', 'predict', 'sobol', 'causal', 'bayes', 'copula', 'doe', 'words', 'settings', 'help'};

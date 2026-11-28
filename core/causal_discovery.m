@@ -5,7 +5,8 @@ function result = causal_discovery(values, names, method, options)
 %   'lingam'  ：DirectLiNGAM。誤差が正規分布でないことを使って因果の順序を決め、各変数を順序が前の変数へ回帰する
 %               （係数は標準化した値。t 検定の p 値が Alpha 以上の辺は外す）。線形・非正規・未観測の交絡なしを仮定。
 % options：Alpha（既定 0.05）、MaxConditioning（PC の条件づける変数の最大数。既定 3）、
-%          Knowledge（事前の知識。causal_knowledge の戻り値。Forbidden・Required の列×列の論理行列）。
+%          Knowledge（事前の知識。causal_knowledge の戻り値。Forbidden・Required の列×列の論理行列）、
+%          Progress（省略可。進捗の関数 Progress(done, total, stage)。PC は列ごと、LiNGAM は順序の1段ごとに呼ぶ）。
 % 事前の知識を指定すると：
 %   PC     ：どちらの向きもあり得ない列の組は最初から辺を外し、因果がある組は検定で外さない。向きは、知識の向きを先に決め、
 %            V字構造と Meek の規則では知識に反する向きを決めない（Meek 1995 の背景知識つき PC と同じ考え方）。
@@ -18,6 +19,7 @@ if isfield(options, 'Alpha'), alpha = options.Alpha; end
 if isfield(options, 'MaxConditioning'), max_conditioning = options.MaxConditioning; end
 knowledge = struct('Forbidden', false(size(values, 2)), 'Required', false(size(values, 2)));
 if isfield(options, 'Knowledge') && ~isempty(options.Knowledge), knowledge = options.Knowledge; end
+progress = @(done, total, stage) []; if isfield(options, 'Progress') && ~isempty(options.Progress), progress = options.Progress; end
 validate_numeric_data(values, '列', mfilename);
 [rows, count] = size(values);
 if count < 2, error('causal:columns', '2列以上を選んでください。'); end
@@ -30,8 +32,8 @@ end
 forbidden = logical(knowledge.Forbidden); required = logical(knowledge.Required);
 z = (values - mean(values, 1)) ./ scale;
 switch method
-    case 'pc', [adjacency, strength, order] = pcAlgorithm(z, alpha, max_conditioning, forbidden, required);
-    case 'lingam', [adjacency, strength, order] = directLingam(z, alpha, forbidden, required);
+    case 'pc', [adjacency, strength, order] = pcAlgorithm(z, alpha, max_conditioning, forbidden, required, progress);
+    case 'lingam', [adjacency, strength, order] = directLingam(z, alpha, forbidden, required, progress);
     otherwise, error('causal:method', 'pc または lingam を指定してください。');
 end
 result.Adjacency = adjacency; result.Strength = strength; result.Order = order; result.Method = method;
@@ -40,13 +42,15 @@ result.Edges = edgeTable(adjacency, strength, names, method, required);
 end
 
 % ======================= PC アルゴリズム =======================
-function [adjacency, strength, order] = pcAlgorithm(z, alpha, max_conditioning, forbidden, required)
+function [adjacency, strength, order] = pcAlgorithm(z, alpha, max_conditioning, forbidden, required, progress)
 [rows, count] = size(z); correlation = corrcoef(z);
 % どちらの向きもあり得ない組は最初から辺を外す。因果がある組は検定しない（外さない）。
 adjacent = true(count) & ~eye(count) & ~(forbidden & forbidden'); separators = cell(count);
 kept = required | required';
-for level = 0:min(max_conditioning, count - 2)
+levels = min(max_conditioning, count - 2) + 1;
+for level = 0:levels - 1
     for i = 1:count
+        progress(level * count + i - 1, levels * count, sprintf('辺の検定：条件づける列 %d 個・%d / %d 列目', level, i, count));
         for j = find(adjacent(i, :))
             if j < i || kept(i, j), continue; end
             neighbours = setdiff(find(adjacent(i, :) | adjacent(j, :)), [i, j]);
@@ -136,9 +140,10 @@ yes = adjacency(a, b) == 1 || adjacency(b, a) == 1;
 end
 
 % ======================= DirectLiNGAM =======================
-function [adjacency, strength, order] = directLingam(z, alpha, forbidden, required)
+function [adjacency, strength, order] = directLingam(z, alpha, forbidden, required, progress)
 [rows, count] = size(z); remaining = 1:count; order = zeros(1, count); residuals = z;
 for position = 1:count
+    progress(position - 1, count, sprintf('因果の順序：%d / %d 番目を決めています', position, count));
     % 「因果がある」と指定した元がまだ残っている列は、その元より前に並べない。
     eligible = remaining(arrayfun(@(i) ~any(required(remaining, i)), remaining));
     if isempty(eligible), error('causal:knowledgeCycle', '「因果がある」の指定が循環しているため、因果の順序を決められません。'); end

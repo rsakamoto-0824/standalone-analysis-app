@@ -9,6 +9,12 @@ if any(column.Missing)
 end
 if column.IsNumeric
     values = column.Numbers;
+    % 無限大などは並べる順を決められない（後の学習で分かりにくい言葉で止まらないよう、ここで止める）。
+    bad = ~isfinite(values);
+    if any(bad)
+        error('order_column_values:nonFinite', '並べ替え列「%s」に、並べる順を決められない値（無限大など）があります（元ファイルの行 %s）。', name, ...
+            strjoin(string(source.RowNumbers(find(bad, 5))'), ', '));
+    end
 else
     [~, ~, values] = unique(column.Labels); values = double(values);
 end
